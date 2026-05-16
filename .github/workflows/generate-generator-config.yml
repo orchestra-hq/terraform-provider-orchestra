@@ -1,0 +1,97 @@
+name: Generate generator_config.yml
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml
+
+      - name: Checkout OpenAPI spec
+        run: |
+          echo "Nothing to do here: spec is checked out by the next step."
+
+      - name: Checkout orchestra-docs (OpenAPI)
+        uses: actions/checkout@v4
+        with:
+          repository: orchestra-hq/orchestra-docs
+          ref: main
+          token: ${{ secrets.ORCHESTRA_DOCS_REPO_TOKEN }}
+          path: orchestra-docs
+
+      - name: Copy openapi.yaml into workspace
+        run: |
+          set -euo pipefail
+          cp "orchestra-docs/api/openapi.yaml" openapi.yaml
+
+      - name: Regenerate generator_config.yml (spec -> config)
+        run: |
+          python scripts/generate_generator_config.py --openapi openapi.yaml --out generator_config.yml
+
+      - name: Install tfplugingen-openapi
+        run: |
+          go install github.com/hashicorp/terraform-plugin-codegen-openapi/cmd/tfplugingen-openapi@v0.3.0
+
+      - name: Generate provider_code_spec.json (spec -> code spec)
+        run: |
+          set -euo pipefail
+          $(go env GOPATH)/bin/tfplugingen-openapi generate \
+            --config generator_config.yml \
+            --output provider_code_spec.json \
+            openapi.yaml
+
+      - name: Install tfplugingen-framework
+        run: |
+          go install github.com/hashicorp/terraform-plugin-codegen-framework/cmd/tfplugingen-framework@latest
+
+      - name: Generate _gen.go files (code spec -> Go code)
+        run: |
+          set -euo pipefail
+          rm -rf .tmp-tfplugingen-framework-go
+          mkdir -p .tmp-tfplugingen-framework-go
+          $(go env GOPATH)/bin/tfplugingen-framework generate all \
+            --input provider_code_spec.json \
+            --output .tmp-tfplugingen-framework-go
+
+          python3 scripts/sync_codegen_internal_layout.py --src .tmp-tfplugingen-framework-go --repo-root .
+
+      - name: Check for changes
+        id: diff
+        run: |
+          set -e
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create PR with regenerated artifacts
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: bot/regenerate-generator-config
+          delete-branch: true
+          title: "chore: regenerate codegen artifacts"
+          commit-message: "Regenerate OpenAPI codegen artifacts"
+          body: |
+            This PR was generated automatically from `openapi.yaml` (generator config, provider code spec, and framework-generated Go schemas).
+

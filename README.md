@@ -13,7 +13,7 @@ go test ./...
 To run a single package:
 
 ```bash
-go test ./datasource_pipelines/...
+go test ./internal/datasources/pipelines/...
 ```
 
 To run with verbose output:
@@ -30,18 +30,18 @@ Each package tests:
 
 | Package | Schema tests | Custom type tests |
 |---|---|---|
-| `datasource_assets` | filter attrs, nested fields (string/int64/float64/list) | `ResultsType`, `ResultsValue` |
-| `datasource_azure_federated_credentials` | computed attrs | — |
-| `datasource_operations` | filter attrs, nested fields, dependencies list | `ResultsType`, `ResultsValue` |
-| `datasource_pipeline_run_status` | required/computed attrs | — |
-| `datasource_pipeline_runs` | filter attrs, nested fields | `ResultsType`, `ResultsValue` |
-| `datasource_pipelines` | top-level attrs, nested fields | `InputsType`, `InputsValue`, `PipelinesType` |
-| `datasource_task_run_artifacts` | required attrs, filenames list | — |
-| `datasource_task_run_logs` | required attrs, filenames list | — |
-| `datasource_task_runs` | filter attrs, nested fields | `ResultsType`, `ResultsValue` |
-| `provider_orchestra` | schema is empty | — |
-| `resource_imported_pipeline` | required/optional/computed attrs, data nested attr | `DataType`, `DataValue` |
-| `resource_pipeline` | required/computed attrs, storage_provider default | `DataType`, `DataValue` |
+| `internal/datasources/assets` | filter attrs, nested fields (string/int64/float64/list) | `ResultsType`, `ResultsValue` |
+| `internal/datasources/azure_federated_credentials` | computed attrs | — |
+| `internal/datasources/operations` | filter attrs, nested fields, dependencies list | `ResultsType`, `ResultsValue` |
+| `internal/datasources/pipeline_run_status` | required/computed attrs | — |
+| `internal/datasources/pipeline_runs` | filter attrs, nested fields | `ResultsType`, `ResultsValue` |
+| `internal/datasources/pipelines` | top-level attrs, nested fields | `InputsType`, `InputsValue`, `PipelinesType` |
+| `internal/datasources/task_run_artifacts` | required attrs, filenames list | — |
+| `internal/datasources/task_run_logs` | required attrs, filenames list | — |
+| `internal/datasources/task_runs` | filter attrs, nested fields | `ResultsType`, `ResultsValue` |
+| `internal/provider` | schema is empty | — |
+| `internal/resources/imported_pipeline` | required/optional/computed attrs, data nested attr | `DataType`, `DataValue` |
+| `internal/resources/pipeline` | required/computed attrs, storage_provider default | `DataType`, `DataValue` |
 
 Custom type tests cover `String()`, `Equal()`, `ValueFromTerraform()` (nil/unknown/null inputs), constructor null/unknown/error paths, `NewXxxValueMust` panic behaviour, `ToObjectValue()`, and `Equal()` across value states.
 

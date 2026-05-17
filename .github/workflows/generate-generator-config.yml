@@ -83,18 +83,42 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create PR with regenerated artifacts
+      - name: Create PR with regenerated artifacts (gh cli)
         if: steps.diff.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          # Required when the repo is checked out on a detached merge commit (common for `pull_request` events).
-          base: ${{ github.event.pull_request.base.ref || 'main' }}
-          branch: bot/regenerate-generator-config
-          # Avoid cherry-pick / merge conflicts by ensuring each workflow run gets a fresh PR branch.
-          branch-suffix: timestamp
-          delete-branch: true
-          title: "chore: regenerate codegen artifacts"
-          commit-message: "Regenerate OpenAPI codegen artifacts"
-          body: |
-            This PR was generated automatically from `openapi.yaml` (generator config, provider code spec, and framework-generated Go schemas).
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          BASE="${{ github.event.pull_request.base.ref || 'main' }}"
+          TITLE="chore: regenerate codegen artifacts"
+          COMMIT_MESSAGE="Regenerate OpenAPI codegen artifacts"
+          BODY="This PR was generated automatically from \`openapi.yaml\` (generator config, provider code spec, and framework-generated Go schemas)."
+
+          # Create a unique head branch per run to avoid conflicts on repeated workflow executions.
+          HEAD_BRANCH="bot/regenerate-generator-config-${GITHUB_RUN_ID}"
+
+          git config user.name "gthesheep-orchestra"
+          git config user.email "gthesheep-orchestra@users.noreply.github.com"
+
+          git checkout -b "${HEAD_BRANCH}"
+          git add -A
+          git commit -m "${COMMIT_MESSAGE}"
+
+          git push --set-upstream origin "${HEAD_BRANCH}"
+
+          # If a PR for this head branch already exists (e.g. retry), do not create a duplicate.
+          EXISTING_PR_NUMBER="$(
+            gh pr list --head "${HEAD_BRANCH}" --state open --json number --jq '.[0].number'
+          )" || true
+
+          if [[ -n "${EXISTING_PR_NUMBER}" && "${EXISTING_PR_NUMBER}" != "null" ]]; then
+            echo "PR already exists for head branch: #${EXISTING_PR_NUMBER}"
+            exit 0
+          fi
+
+          gh pr create \
+            --base "${BASE}" \
+            --head "${HEAD_BRANCH}" \
+            --title "${TITLE}" \
+            --body "${BODY}"

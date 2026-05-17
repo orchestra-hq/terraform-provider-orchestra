@@ -88,6 +88,8 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          # Required when the repo is checked out on a detached merge commit (common for `pull_request` events).
+          base: ${{ github.event.pull_request.base.ref || 'main' }}
           branch: bot/regenerate-generator-config
           delete-branch: true
           title: "chore: regenerate codegen artifacts"

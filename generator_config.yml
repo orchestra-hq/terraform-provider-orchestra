@@ -1,7 +1,27 @@
 provider:
   name: orchestra
-
 resources:
+  imported_pipeline:
+    create:
+      path: /pipelines/import
+      method: POST
+    read:
+      path: /pipelines
+      method: GET
+    delete:
+      path: /pipelines/{alias}
+      method: DELETE
+    schema:
+      ignores:
+        - data
+        - num_tasks
+        - page
+        - page_size
+        - total
+      attributes:
+        aliases:
+          alias: id
+          yaml_path: yaml_path_filter
   pipeline:
     create:
       path: /pipelines
@@ -39,69 +59,7 @@ resources:
       attributes:
         aliases:
           alias: id
-
-  imported_pipeline:
-    create:
-      path: /pipelines/import
-      method: POST
-    read:
-      path: /pipelines
-      method: GET
-    delete:
-      path: /pipelines/{alias}
-      method: DELETE
-    schema:
-      ignores:
-        - data
-        - num_tasks
-        - page
-        - page_size
-        - total
-      attributes:
-        aliases:
-          alias: id
-          yaml_path: yaml_path_filter
-
 data_sources:
-  pipeline_runs:
-    read:
-      path: /pipeline_runs
-      method: GET
-    schema:
-      ignores:
-        - page
-        - page_size
-        - total
-
-  pipeline_run_status:
-    read:
-      path: /pipeline_runs/{pipeline_run_id}/status
-      method: GET
-    schema:
-      attributes:
-        aliases:
-          pipeline_run_id: id
-
-  task_runs:
-    read:
-      path: /task_runs
-      method: GET
-    schema:
-      ignores:
-        - page
-        - page_size
-        - total
-
-  operations:
-    read:
-      path: /operations
-      method: GET
-    schema:
-      ignores:
-        - page
-        - page_size
-        - total
-
   assets:
     read:
       path: /assets
@@ -111,23 +69,54 @@ data_sources:
         - page
         - page_size
         - total
-
-  pipelines:
-    read:
-      path: /pipelines
-      method: GET
-
-  task_run_logs:
-    read:
-      path: /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/logs
-      method: GET
-
-  task_run_artifacts:
-    read:
-      path: /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/artifacts
-      method: GET
-
   azure_federated_credentials:
     read:
       path: /compute_resources/azure/federated_credentials
       method: GET
+  operations:
+    read:
+      path: /operations
+      method: GET
+    schema:
+      ignores:
+        - page
+        - page_size
+        - total
+  pipeline_run_status:
+    read:
+      path: /pipeline_runs/{pipeline_run_id}/status
+      method: GET
+    schema:
+      attributes:
+        aliases:
+          pipeline_run_id: id
+  pipeline_runs:
+    read:
+      path: /pipeline_runs
+      method: GET
+    schema:
+      ignores:
+        - page
+        - page_size
+        - total
+  pipelines:
+    read:
+      path: /pipelines
+      method: GET
+  task_run_artifacts:
+    read:
+      path: /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/artifacts
+      method: GET
+  task_run_logs:
+    read:
+      path: /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/logs
+      method: GET
+  task_runs:
+    read:
+      path: /task_runs
+      method: GET
+    schema:
+      ignores:
+        - page
+        - page_size
+        - total

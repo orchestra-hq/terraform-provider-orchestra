@@ -1,4 +1,5 @@
 package azure_federated_credentials_test
+
 import (
 	"context"
 	"testing"

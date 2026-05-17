@@ -1,4 +1,5 @@
 package assets_test
+
 import (
 	"context"
 	"testing"

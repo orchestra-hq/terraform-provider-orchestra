@@ -10,7 +10,7 @@ TFPLUGINDOCS_BIN ?= $(GOPATH)/bin/tfplugindocs
 PROVIDER_DIR ?= .
 PROVIDER_NAME ?= orchestra
 BIN_DIR ?= bin
-PROVIDER_MAIN_PKG ?= ./cmd/terraform-provider-$(PROVIDER_NAME)
+PROVIDER_MAIN_PKG ?= .
 PROVIDER_BINARY ?= $(BIN_DIR)/terraform-provider-$(PROVIDER_NAME)
 
 # Where tfplugindocs will write the rendered markdown into this repo.

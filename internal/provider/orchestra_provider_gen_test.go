@@ -1,4 +1,5 @@
 package provider_test
+
 import (
 	"context"
 	"testing"
@@ -9,8 +10,11 @@ import (
 func TestOrchestraProviderSchema_IsEmpty(t *testing.T) {
 	ctx := context.Background()
 	s := provider.OrchestraProviderSchema(ctx)
-	if len(s.Attributes) != 0 {
-		t.Errorf("expected empty provider schema, got %d attributes", len(s.Attributes))
+	if len(s.Attributes) != 1 {
+		t.Errorf("expected provider schema with 1 attribute, got %d attributes", len(s.Attributes))
+	}
+	if _, ok := s.Attributes["base_url"]; !ok {
+		t.Errorf("expected provider schema to contain `base_url` attribute")
 	}
 }
 

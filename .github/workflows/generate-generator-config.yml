@@ -29,18 +29,18 @@ jobs:
         run: |
           echo "Nothing to do here: spec is checked out by the next step."
 
-      - name: Checkout orchestra-docs (OpenAPI)
-        uses: actions/checkout@v4
-        with:
-          repository: orchestra-hq/orchestra-docs
-          ref: main
-          token: ${{ secrets.ORCHESTRA_DOCS_REPO_TOKEN }}
-          path: orchestra-docs
+      # - name: Checkout orchestra-docs (OpenAPI)
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: orchestra-hq/orchestra-docs
+      #     ref: main
+      #     token: ${{ secrets.ORCHESTRA_DOCS_REPO_TOKEN }}
+      #     path: orchestra-docs
 
-      - name: Copy openapi.yaml into workspace
-        run: |
-          set -euo pipefail
-          cp "orchestra-docs/api/openapi.yaml" openapi.yaml
+      # - name: Copy openapi.yaml into workspace
+      #   run: |
+      #     set -euo pipefail
+      #     cp "orchestra-docs/api/openapi.yaml" openapi.yaml
 
       - name: Regenerate generator_config.yml (spec -> config)
         run: |
@@ -94,4 +94,3 @@ jobs:
           commit-message: "Regenerate OpenAPI codegen artifacts"
           body: |
             This PR was generated automatically from `openapi.yaml` (generator config, provider code spec, and framework-generated Go schemas).
-

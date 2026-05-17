@@ -70,10 +70,10 @@ func (r *ImportedPipelineResource) Create(ctx context.Context, req resource.Crea
 	storageProvider := model.StorageProvider.ValueString()
 
 	body := map[string]any{
-		"defaultBranch": model.DefaultBranch.ValueString(),
-		"repository":     repo,
+		"defaultBranch":   model.DefaultBranch.ValueString(),
+		"repository":      repo,
 		"storageProvider": storageProvider,
-		"yamlPath":       yamlPath,
+		"yamlPath":        yamlPath,
 	}
 
 	// Optional fields.
@@ -137,10 +137,10 @@ func (r *ImportedPipelineResource) Update(ctx context.Context, req resource.Upda
 	storageProvider := model.StorageProvider.ValueString()
 
 	body := map[string]any{
-		"defaultBranch": model.DefaultBranch.ValueString(),
-		"repository":     repo,
+		"defaultBranch":   model.DefaultBranch.ValueString(),
+		"repository":      repo,
 		"storageProvider": storageProvider,
-		"yamlPath":       yamlPath,
+		"yamlPath":        yamlPath,
 	}
 
 	if !model.Alias.IsNull() && !model.Alias.IsUnknown() && model.Alias.ValueString() != "" {
@@ -261,4 +261,3 @@ func ptrBool(p *bool) bool {
 	}
 	return *p
 }
-

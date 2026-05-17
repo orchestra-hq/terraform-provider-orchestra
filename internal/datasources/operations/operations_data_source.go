@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
@@ -45,25 +45,25 @@ func (d *OperationsDataSource) Configure(ctx context.Context, req datasource.Con
 }
 
 type operationResponse struct {
-	AccountId        *string         `json:"accountId"`
-	CompletedAt      *string         `json:"completedAt"`
-	Dependencies     []string        `json:"dependencies"`
-	ExternalDetail   *string         `json:"externalDetail"`
-	ExternalId       *string         `json:"externalId"`
-	ExternalStatus   *string         `json:"externalStatus"`
-	Id               *string         `json:"id"`
-	InsertedAt       *string         `json:"insertedAt"`
-	Integration      *string         `json:"integration"`
-	IntegrationJob   *string         `json:"integrationJob"`
-	Message          *string         `json:"message"`
-	OperationDuration *float64      `json:"operationDuration"`
-	OperationName    *string         `json:"operationName"`
-	OperationStatus  *string         `json:"operationStatus"`
-	OperationType    *string         `json:"operationType"`
-	PipelineRunId    *string         `json:"pipelineRunId"`
-	RowsAffected     *int64          `json:"rowsAffected"`
-	StartedAt        *string         `json:"startedAt"`
-	TaskRunId        *string         `json:"taskRunId"`
+	AccountId         *string  `json:"accountId"`
+	CompletedAt       *string  `json:"completedAt"`
+	Dependencies      []string `json:"dependencies"`
+	ExternalDetail    *string  `json:"externalDetail"`
+	ExternalId        *string  `json:"externalId"`
+	ExternalStatus    *string  `json:"externalStatus"`
+	Id                *string  `json:"id"`
+	InsertedAt        *string  `json:"insertedAt"`
+	Integration       *string  `json:"integration"`
+	IntegrationJob    *string  `json:"integrationJob"`
+	Message           *string  `json:"message"`
+	OperationDuration *float64 `json:"operationDuration"`
+	OperationName     *string  `json:"operationName"`
+	OperationStatus   *string  `json:"operationStatus"`
+	OperationType     *string  `json:"operationType"`
+	PipelineRunId     *string  `json:"pipelineRunId"`
+	RowsAffected      *int64   `json:"rowsAffected"`
+	StartedAt         *string  `json:"startedAt"`
+	TaskRunId         *string  `json:"taskRunId"`
 }
 
 type paginatedOperations struct {
@@ -138,26 +138,26 @@ func (d *OperationsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		}
 
 		el := ResultsValue{
-			AccountId:          stringPtr(r.AccountId),
-			CompletedAt:        stringPtr(r.CompletedAt),
-			Dependencies:       basetypes.NewListValueMust(types.StringType, deps),
-			ExternalDetail:     stringPtr(r.ExternalDetail),
-			ExternalId:         stringPtr(r.ExternalId),
-			ExternalStatus:     stringPtr(r.ExternalStatus),
-			Id:                  stringPtr(r.Id),
-			InsertedAt:         stringPtr(r.InsertedAt),
-			Integration:        stringPtr(r.Integration),
-			IntegrationJob:     stringPtr(r.IntegrationJob),
-			Message:            stringPtr(r.Message),
+			AccountId:         stringPtr(r.AccountId),
+			CompletedAt:       stringPtr(r.CompletedAt),
+			Dependencies:      basetypes.NewListValueMust(types.StringType, deps),
+			ExternalDetail:    stringPtr(r.ExternalDetail),
+			ExternalId:        stringPtr(r.ExternalId),
+			ExternalStatus:    stringPtr(r.ExternalStatus),
+			Id:                stringPtr(r.Id),
+			InsertedAt:        stringPtr(r.InsertedAt),
+			Integration:       stringPtr(r.Integration),
+			IntegrationJob:    stringPtr(r.IntegrationJob),
+			Message:           stringPtr(r.Message),
 			OperationDuration: float64Ptr(r.OperationDuration),
-			OperationName:      stringPtr(r.OperationName),
-			OperationStatus:    stringPtr(r.OperationStatus),
-			OperationType:      stringPtr(r.OperationType),
-			PipelineRunId:      stringPtr(r.PipelineRunId),
-			RowsAffected:       int64Ptr(r.RowsAffected),
-			StartedAt:          stringPtr(r.StartedAt),
-			TaskRunId:          stringPtr(r.TaskRunId),
-			state:              attr.ValueStateKnown,
+			OperationName:     stringPtr(r.OperationName),
+			OperationStatus:   stringPtr(r.OperationStatus),
+			OperationType:     stringPtr(r.OperationType),
+			PipelineRunId:     stringPtr(r.PipelineRunId),
+			RowsAffected:      int64Ptr(r.RowsAffected),
+			StartedAt:         stringPtr(r.StartedAt),
+			TaskRunId:         stringPtr(r.TaskRunId),
+			state:             attr.ValueStateKnown,
 		}
 		elements = append(elements, el)
 	}
@@ -165,4 +165,3 @@ func (d *OperationsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	model.Results = types.SetValueMust(ResultsType{}, elements)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }
-

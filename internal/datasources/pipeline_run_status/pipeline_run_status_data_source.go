@@ -43,10 +43,10 @@ func (d *PipelineRunStatusDataSource) Configure(ctx context.Context, req datasou
 }
 
 type pipelineRunStatusResponse struct {
-	Id         *string `json:"id"`
-	PipelineId *string `json:"pipelineId"`
+	Id           *string `json:"id"`
+	PipelineId   *string `json:"pipelineId"`
 	PipelineName *string `json:"pipelineName"`
-	RunStatus  *string `json:"runStatus"`
+	RunStatus    *string `json:"runStatus"`
 }
 
 func (d *PipelineRunStatusDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -88,4 +88,3 @@ func strPtrToValue(v *string) string {
 	}
 	return *v
 }
-

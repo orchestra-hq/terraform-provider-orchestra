@@ -19,7 +19,8 @@ const defaultBaseURL = "https://app.getorchestra.io/api/engine/public"
 // Client is a minimal Orchestra API HTTP client.
 //
 // Authentication uses the OpenAPI BearerAuth scheme with an API key:
-//   Authorization: Bearer <ORCHESTRA_API_KEY>
+//
+//	Authorization: Bearer <ORCHESTRA_API_KEY>
 type Client struct {
 	apiKey     string
 	baseURL    string
@@ -190,4 +191,3 @@ func (c *Client) DoJSONRaw(ctx context.Context, method, p string, query url.Valu
 	}
 	return json.RawMessage(b), nil
 }
-

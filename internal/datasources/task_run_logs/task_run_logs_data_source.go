@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra/client"
@@ -84,4 +84,3 @@ func (d *TaskRunLogsDataSource) Read(ctx context.Context, req datasource.ReadReq
 	model.Filenames = types.ListValueMust(types.StringType, elements)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }
-

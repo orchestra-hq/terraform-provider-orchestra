@@ -83,7 +83,9 @@ func (p *orchestraProvider) DataSources(ctx context.Context) []func() datasource
 		func() datasource.DataSource { return &task_runs.TaskRunsDataSource{} },
 		func() datasource.DataSource { return &task_run_logs.TaskRunLogsDataSource{} },
 		func() datasource.DataSource { return &task_run_artifacts.TaskRunArtifactsDataSource{} },
-		func() datasource.DataSource { return &azure_federated_credentials.AzureFederatedCredentialsDataSource{} },
+		func() datasource.DataSource {
+			return &azure_federated_credentials.AzureFederatedCredentialsDataSource{}
+		},
 	}
 }
 
@@ -93,4 +95,3 @@ func (p *orchestraProvider) Resources(ctx context.Context) []func() resource.Res
 		func() resource.Resource { return &imported_pipeline.ImportedPipelineResource{} },
 	}
 }
-

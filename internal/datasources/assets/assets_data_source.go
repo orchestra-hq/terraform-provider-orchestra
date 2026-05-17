@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
@@ -45,31 +45,31 @@ func (d *AssetsDataSource) Configure(ctx context.Context, req datasource.Configu
 }
 
 type assetResponse struct {
-	AccountId             *string  `json:"accountId"`
-	AssetId              *string  `json:"assetId"`
-	AssetName            *string  `json:"assetName"`
-	AssetType            *string  `json:"assetType"`
-	Bytes                *int64   `json:"bytes"`
-	Connection           *string  `json:"connection"`
-	ConnectionIntegration *string `json:"connectionIntegration"`
-	CreatedAt            *string  `json:"createdAt"`
-	CreatedInIntegration *string `json:"createdInIntegration"`
-	DatabaseName         *string  `json:"databaseName"`
-	DownstreamDependencies []string `json:"downstreamDependencies"`
-	ExternalId           *string  `json:"externalId"`
-	Integration          *string  `json:"integration"`
-	IntegrationAccountId *string `json:"integrationAccountId"`
-	IntegrationAssetType *string `json:"integrationAssetType"`
-	LastUpdatedInIntegration *string `json:"lastUpdatedInIntegration"`
-	Owner                *string   `json:"owner"`
-	Owners               []string  `json:"owners"`
-	RowCount             *int64    `json:"rowCount"`
-	SchemaName          *string   `json:"schemaName"`
-	Status               *string   `json:"status"`
-	TableName           *string   `json:"tableName"`
-	UpdatedAt            *string   `json:"updatedAt"`
-	UpstreamDependencies []string `json:"upstreamDependencies"`
-	UsagePercentage      *float64  `json:"usagePercentage"`
+	AccountId                *string  `json:"accountId"`
+	AssetId                  *string  `json:"assetId"`
+	AssetName                *string  `json:"assetName"`
+	AssetType                *string  `json:"assetType"`
+	Bytes                    *int64   `json:"bytes"`
+	Connection               *string  `json:"connection"`
+	ConnectionIntegration    *string  `json:"connectionIntegration"`
+	CreatedAt                *string  `json:"createdAt"`
+	CreatedInIntegration     *string  `json:"createdInIntegration"`
+	DatabaseName             *string  `json:"databaseName"`
+	DownstreamDependencies   []string `json:"downstreamDependencies"`
+	ExternalId               *string  `json:"externalId"`
+	Integration              *string  `json:"integration"`
+	IntegrationAccountId     *string  `json:"integrationAccountId"`
+	IntegrationAssetType     *string  `json:"integrationAssetType"`
+	LastUpdatedInIntegration *string  `json:"lastUpdatedInIntegration"`
+	Owner                    *string  `json:"owner"`
+	Owners                   []string `json:"owners"`
+	RowCount                 *int64   `json:"rowCount"`
+	SchemaName               *string  `json:"schemaName"`
+	Status                   *string  `json:"status"`
+	TableName                *string  `json:"tableName"`
+	UpdatedAt                *string  `json:"updatedAt"`
+	UpstreamDependencies     []string `json:"upstreamDependencies"`
+	UsagePercentage          *float64 `json:"usagePercentage"`
 }
 
 type paginatedAssets struct {
@@ -134,32 +134,32 @@ func (d *AssetsDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	elements := make([]attr.Value, 0, len(api.Results))
 	for _, r := range api.Results {
 		el := ResultsValue{
-			AccountId:              strPtr(r.AccountId),
-			AssetId:                strPtr(r.AssetId),
-			AssetName:              strPtr(r.AssetName),
-			AssetType:              strPtr(r.AssetType),
-			Bytes:                  int64Ptr(r.Bytes),
-			Connection:             strPtr(r.Connection),
-			ConnectionIntegration:  strPtr(r.ConnectionIntegration),
-			CreatedAt:              strPtr(r.CreatedAt),
-			CreatedInIntegration:  strPtr(r.CreatedInIntegration),
-			DatabaseName:           strPtr(r.DatabaseName),
-			DownstreamDependencies: stringsToListValue(r.DownstreamDependencies),
-			ExternalId:             strPtr(r.ExternalId),
-			Integration:            strPtr(r.Integration),
-			IntegrationAccountId:  strPtr(r.IntegrationAccountId),
-			IntegrationAssetType:  strPtr(r.IntegrationAssetType),
+			AccountId:                strPtr(r.AccountId),
+			AssetId:                  strPtr(r.AssetId),
+			AssetName:                strPtr(r.AssetName),
+			AssetType:                strPtr(r.AssetType),
+			Bytes:                    int64Ptr(r.Bytes),
+			Connection:               strPtr(r.Connection),
+			ConnectionIntegration:    strPtr(r.ConnectionIntegration),
+			CreatedAt:                strPtr(r.CreatedAt),
+			CreatedInIntegration:     strPtr(r.CreatedInIntegration),
+			DatabaseName:             strPtr(r.DatabaseName),
+			DownstreamDependencies:   stringsToListValue(r.DownstreamDependencies),
+			ExternalId:               strPtr(r.ExternalId),
+			Integration:              strPtr(r.Integration),
+			IntegrationAccountId:     strPtr(r.IntegrationAccountId),
+			IntegrationAssetType:     strPtr(r.IntegrationAssetType),
 			LastUpdatedInIntegration: strPtr(r.LastUpdatedInIntegration),
-			Owner:                  strPtr(r.Owner),
-			Owners:                 stringsToListValue(r.Owners),
-			RowCount:               int64Ptr(r.RowCount),
-			SchemaName:             strPtr(r.SchemaName),
-			Status:                 strPtr(r.Status),
-			TableName:             strPtr(r.TableName),
-			UpdatedAt:             strPtr(r.UpdatedAt),
-			UpstreamDependencies:  stringsToListValue(r.UpstreamDependencies),
-			UsagePercentage:       float64Ptr(r.UsagePercentage),
-			state:                  attr.ValueStateKnown,
+			Owner:                    strPtr(r.Owner),
+			Owners:                   stringsToListValue(r.Owners),
+			RowCount:                 int64Ptr(r.RowCount),
+			SchemaName:               strPtr(r.SchemaName),
+			Status:                   strPtr(r.Status),
+			TableName:                strPtr(r.TableName),
+			UpdatedAt:                strPtr(r.UpdatedAt),
+			UpstreamDependencies:     stringsToListValue(r.UpstreamDependencies),
+			UsagePercentage:          float64Ptr(r.UsagePercentage),
+			state:                    attr.ValueStateKnown,
 		}
 		elements = append(elements, el)
 	}
@@ -167,4 +167,3 @@ func (d *AssetsDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	model.Results = types.SetValueMust(ResultsType{}, elements)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }
-

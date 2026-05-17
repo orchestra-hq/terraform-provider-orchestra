@@ -73,4 +73,3 @@ func pointerToString(v *string) string {
 	}
 	return *v
 }
-

@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra/client"
@@ -46,23 +46,23 @@ func (d *PipelineRunsDataSource) Configure(ctx context.Context, req datasource.C
 }
 
 type pipelineRunResponse struct {
-	AccountId              *string          `json:"accountId"`
-	Branch                 *string          `json:"branch"`
+	AccountId             *string         `json:"accountId"`
+	Branch                *string         `json:"branch"`
 	ChildPipelineRuns     json.RawMessage `json:"childPipelineRuns"`
-	Commit                 *string          `json:"commit"`
-	CompletedAt            *string          `json:"completedAt"`
-	CreatedAt              *string          `json:"createdAt"`
-	EnvId                  *string          `json:"envId"`
-	EnvName                *string          `json:"envName"`
-	Id                     *string          `json:"id"`
-	Message                *string          `json:"message"`
-	PipelineId             *string          `json:"pipelineId"`
-	PipelineName           *string          `json:"pipelineName"`
-	PipelineVersionNumber *int64           `json:"pipelineVersionNumber"`
-	RunStatus              *string          `json:"runStatus"`
-	StartedAt              *string          `json:"startedAt"`
-	TriggeredBy            json.RawMessage `json:"triggeredBy"`
-	UpdatedAt              *string          `json:"updatedAt"`
+	Commit                *string         `json:"commit"`
+	CompletedAt           *string         `json:"completedAt"`
+	CreatedAt             *string         `json:"createdAt"`
+	EnvId                 *string         `json:"envId"`
+	EnvName               *string         `json:"envName"`
+	Id                    *string         `json:"id"`
+	Message               *string         `json:"message"`
+	PipelineId            *string         `json:"pipelineId"`
+	PipelineName          *string         `json:"pipelineName"`
+	PipelineVersionNumber *int64          `json:"pipelineVersionNumber"`
+	RunStatus             *string         `json:"runStatus"`
+	StartedAt             *string         `json:"startedAt"`
+	TriggeredBy           json.RawMessage `json:"triggeredBy"`
+	UpdatedAt             *string         `json:"updatedAt"`
 }
 
 type paginatedPipelineRuns struct {
@@ -143,7 +143,7 @@ func (d *PipelineRunsDataSource) Read(ctx context.Context, req datasource.ReadRe
 		el := ResultsValue{
 			AccountId:             strPtr(r.AccountId),
 			Branch:                strPtr(r.Branch),
-			ChildPipelineRuns:    rawToJSONString(r.ChildPipelineRuns),
+			ChildPipelineRuns:     rawToJSONString(r.ChildPipelineRuns),
 			Commit:                strPtr(r.Commit),
 			CompletedAt:           strPtr(r.CompletedAt),
 			CreatedAt:             strPtr(r.CreatedAt),
@@ -167,4 +167,3 @@ func (d *PipelineRunsDataSource) Read(ctx context.Context, req datasource.ReadRe
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }
-

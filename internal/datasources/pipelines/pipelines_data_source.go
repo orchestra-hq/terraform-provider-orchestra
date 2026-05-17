@@ -45,10 +45,10 @@ func (d *PipelinesDataSource) Configure(ctx context.Context, req datasource.Conf
 }
 
 type pipelineResponse struct {
-	Alias                  *string          `json:"alias"`
-	CreatedAt              *string          `json:"createdAt"`
-	DefaultBranch          *string          `json:"defaultBranch"`
-	Id                     *string          `json:"id"`
+	Alias                  *string         `json:"alias"`
+	CreatedAt              *string         `json:"createdAt"`
+	DefaultBranch          *string         `json:"defaultBranch"`
+	Id                     *string         `json:"id"`
 	Inputs                 json.RawMessage `json:"inputs"`
 	LatestRunCompletedAt   *string         `json:"latestRunCompletedAt"`
 	LatestRunCreatedAt     *string         `json:"latestRunCreatedAt"`
@@ -57,20 +57,20 @@ type pipelineResponse struct {
 	LatestRunStartedAt     *string         `json:"latestRunStartedAt"`
 	LatestRunStatus        *string         `json:"latestRunStatus"`
 	LatestVersionNumber    *int64          `json:"latestVersionNumber"`
-	Name                   *string          `json:"name"`
-	NumTasks               *int64           `json:"numTasks"`
-	Paused                 *bool            `json:"paused"`
-	ProductId              *string          `json:"productId"`
-	ProductName            *string          `json:"productName"`
+	Name                   *string         `json:"name"`
+	NumTasks               *int64          `json:"numTasks"`
+	Paused                 *bool           `json:"paused"`
+	ProductId              *string         `json:"productId"`
+	ProductName            *string         `json:"productName"`
 	PublishedVersionNumber *int64          `json:"publishedVersionNumber"`
-	Repository             *string          `json:"repository"`
+	Repository             *string         `json:"repository"`
 	Schedule               json.RawMessage `json:"schedule"`
 	Sensors                json.RawMessage `json:"sensors"`
-	StorageProvider        *string          `json:"storageProvider"`
+	StorageProvider        *string         `json:"storageProvider"`
 	TriggerEvents          json.RawMessage `json:"triggerEvents"`
-	UpdatedAt              *string          `json:"updatedAt"`
+	UpdatedAt              *string         `json:"updatedAt"`
 	Webhook                json.RawMessage `json:"webhook"`
-	YamlPath               *string          `json:"yamlPath"`
+	YamlPath               *string         `json:"yamlPath"`
 }
 
 func strPtr(v *string) basetypes.StringValue {
@@ -126,11 +126,11 @@ func (d *PipelinesDataSource) Read(ctx context.Context, req datasource.ReadReque
 	elements := make([]attr.Value, 0, len(apiPipelines))
 	for _, p := range apiPipelines {
 		el := PipelinesValue{
-			Alias:                   strPtr(p.Alias),
-			CreatedAt:               strPtr(p.CreatedAt),
+			Alias:                  strPtr(p.Alias),
+			CreatedAt:              strPtr(p.CreatedAt),
 			DefaultBranch:          strPtr(p.DefaultBranch),
-			Id:                      strPtr(p.Id),
-			Inputs:                  _jsiiInputsObject,
+			Id:                     strPtr(p.Id),
+			Inputs:                 _jsiiInputsObject,
 			LatestRunCompletedAt:   strPtr(p.LatestRunCompletedAt),
 			LatestRunCreatedAt:     strPtr(p.LatestRunCreatedAt),
 			LatestRunId:            strPtr(p.LatestRunId),
@@ -161,4 +161,3 @@ func (d *PipelinesDataSource) Read(ctx context.Context, req datasource.ReadReque
 	model.Pipelines = types.SetValueMust(PipelinesType{}, elements)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }
-

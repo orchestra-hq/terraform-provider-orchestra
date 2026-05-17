@@ -265,4 +265,3 @@ func ptrBool(p *bool) bool {
 	}
 	return *p
 }
-

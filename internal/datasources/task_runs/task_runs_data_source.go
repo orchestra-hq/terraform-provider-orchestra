@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra/client"
@@ -46,27 +46,27 @@ func (d *TaskRunsDataSource) Configure(ctx context.Context, req datasource.Confi
 }
 
 type taskRunResponse struct {
-	AccountId       *string         `json:"accountId"`
-	CompletedAt     *string         `json:"completedAt"`
-	ConnectionId    *string         `json:"connectionId"`
-	CreatedAt       *string         `json:"createdAt"`
-	ExternalMessage *string         `json:"externalMessage"`
-	ExternalStatus  *string         `json:"externalStatus"`
-	Id              *string         `json:"id"`
-	Integration     *string         `json:"integration"`
-	IntegrationJob  *string         `json:"integrationJob"`
-	Message         *string         `json:"message"`
-	NumberOfAttempts *int64         `json:"numberOfAttempts"`
-	PipelineId      *string         `json:"pipelineId"`
-	PipelineRunId   *string         `json:"pipelineRunId"`
-	PlatformLink    *string         `json:"platformLink"`
-	RunParameters   json.RawMessage `json:"runParameters"`
-	StartedAt       *string         `json:"startedAt"`
-	Status          *string         `json:"status"`
-	TaskId          *string         `json:"taskId"`
-	TaskName        *string         `json:"taskName"`
-	TaskParameters  json.RawMessage `json:"taskParameters"`
-	UpdatedAt       *string         `json:"updatedAt"`
+	AccountId        *string         `json:"accountId"`
+	CompletedAt      *string         `json:"completedAt"`
+	ConnectionId     *string         `json:"connectionId"`
+	CreatedAt        *string         `json:"createdAt"`
+	ExternalMessage  *string         `json:"externalMessage"`
+	ExternalStatus   *string         `json:"externalStatus"`
+	Id               *string         `json:"id"`
+	Integration      *string         `json:"integration"`
+	IntegrationJob   *string         `json:"integrationJob"`
+	Message          *string         `json:"message"`
+	NumberOfAttempts *int64          `json:"numberOfAttempts"`
+	PipelineId       *string         `json:"pipelineId"`
+	PipelineRunId    *string         `json:"pipelineRunId"`
+	PlatformLink     *string         `json:"platformLink"`
+	RunParameters    json.RawMessage `json:"runParameters"`
+	StartedAt        *string         `json:"startedAt"`
+	Status           *string         `json:"status"`
+	TaskId           *string         `json:"taskId"`
+	TaskName         *string         `json:"taskName"`
+	TaskParameters   json.RawMessage `json:"taskParameters"`
+	UpdatedAt        *string         `json:"updatedAt"`
 }
 
 type paginatedTaskRuns struct {
@@ -133,28 +133,28 @@ func (d *TaskRunsDataSource) Read(ctx context.Context, req datasource.ReadReques
 		}
 
 		el := ResultsValue{
-			AccountId:          stringPtr(r.AccountId),
-			CompletedAt:        stringPtr(r.CompletedAt),
-			ConnectionId:       stringPtr(r.ConnectionId),
-			CreatedAt:          stringPtr(r.CreatedAt),
-			ExternalMessage:    stringPtr(r.ExternalMessage),
-			ExternalStatus:     stringPtr(r.ExternalStatus),
-			Id:                 stringPtr(r.Id),
-			Integration:        stringPtr(r.Integration),
-			IntegrationJob:     stringPtr(r.IntegrationJob),
-			Message:            stringPtr(r.Message),
-			NumberOfAttempts:  int64Ptr(r.NumberOfAttempts),
-			PipelineId:         stringPtr(r.PipelineId),
-			PipelineRunId:      stringPtr(r.PipelineRunId),
-			PlatformLink:       stringPtr(r.PlatformLink),
-			RunParameters:      rawPtrToString(r.RunParameters),
-			StartedAt:          stringPtr(r.StartedAt),
-			Status:             stringPtr(r.Status),
-			TaskId:             stringPtr(r.TaskId),
-			TaskName:           stringPtr(r.TaskName),
-			TaskParameters:     rawPtrToString(r.TaskParameters),
-			UpdatedAt:          stringPtr(r.UpdatedAt),
-			state:              attr.ValueStateKnown,
+			AccountId:        stringPtr(r.AccountId),
+			CompletedAt:      stringPtr(r.CompletedAt),
+			ConnectionId:     stringPtr(r.ConnectionId),
+			CreatedAt:        stringPtr(r.CreatedAt),
+			ExternalMessage:  stringPtr(r.ExternalMessage),
+			ExternalStatus:   stringPtr(r.ExternalStatus),
+			Id:               stringPtr(r.Id),
+			Integration:      stringPtr(r.Integration),
+			IntegrationJob:   stringPtr(r.IntegrationJob),
+			Message:          stringPtr(r.Message),
+			NumberOfAttempts: int64Ptr(r.NumberOfAttempts),
+			PipelineId:       stringPtr(r.PipelineId),
+			PipelineRunId:    stringPtr(r.PipelineRunId),
+			PlatformLink:     stringPtr(r.PlatformLink),
+			RunParameters:    rawPtrToString(r.RunParameters),
+			StartedAt:        stringPtr(r.StartedAt),
+			Status:           stringPtr(r.Status),
+			TaskId:           stringPtr(r.TaskId),
+			TaskName:         stringPtr(r.TaskName),
+			TaskParameters:   rawPtrToString(r.TaskParameters),
+			UpdatedAt:        stringPtr(r.UpdatedAt),
+			state:            attr.ValueStateKnown,
 		}
 		elements = append(elements, el)
 	}
@@ -162,4 +162,3 @@ func (d *TaskRunsDataSource) Read(ctx context.Context, req datasource.ReadReques
 	model.Results = types.SetValueMust(ResultsType{}, elements)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }
-

@@ -40,27 +40,6 @@ resources:
         aliases:
           alias: id
 
-  imported_pipeline:
-    create:
-      path: /pipelines/import
-      method: POST
-    read:
-      path: /pipelines
-      method: GET
-    delete:
-      path: /pipelines/{alias}
-      method: DELETE
-    schema:
-      ignores:
-        - data
-        - num_tasks
-        - page
-        - page_size
-        - total
-      attributes:
-        aliases:
-          alias: id
-          yaml_path: yaml_path_filter
 
 data_sources:
   pipeline_runs:

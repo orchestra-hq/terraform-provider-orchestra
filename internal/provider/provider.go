@@ -17,10 +17,9 @@ import (
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/task_run_artifacts"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/task_run_logs"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/task_runs"
-	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/imported_pipeline"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/pipeline"
 
-	"github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra/client"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
 )
 
 // New is a helper function to simplify provider server and testing implementation.
@@ -92,6 +91,5 @@ func (p *orchestraProvider) DataSources(ctx context.Context) []func() datasource
 func (p *orchestraProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		func() resource.Resource { return &pipeline.PipelineResource{} },
-		func() resource.Resource { return &imported_pipeline.ImportedPipelineResource{} },
 	}
 }

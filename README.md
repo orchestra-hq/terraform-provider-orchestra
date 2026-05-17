@@ -40,8 +40,7 @@ Each package tests:
 | `internal/datasources/task_run_logs` | required attrs, filenames list | — |
 | `internal/datasources/task_runs` | filter attrs, nested fields | `ResultsType`, `ResultsValue` |
 | `internal/provider` | schema is empty | — |
-| `internal/resources/imported_pipeline` | required/optional/computed attrs, data nested attr | `DataType`, `DataValue` |
-| `internal/resources/pipeline` | required/computed attrs, storage_provider default | `DataType`, `DataValue` |
+| `internal/resources/pipeline` | api+git-import attrs (single resource), storage_provider default | `DataType`, `DataValue` |
 
 Custom type tests cover `String()`, `Equal()`, `ValueFromTerraform()` (nil/unknown/null inputs), constructor null/unknown/error paths, `NewXxxValueMust` panic behaviour, `ToObjectValue()`, and `Equal()` across value states.
 

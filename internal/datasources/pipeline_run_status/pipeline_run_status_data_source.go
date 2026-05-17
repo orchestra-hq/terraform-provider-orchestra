@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra/client"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
 )
 
 type PipelineRunStatusDataSource struct {

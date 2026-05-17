@@ -20,7 +20,8 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 	return schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"alias": schema.StringAttribute{
-				Required:            true,
+				Optional:            true,
+				Computed:            true,
 				Description:         "Unique identifier. Letters, numbers, underscores only. Max 255.",
 				MarkdownDescription: "Unique identifier. Letters, numbers, underscores only. Max 255.",
 			},
@@ -36,7 +37,8 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 						AttrTypes: DataValue{}.AttributeTypes(ctx),
 					},
 				},
-				Required:            true,
+				Optional:            true,
+				Computed:            true,
 				Description:         "Pipeline definition. See the pipeline schema reference for the full structure.",
 				MarkdownDescription: "Pipeline definition. See the pipeline schema reference for the full structure.",
 			},
@@ -61,7 +63,8 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 				MarkdownDescription: "Whether the pipeline is paused.",
 			},
 			"published": schema.BoolAttribute{
-				Required:            true,
+				Optional:            true,
+				Computed:            true,
 				Description:         "Whether the pipeline is published and can be triggered.",
 				MarkdownDescription: "Whether the pipeline is published and can be triggered.",
 			},
@@ -77,7 +80,24 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 				Description:         "When the pipeline was last updated.",
 				MarkdownDescription: "When the pipeline was last updated.",
 			},
+			"repository": schema.StringAttribute{
+				Optional:            true,
+				Description:         "The repository slug or URL. Required when creating a git-storage pipeline.",
+				MarkdownDescription: "The repository slug or URL. Required when creating a git-storage pipeline.",
+			},
+			"default_branch": schema.StringAttribute{
+				Optional:            true,
+				Description:         "The default branch of the repository. Required when creating a git-storage pipeline.",
+				MarkdownDescription: "The default branch of the repository. Required when creating a git-storage pipeline.",
+			},
+			"working_branch": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "The branch to import from. Defaults to the repository default branch.",
+				MarkdownDescription: "The branch to import from. Defaults to the repository default branch.",
+			},
 			"yaml_path": schema.StringAttribute{
+				Optional:            true,
 				Computed:            true,
 				Description:         "Path to the pipeline YAML file (null for API-created pipelines).",
 				MarkdownDescription: "Path to the pipeline YAML file (null for API-created pipelines).",
@@ -90,12 +110,15 @@ type PipelineModel struct {
 	Alias           types.String `tfsdk:"alias"`
 	CreatedAt       types.String `tfsdk:"created_at"`
 	Data            DataValue    `tfsdk:"data"`
+	Repository      types.String `tfsdk:"repository"`
+	DefaultBranch   types.String `tfsdk:"default_branch"`
 	Id              types.String `tfsdk:"id"`
 	Name            types.String `tfsdk:"name"`
 	NumTasks        types.Int64  `tfsdk:"num_tasks"`
 	Paused          types.Bool   `tfsdk:"paused"`
 	Published       types.Bool   `tfsdk:"published"`
 	StorageProvider types.String `tfsdk:"storage_provider"`
+	WorkingBranch   types.String `tfsdk:"working_branch"`
 	UpdatedAt       types.String `tfsdk:"updated_at"`
 	YamlPath        types.String `tfsdk:"yaml_path"`
 }

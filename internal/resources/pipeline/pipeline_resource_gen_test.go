@@ -14,18 +14,33 @@ import (
 
 // Schema tests
 
-func TestPipelineResourceSchema_RequiredAttributes(t *testing.T) {
+func TestPipelineResourceSchema_ApiVsGitOptionality(t *testing.T) {
 	ctx := context.Background()
 	s := pipeline.PipelineResourceSchema(ctx)
 
+	// These fields are required for API-created pipelines, but are optional for git-import pipelines.
 	for _, name := range []string{"alias", "published", "data"} {
 		a, ok := s.Attributes[name]
 		if !ok {
 			t.Errorf("attribute %q not found in schema", name)
 			continue
 		}
-		if !isRequired(a) {
-			t.Errorf("attribute %q should be Required", name)
+
+		switch v := a.(type) {
+		case rschema.StringAttribute:
+			if !v.Optional || !v.Computed {
+				t.Errorf("attribute %q should be Optional and Computed", name)
+			}
+		case rschema.BoolAttribute:
+			if !v.Optional || !v.Computed {
+				t.Errorf("attribute %q should be Optional and Computed", name)
+			}
+		case rschema.SingleNestedAttribute:
+			if !v.Optional || !v.Computed {
+				t.Errorf("attribute %q should be Optional and Computed", name)
+			}
+		default:
+			t.Errorf("attribute %q has unexpected type %T", name, a)
 		}
 	}
 }
@@ -59,6 +74,10 @@ func TestPipelineResourceSchema_AttributeTypes(t *testing.T) {
 		{"num_tasks", "int64"},
 		{"paused", "bool"},
 		{"data", "singleNested"},
+		{"repository", "string"},
+		{"default_branch", "string"},
+		{"working_branch", "string"},
+		{"yaml_path", "string"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

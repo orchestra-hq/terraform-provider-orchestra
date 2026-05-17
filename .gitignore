@@ -19,3 +19,6 @@ cover.out
 
 # Python cache (only under scripts/)
 scripts/**/__pycache__/
+
+# tfplugindocs
+.tmp-tfplugindocs/**

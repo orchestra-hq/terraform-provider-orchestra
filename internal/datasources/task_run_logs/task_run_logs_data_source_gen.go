@@ -4,7 +4,13 @@ package task_run_logs
 
 import (
 	"context"
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 )
@@ -13,20 +19,36 @@ func TaskRunLogsDataSourceSchema(ctx context.Context) schema.Schema {
 	return schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"filenames": schema.ListAttribute{
-				ElementType:         types.StringType,
-				Computed:            true,
-				Description:         "List of filenames.",
-				MarkdownDescription: "List of filenames.",
+				ElementType: types.StringType,
+				Computed:    true,
+			},
+			"files": schema.MapNestedAttribute{
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"attempt_number": schema.Int64Attribute{
+							Computed: true,
+						},
+						"display_name": schema.StringAttribute{
+							Computed: true,
+						},
+					},
+					CustomType: FilesType{
+						ObjectType: types.ObjectType{
+							AttrTypes: FilesValue{}.AttributeTypes(ctx),
+						},
+					},
+				},
+				Computed: true,
 			},
 			"pipeline_run_id": schema.StringAttribute{
 				Required:            true,
-				Description:         "The pipeline run ID (UUID4).",
-				MarkdownDescription: "The pipeline run ID (UUID4).",
+				Description:         "Pipeline run ID.",
+				MarkdownDescription: "Pipeline run ID.",
 			},
 			"task_run_id": schema.StringAttribute{
 				Required:            true,
-				Description:         "The task run ID (UUID4).",
-				MarkdownDescription: "The task run ID (UUID4).",
+				Description:         "Task run ID.",
+				MarkdownDescription: "Task run ID.",
 			},
 		},
 	}
@@ -34,6 +56,386 @@ func TaskRunLogsDataSourceSchema(ctx context.Context) schema.Schema {
 
 type TaskRunLogsModel struct {
 	Filenames     types.List   `tfsdk:"filenames"`
+	Files         types.Map    `tfsdk:"files"`
 	PipelineRunId types.String `tfsdk:"pipeline_run_id"`
 	TaskRunId     types.String `tfsdk:"task_run_id"`
+}
+
+var _ basetypes.ObjectTypable = FilesType{}
+
+type FilesType struct {
+	basetypes.ObjectType
+}
+
+func (t FilesType) Equal(o attr.Type) bool {
+	other, ok := o.(FilesType)
+
+	if !ok {
+		return false
+	}
+
+	return t.ObjectType.Equal(other.ObjectType)
+}
+
+func (t FilesType) String() string {
+	return "FilesType"
+}
+
+func (t FilesType) ValueFromObject(ctx context.Context, in basetypes.ObjectValue) (basetypes.ObjectValuable, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	attributes := in.Attributes()
+
+	attemptNumberAttribute, ok := attributes["attempt_number"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`attempt_number is missing from object`)
+
+		return nil, diags
+	}
+
+	attemptNumberVal, ok := attemptNumberAttribute.(basetypes.Int64Value)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`attempt_number expected to be basetypes.Int64Value, was: %T`, attemptNumberAttribute))
+	}
+
+	displayNameAttribute, ok := attributes["display_name"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`display_name is missing from object`)
+
+		return nil, diags
+	}
+
+	displayNameVal, ok := displayNameAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`display_name expected to be basetypes.StringValue, was: %T`, displayNameAttribute))
+	}
+
+	if diags.HasError() {
+		return nil, diags
+	}
+
+	return FilesValue{
+		AttemptNumber: attemptNumberVal,
+		DisplayName:   displayNameVal,
+		state:         attr.ValueStateKnown,
+	}, diags
+}
+
+func NewFilesValueNull() FilesValue {
+	return FilesValue{
+		state: attr.ValueStateNull,
+	}
+}
+
+func NewFilesValueUnknown() FilesValue {
+	return FilesValue{
+		state: attr.ValueStateUnknown,
+	}
+}
+
+func NewFilesValue(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) (FilesValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	// Reference: https://github.com/hashicorp/terraform-plugin-framework/issues/521
+	ctx := context.Background()
+
+	for name, attributeType := range attributeTypes {
+		attribute, ok := attributes[name]
+
+		if !ok {
+			diags.AddError(
+				"Missing FilesValue Attribute Value",
+				"While creating a FilesValue value, a missing attribute value was detected. "+
+					"A FilesValue must contain values for all attributes, even if null or unknown. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("FilesValue Attribute Name (%s) Expected Type: %s", name, attributeType.String()),
+			)
+
+			continue
+		}
+
+		if !attributeType.Equal(attribute.Type(ctx)) {
+			diags.AddError(
+				"Invalid FilesValue Attribute Type",
+				"While creating a FilesValue value, an invalid attribute value was detected. "+
+					"A FilesValue must use a matching attribute type for the value. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("FilesValue Attribute Name (%s) Expected Type: %s\n", name, attributeType.String())+
+					fmt.Sprintf("FilesValue Attribute Name (%s) Given Type: %s", name, attribute.Type(ctx)),
+			)
+		}
+	}
+
+	for name := range attributes {
+		_, ok := attributeTypes[name]
+
+		if !ok {
+			diags.AddError(
+				"Extra FilesValue Attribute Value",
+				"While creating a FilesValue value, an extra attribute value was detected. "+
+					"A FilesValue must not contain values beyond the expected attribute types. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("Extra FilesValue Attribute Name: %s", name),
+			)
+		}
+	}
+
+	if diags.HasError() {
+		return NewFilesValueUnknown(), diags
+	}
+
+	attemptNumberAttribute, ok := attributes["attempt_number"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`attempt_number is missing from object`)
+
+		return NewFilesValueUnknown(), diags
+	}
+
+	attemptNumberVal, ok := attemptNumberAttribute.(basetypes.Int64Value)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`attempt_number expected to be basetypes.Int64Value, was: %T`, attemptNumberAttribute))
+	}
+
+	displayNameAttribute, ok := attributes["display_name"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`display_name is missing from object`)
+
+		return NewFilesValueUnknown(), diags
+	}
+
+	displayNameVal, ok := displayNameAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`display_name expected to be basetypes.StringValue, was: %T`, displayNameAttribute))
+	}
+
+	if diags.HasError() {
+		return NewFilesValueUnknown(), diags
+	}
+
+	return FilesValue{
+		AttemptNumber: attemptNumberVal,
+		DisplayName:   displayNameVal,
+		state:         attr.ValueStateKnown,
+	}, diags
+}
+
+func NewFilesValueMust(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) FilesValue {
+	object, diags := NewFilesValue(attributeTypes, attributes)
+
+	if diags.HasError() {
+		// This could potentially be added to the diag package.
+		diagsStrings := make([]string, 0, len(diags))
+
+		for _, diagnostic := range diags {
+			diagsStrings = append(diagsStrings, fmt.Sprintf(
+				"%s | %s | %s",
+				diagnostic.Severity(),
+				diagnostic.Summary(),
+				diagnostic.Detail()))
+		}
+
+		panic("NewFilesValueMust received error(s): " + strings.Join(diagsStrings, "\n"))
+	}
+
+	return object
+}
+
+func (t FilesType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
+	if in.Type() == nil {
+		return NewFilesValueNull(), nil
+	}
+
+	if !in.Type().Equal(t.TerraformType(ctx)) {
+		return nil, fmt.Errorf("expected %s, got %s", t.TerraformType(ctx), in.Type())
+	}
+
+	if !in.IsKnown() {
+		return NewFilesValueUnknown(), nil
+	}
+
+	if in.IsNull() {
+		return NewFilesValueNull(), nil
+	}
+
+	attributes := map[string]attr.Value{}
+
+	val := map[string]tftypes.Value{}
+
+	err := in.As(&val)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range val {
+		a, err := t.AttrTypes[k].ValueFromTerraform(ctx, v)
+
+		if err != nil {
+			return nil, err
+		}
+
+		attributes[k] = a
+	}
+
+	return NewFilesValueMust(FilesValue{}.AttributeTypes(ctx), attributes), nil
+}
+
+func (t FilesType) ValueType(ctx context.Context) attr.Value {
+	return FilesValue{}
+}
+
+var _ basetypes.ObjectValuable = FilesValue{}
+
+type FilesValue struct {
+	AttemptNumber basetypes.Int64Value  `tfsdk:"attempt_number"`
+	DisplayName   basetypes.StringValue `tfsdk:"display_name"`
+	state         attr.ValueState
+}
+
+func (v FilesValue) ToTerraformValue(ctx context.Context) (tftypes.Value, error) {
+	attrTypes := make(map[string]tftypes.Type, 2)
+
+	var val tftypes.Value
+	var err error
+
+	attrTypes["attempt_number"] = basetypes.Int64Type{}.TerraformType(ctx)
+	attrTypes["display_name"] = basetypes.StringType{}.TerraformType(ctx)
+
+	objectType := tftypes.Object{AttributeTypes: attrTypes}
+
+	switch v.state {
+	case attr.ValueStateKnown:
+		vals := make(map[string]tftypes.Value, 2)
+
+		val, err = v.AttemptNumber.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["attempt_number"] = val
+
+		val, err = v.DisplayName.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["display_name"] = val
+
+		if err := tftypes.ValidateValue(objectType, vals); err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		return tftypes.NewValue(objectType, vals), nil
+	case attr.ValueStateNull:
+		return tftypes.NewValue(objectType, nil), nil
+	case attr.ValueStateUnknown:
+		return tftypes.NewValue(objectType, tftypes.UnknownValue), nil
+	default:
+		panic(fmt.Sprintf("unhandled Object state in ToTerraformValue: %s", v.state))
+	}
+}
+
+func (v FilesValue) IsNull() bool {
+	return v.state == attr.ValueStateNull
+}
+
+func (v FilesValue) IsUnknown() bool {
+	return v.state == attr.ValueStateUnknown
+}
+
+func (v FilesValue) String() string {
+	return "FilesValue"
+}
+
+func (v FilesValue) ToObjectValue(ctx context.Context) (basetypes.ObjectValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	attributeTypes := map[string]attr.Type{
+		"attempt_number": basetypes.Int64Type{},
+		"display_name":   basetypes.StringType{},
+	}
+
+	if v.IsNull() {
+		return types.ObjectNull(attributeTypes), diags
+	}
+
+	if v.IsUnknown() {
+		return types.ObjectUnknown(attributeTypes), diags
+	}
+
+	objVal, diags := types.ObjectValue(
+		attributeTypes,
+		map[string]attr.Value{
+			"attempt_number": v.AttemptNumber,
+			"display_name":   v.DisplayName,
+		})
+
+	return objVal, diags
+}
+
+func (v FilesValue) Equal(o attr.Value) bool {
+	other, ok := o.(FilesValue)
+
+	if !ok {
+		return false
+	}
+
+	if v.state != other.state {
+		return false
+	}
+
+	if v.state != attr.ValueStateKnown {
+		return true
+	}
+
+	if !v.AttemptNumber.Equal(other.AttemptNumber) {
+		return false
+	}
+
+	if !v.DisplayName.Equal(other.DisplayName) {
+		return false
+	}
+
+	return true
+}
+
+func (v FilesValue) Type(ctx context.Context) attr.Type {
+	return FilesType{
+		basetypes.ObjectType{
+			AttrTypes: v.AttributeTypes(ctx),
+		},
+	}
+}
+
+func (v FilesValue) AttributeTypes(ctx context.Context) map[string]attr.Type {
+	return map[string]attr.Type{
+		"attempt_number": basetypes.Int64Type{},
+		"display_name":   basetypes.StringType{},
+	}
 }

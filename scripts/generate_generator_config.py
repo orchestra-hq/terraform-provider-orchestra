@@ -309,12 +309,6 @@ def main() -> None:
     if pipeline_create and pipeline_read and pipeline_update and pipeline_delete:
         add_resource("pipeline", pipeline_create, pipeline_read, pipeline_update, pipeline_delete, import_variant=False)
 
-    imported_create = choose_single_operation(ops_by_id, "importPipeline")
-    imported_read = choose_single_operation(ops_by_id, "listPipelines")
-    imported_delete = choose_single_operation(ops_by_id, "deletePipeline")
-    if imported_create and imported_read and imported_delete:
-        add_resource("imported_pipeline", imported_create, imported_read, update=None, delete=imported_delete, import_variant=True)
-
     # Data sources follow the OpenAPI operation IDs directly.
     # (These map to list/get operations but are not managed as Terraform resources.)
     def add_data_source(name: str, op: Optional[OperationRef]) -> None:
@@ -340,11 +334,11 @@ def main() -> None:
     add_data_source("pipeline_runs", choose_single_operation(ops_by_id, "listPipelineRuns"))
     add_data_source("pipeline_run_status", choose_single_operation(ops_by_id, "getPipelineRunStatus"))
     add_data_source("task_runs", choose_single_operation(ops_by_id, "listTaskRuns"))
+    add_data_source("task_run_artifacts", choose_single_operation(ops_by_id, "listTaskRunArtifacts"))
+    add_data_source("task_run_logs", choose_single_operation(ops_by_id, "listTaskRunLogs"))
     add_data_source("operations", choose_single_operation(ops_by_id, "listOperations"))
     add_data_source("assets", choose_single_operation(ops_by_id, "listAssets"))
     add_data_source("pipelines", choose_single_operation(ops_by_id, "listPipelines"))
-    add_data_source("task_run_logs", choose_single_operation(ops_by_id, "listTaskRunLogs"))
-    add_data_source("task_run_artifacts", choose_single_operation(ops_by_id, "listTaskRunArtifacts"))
     add_data_source("azure_federated_credentials", choose_single_operation(ops_by_id, "getAzureFederatedCredentials"))
 
     # Preserve hand-tuned overrides from the current generator_config.yml so

@@ -17,5 +17,5 @@ description: |-
 
 ### Read-Only
 
-- `audience` (String) Audience value to use in the Azure federated credential configuration.
-- `subject_id` (String) Subject identifier to use in the Azure federated credential configuration.
+- `audience` (String)
+- `subject_id` (String)

@@ -17,40 +17,62 @@ description: |-
 
 ### Optional
 
-- `asset_type` (String) Filter by asset type.
-- `integration` (String) Filter by integration.
+- `asset_ids` (String) Filter by asset IDs. Provide comma-separated UUIDs for multiple values.
+- `asset_type` (String) Filter by asset type. Comma-separated values are supported.
+- `database_name` (String) Filter by database name.
+- `integration` (String) Integration identifier.
+- `integration_account_id` (String) Filter by the account identifier in the integration.
+- `schema_name` (String) Filter by schema name.
+- `sort_column` (String) Column used to sort assets.
+- `sort_direction` (String) Sort direction.
+- `status` (String) Filter by status. Comma-separated values are supported where the parameter accepts multiple values.
+- `workspace_id` (String) Filter by integration workspace ID.
 
 ### Read-Only
 
-- `results` (Attributes Set) (see [below for nested schema](#nestedatt--results))
+- `page_size` (Number)
+- `results` (Attributes List) (see [below for nested schema](#nestedatt--results))
 
 <a id="nestedatt--results"></a>
 ### Nested Schema for `results`
 
 Read-Only:
 
-- `account_id` (String) The account ID.
-- `asset_id` (String) The asset ID.
-- `asset_name` (String) The name of the asset.
-- `asset_type` (String) The type of asset.
-- `bytes` (Number) Size in bytes (for table assets).
-- `connection` (String) The connection used.
-- `connection_integration` (String) The integration of the connection.
-- `created_at` (String) When the asset was created in Orchestra.
-- `created_in_integration` (String) When the asset was created in the external integration.
-- `database_name` (String) The database name (for warehouse assets).
-- `downstream_dependencies` (List of String) Downstream dependency identifiers.
-- `external_id` (String) The external identifier for this asset.
-- `integration` (String) The integration this asset belongs to.
-- `integration_account_id` (String) The account identifier in the integration.
-- `integration_asset_type` (String) The asset type as defined by the integration.
-- `last_updated_in_integration` (String) When the asset was last updated in the external integration.
-- `owner` (String) The primary owner of the asset.
-- `owners` (List of String) All owners of the asset.
-- `row_count` (Number) Number of rows (for table assets).
-- `schema_name` (String) The schema name (for warehouse assets).
-- `status` (String) The health status of the asset.
-- `table_name` (String) The table name (for warehouse assets).
-- `updated_at` (String) When the asset was last updated in Orchestra.
-- `upstream_dependencies` (List of String) Upstream dependency identifiers.
-- `usage_percentage` (Number) Usage percentage of the asset.
+- `account_id` (String)
+- `asset_id` (String)
+- `asset_name` (String)
+- `asset_type` (String)
+- `bytes` (Number)
+- `connection` (String)
+- `connection_integration` (String)
+- `created_at` (String)
+- `created_in_integration` (String)
+- `database_name` (String)
+- `description` (String)
+- `downstream_dependencies` (List of String)
+- `external_id` (String)
+- `freshness_config` (Attributes) (see [below for nested schema](#nestedatt--results--freshness_config))
+- `integration` (String)
+- `integration_account_id` (String)
+- `integration_asset_type` (String)
+- `last_successful_run` (String)
+- `last_updated_in_integration` (String)
+- `last_viewed` (String)
+- `owner` (String)
+- `owners` (List of String)
+- `row_count` (Number)
+- `schema_name` (String)
+- `status` (String)
+- `table_name` (String)
+- `unique_viewers` (Number)
+- `updated_at` (String)
+- `upstream_dependencies` (List of String)
+- `url` (String)
+- `usage_percentage` (Number)
+- `view_count` (Number)
+- `view_count_from_timestamp` (String)
+- `workspace_id` (String)
+- `workspace_name` (String)
+
+<a id="nestedatt--results--freshness_config"></a>
+### Nested Schema for `results.freshness_config`

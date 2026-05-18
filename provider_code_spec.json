@@ -1,700 +1,191 @@
 {
 	"datasources": [
 		{
-			"name": "pipeline_runs",
-			"schema": {
-				"attributes": [
-					{
-						"name": "time_from",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Start of the time range (ISO 8601). Defaults to 7 days ago if omitted. Must be specified together with time_to."
-						}
-					},
-					{
-						"name": "time_to",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "End of the time range (ISO 8601). Defaults to now if omitted. Must be specified together with time_from. Maximum range is 7 days."
-						}
-					},
-					{
-						"name": "status",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by pipeline run status. Comma-separated for multiple values (e.g. SUCCEEDED,FAILED)."
-						}
-					},
-					{
-						"name": "pipeline_ids",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by pipeline IDs (UUID4). Comma-separated for multiple values."
-						}
-					},
-					{
-						"name": "pipeline_run_ids",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by pipeline run IDs (UUID4). Comma-separated for multiple values."
-						}
-					},
-					{
-						"name": "results",
-						"set_nested": {
-							"computed_optional_required": "computed",
-							"nested_object": {
-								"attributes": [
-									{
-										"name": "id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The pipeline run ID."
-										}
-									},
-									{
-										"name": "pipeline_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The pipeline ID."
-										}
-									},
-									{
-										"name": "pipeline_name",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The name of the pipeline."
-										}
-									},
-									{
-										"name": "account_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The account ID."
-										}
-									},
-									{
-										"name": "env_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The environment ID."
-										}
-									},
-									{
-										"name": "env_name",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The environment name."
-										}
-									},
-									{
-										"name": "run_status",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The status of the pipeline run."
-										}
-									},
-									{
-										"name": "triggered_by",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "JSON string of trigger information for this pipeline run."
-										}
-									},
-									{
-										"name": "child_pipeline_runs",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "JSON string of any child pipeline runs spawned by this run."
-										}
-									},
-									{
-										"name": "message",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "A human-readable message about the pipeline run status."
-										}
-									},
-									{
-										"name": "created_at",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the pipeline run was created."
-										}
-									},
-									{
-										"name": "updated_at",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the pipeline run was last updated."
-										}
-									},
-									{
-										"name": "completed_at",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the pipeline run completed."
-										}
-									},
-									{
-										"name": "started_at",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the pipeline run started executing."
-										}
-									},
-									{
-										"name": "branch",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The Git branch used for this run."
-										}
-									},
-									{
-										"name": "commit",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The Git commit SHA used for this run."
-										}
-									},
-									{
-										"name": "pipeline_version_number",
-										"int64": {
-											"computed_optional_required": "computed",
-											"description": "The pipeline version number."
-										}
-									}
-								]
-							}
-						}
-					}
-				]
-			}
-		},
-		{
-			"name": "task_runs",
-			"schema": {
-				"attributes": [
-					{
-						"name": "time_from",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Start of the time range (ISO 8601). Defaults to 7 days ago if omitted. Must be specified together with time_to."
-						}
-					},
-					{
-						"name": "time_to",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "End of the time range (ISO 8601). Defaults to now if omitted. Must be specified together with time_from. Maximum range is 7 days."
-						}
-					},
-					{
-						"name": "status",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by task run status. Comma-separated for multiple values (e.g. SUCCEEDED,FAILED)."
-						}
-					},
-					{
-						"name": "pipeline_ids",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by pipeline IDs (UUID4). Comma-separated for multiple values."
-						}
-					},
-					{
-						"name": "integration",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by integration. Comma-separated for multiple values (e.g. HTTP,SNOWFLAKE)."
-						}
-					},
-					{
-						"name": "task_run_ids",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by task run IDs (UUID4). Comma-separated for multiple values."
-						}
-					},
-					{
-						"name": "results",
-						"set_nested": {
-							"computed_optional_required": "computed",
-							"nested_object": {
-								"attributes": [
-									{
-										"name": "id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The task run ID."
-										}
-									},
-									{
-										"name": "pipeline_run_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The parent pipeline run ID."
-										}
-									},
-									{
-										"name": "task_name",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The name of the task."
-										}
-									},
-									{
-										"name": "task_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The task identifier."
-										}
-									},
-									{
-										"name": "account_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The account ID."
-										}
-									},
-									{
-										"name": "pipeline_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The pipeline ID."
-										}
-									},
-									{
-										"name": "integration",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The integration used for this task."
-										}
-									},
-									{
-										"name": "integration_job",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The specific job type within the integration."
-										}
-									},
-									{
-										"name": "status",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The status of the task run."
-										}
-									},
-									{
-										"name": "message",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "A human-readable status message."
-										}
-									},
-									{
-										"name": "external_status",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The status returned by the external integration."
-										}
-									},
-									{
-										"name": "external_message",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "A message returned by the external integration."
-										}
-									},
-									{
-										"name": "platform_link",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "A link to the run in the external platform."
-										}
-									},
-									{
-										"name": "task_parameters",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "JSON string of the parameters configured for the task."
-										}
-									},
-									{
-										"name": "run_parameters",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "JSON string of the runtime parameters for this execution."
-										}
-									},
-									{
-										"name": "connection_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The connection identifier used."
-										}
-									},
-									{
-										"name": "number_of_attempts",
-										"int64": {
-											"computed_optional_required": "computed",
-											"description": "Number of execution attempts."
-										}
-									},
-									{
-										"name": "created_at",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the task run was created."
-										}
-									},
-									{
-										"name": "updated_at",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the task run was last updated."
-										}
-									},
-									{
-										"name": "completed_at",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the task run completed."
-										}
-									},
-									{
-										"name": "started_at",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the task run started executing."
-										}
-									}
-								]
-							}
-						}
-					}
-				]
-			}
-		},
-		{
-			"name": "operations",
-			"schema": {
-				"attributes": [
-					{
-						"name": "time_from",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Start of the time range (ISO 8601). Defaults to 7 days ago if omitted. Must be specified together with time_to."
-						}
-					},
-					{
-						"name": "time_to",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "End of the time range (ISO 8601). Defaults to now if omitted. Must be specified together with time_from. Maximum range is 7 days."
-						}
-					},
-					{
-						"name": "operation_type",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by operation type."
-						}
-					},
-					{
-						"name": "integration",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by integration."
-						}
-					},
-					{
-						"name": "external_id",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by external ID."
-						}
-					},
-					{
-						"name": "task_run_id",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by task run ID (UUID4)."
-						}
-					},
-					{
-						"name": "status",
-						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by operation status."
-						}
-					},
-					{
-						"name": "results",
-						"set_nested": {
-							"computed_optional_required": "computed",
-							"nested_object": {
-								"attributes": [
-									{
-										"name": "id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The operation ID."
-										}
-									},
-									{
-										"name": "account_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The account ID."
-										}
-									},
-									{
-										"name": "pipeline_run_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The parent pipeline run ID."
-										}
-									},
-									{
-										"name": "task_run_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The parent task run ID."
-										}
-									},
-									{
-										"name": "inserted_at",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the operation was inserted."
-										}
-									},
-									{
-										"name": "message",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "A human-readable message about the operation."
-										}
-									},
-									{
-										"name": "operation_name",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The name of the operation."
-										}
-									},
-									{
-										"name": "operation_status",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The status of the operation."
-										}
-									},
-									{
-										"name": "operation_type",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The type of operation."
-										}
-									},
-									{
-										"name": "external_status",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "Status from the external system."
-										}
-									},
-									{
-										"name": "external_detail",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "Detail from the external system (e.g. SQL query)."
-										}
-									},
-									{
-										"name": "external_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "ID in the external system."
-										}
-									},
-									{
-										"name": "integration",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The integration that performed this operation."
-										}
-									},
-									{
-										"name": "integration_job",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The specific job type within the integration."
-										}
-									},
-									{
-										"name": "started_at",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the operation started."
-										}
-									},
-									{
-										"name": "completed_at",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the operation completed."
-										}
-									},
-									{
-										"name": "dependencies",
-										"list": {
-											"computed_optional_required": "computed",
-											"element_type": {
-												"string": {}
-											},
-											"description": "Operation dependencies."
-										}
-									},
-									{
-										"name": "operation_duration",
-										"float64": {
-											"computed_optional_required": "computed",
-											"description": "Duration of the operation in seconds."
-										}
-									},
-									{
-										"name": "rows_affected",
-										"int64": {
-											"computed_optional_required": "computed",
-											"description": "Number of rows affected by the operation."
-										}
-									}
-								]
-							}
-						}
-					}
-				]
-			}
-		},
-		{
 			"name": "assets",
 			"schema": {
 				"attributes": [
 					{
 						"name": "asset_type",
 						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by asset type."
+							"computed_optional_required": "computed_optional",
+							"description": "Filter by asset type. Comma-separated values are supported."
 						}
 					},
 					{
 						"name": "integration",
 						"string": {
-							"computed_optional_required": "optional",
-							"description": "Filter by integration."
+							"computed_optional_required": "computed_optional",
+							"description": "Integration identifier.",
+							"validators": [
+								{
+									"custom": {
+										"imports": [
+											{
+												"path": "github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+											}
+										],
+										"schema_definition": "stringvalidator.OneOf(\n\"AIRBYTE_CLOUD\",\n\"AIRBYTE_SERVER\",\n\"AIRFLOW\",\n\"ARCH\",\n\"ALTERYX_SERVER\",\n\"AWS_EC2\",\n\"AWS_ECS\",\n\"AWS_EMR\",\n\"AWS_EKS\",\n\"AWS_FIREHOSE\",\n\"AWS_GLUE\",\n\"AWS_LAMBDA\",\n\"AWS_RDS\",\n\"AWS_REDSHIFT\",\n\"AWS_S3\",\n\"AWS_BEDROCK\",\n\"AWS_SAGEMAKER\",\n\"AWS_SECRETS_MANAGER\",\n\"AZURE\",\n\"AZURE_CONTAINER_APPS\",\n\"AZURE_DATA_FACTORY\",\n\"AZURE_DATA_LAKE_STORAGE\",\n\"AZURE_KEY_VAULT\",\n\"AZURE_KUBERNETES_SERVICE\",\n\"AZURE_LOGIC_APPS\",\n\"AZURE_SYNAPSE_ANALYTICS\",\n\"AZURE_VM\",\n\"BAUPLAN\",\n\"BOOMI\",\n\"CDATA\",\n\"CENSUS\",\n\"CLAUDE\",\n\"COALESCE\",\n\"COUNT\",\n\"DATADOG\",\n\"DATABRICKS\",\n\"DATAPROC\",\n\"DATAZEN\",\n\"DBT\",\n\"DBT_CORE\",\n\"DLT\",\n\"DOMO\",\n\"DUCKDB\",\n\"EMAIL\",\n\"ESTUARY\",\n\"ETLEAP\",\n\"FABRIC\",\n\"FABRIC_SYNAPSE\",\n\"FIVETRAN\",\n\"FORTRA\",\n\"GCP_BIG_QUERY\",\n\"GCP_CLOUD_RUN\",\n\"GCP_CLOUD_FUNCTIONS\",\n\"GCP_CLOUD_STORAGE\",\n\"GCP_DATAFLOW\",\n\"GCP_DATAFORM\",\n\"GCP_DATASTREAM\",\n\"GCP_LOOKER\",\n\"GKE\",\n\"GITHUB_ACTIONS\",\n\"GOOGLE_CLOUD\",\n\"HEVO\",\n\"HEX\",\n\"HIGHTOUCH\",\n\"HTTP\",\n\"INFORMATICA_IICS\",\n\"INFORMATICA_POWERCENTER\",\n\"KAFKA\",\n\"KEBOOLA\",\n\"KLEENE\",\n\"LIGHTDASH\",\n\"LINUX_SSH\",\n\"MATILLION\",\n\"MATILLION_ETL\",\n\"METAPLANE\",\n\"MICROSOFT_TEAMS\",\n\"MICROSTRATEGY\",\n\"MOTHERDUCK\",\n\"NIMBLE\",\n\"OMNI\",\n\"OPEN_AI\",\n\"ORCHESTRA\",\n\"PARADIME\",\n\"PAGER_DUTY\",\n\"PINECONE\",\n\"PORTABLE\",\n\"POSTGRES\",\n\"POWER_AUTOMATE\",\n\"POWER_BI\",\n\"PREFECT_CLOUD\",\n\"PYTHON\",\n\"QLIK\",\n\"QLIK_REPLICATE\",\n\"RENDER\",\n\"RIVERY\",\n\"RUDDERSTACK\",\n\"SAP\",\n\"SFTP\",\n\"SIGMA\",\n\"SISENSE\",\n\"SLACK\",\n\"SNOWFLAKE\",\n\"SNOWPLOW\",\n\"SODA\",\n\"SQL_MESH\",\n\"SQL_SERVER\",\n\"STITCH\",\n\"STREAMKAP\",\n\"TABLEAU_CLOUD\",\n\"TALEND_CLOUD\",\n\"THOUGHTSPOT\",\n\"TOBIKO_CLOUD\",\n\"WEAVIATE\",\n\"WEBHOOK\",\n\"WELD\",\n\"WINDOWS_SSH\",\n)"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "integration_account_id",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Filter by the account identifier in the integration."
+						}
+					},
+					{
+						"name": "workspace_id",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Filter by integration workspace ID."
+						}
+					},
+					{
+						"name": "database_name",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Filter by database name."
+						}
+					},
+					{
+						"name": "schema_name",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Filter by schema name."
+						}
+					},
+					{
+						"name": "status",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Filter by status. Comma-separated values are supported where the parameter accepts multiple values."
+						}
+					},
+					{
+						"name": "asset_ids",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Filter by asset IDs. Provide comma-separated UUIDs for multiple values."
+						}
+					},
+					{
+						"name": "sort_column",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Column used to sort assets.",
+							"validators": [
+								{
+									"custom": {
+										"imports": [
+											{
+												"path": "github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+											}
+										],
+										"schema_definition": "stringvalidator.OneOf(\n\"asset_name\",\n\"asset_type\",\n\"status\",\n\"integration\",\n\"created_in_integration\",\n\"last_updated_in_integration\",\n)"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "sort_direction",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Sort direction.",
+							"validators": [
+								{
+									"custom": {
+										"imports": [
+											{
+												"path": "github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+											}
+										],
+										"schema_definition": "stringvalidator.OneOf(\n\"asc\",\n\"desc\",\n)"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "page_size",
+						"int64": {
+							"computed_optional_required": "computed"
 						}
 					},
 					{
 						"name": "results",
-						"set_nested": {
+						"list_nested": {
 							"computed_optional_required": "computed",
 							"nested_object": {
 								"attributes": [
 									{
-										"name": "asset_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The asset ID."
-										}
-									},
-									{
-										"name": "integration",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The integration this asset belongs to."
-										}
-									},
-									{
 										"name": "account_id",
 										"string": {
-											"computed_optional_required": "computed",
-											"description": "The account ID."
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "asset_id",
+										"string": {
+											"computed_optional_required": "computed"
 										}
 									},
 									{
 										"name": "asset_name",
 										"string": {
-											"computed_optional_required": "computed",
-											"description": "The name of the asset."
+											"computed_optional_required": "computed"
 										}
 									},
 									{
 										"name": "asset_type",
 										"string": {
-											"computed_optional_required": "computed",
-											"description": "The type of asset."
+											"computed_optional_required": "computed"
 										}
 									},
 									{
-										"name": "integration_account_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The account identifier in the integration."
-										}
-									},
-									{
-										"name": "external_id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The external identifier for this asset."
+										"name": "bytes",
+										"int64": {
+											"computed_optional_required": "computed"
 										}
 									},
 									{
 										"name": "connection",
 										"string": {
-											"computed_optional_required": "computed",
-											"description": "The connection used."
-										}
-									},
-									{
-										"name": "status",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The health status of the asset."
-										}
-									},
-									{
-										"name": "created_at",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the asset was created in Orchestra."
-										}
-									},
-									{
-										"name": "updated_at",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the asset was last updated in Orchestra."
+											"computed_optional_required": "computed"
 										}
 									},
 									{
 										"name": "connection_integration",
 										"string": {
-											"computed_optional_required": "computed",
-											"description": "The integration of the connection."
+											"computed_optional_required": "computed"
 										}
 									},
 									{
-										"name": "upstream_dependencies",
-										"list": {
-											"computed_optional_required": "computed",
-											"element_type": {
-												"string": {}
-											},
-											"description": "Upstream dependency identifiers."
+										"name": "created_at",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "created_in_integration",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "database_name",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "description",
+										"string": {
+											"computed_optional_required": "computed"
 										}
 									},
 									{
@@ -703,43 +194,61 @@
 											"computed_optional_required": "computed",
 											"element_type": {
 												"string": {}
-											},
-											"description": "Downstream dependency identifiers."
+											}
 										}
 									},
 									{
-										"name": "database_name",
+										"name": "external_id",
 										"string": {
-											"computed_optional_required": "computed",
-											"description": "The database name (for warehouse assets)."
+											"computed_optional_required": "computed"
 										}
 									},
 									{
-										"name": "schema_name",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "The schema name (for warehouse assets)."
+										"name": "freshness_config",
+										"single_nested": {
+											"computed_optional_required": "computed"
 										}
 									},
 									{
-										"name": "table_name",
+										"name": "integration",
 										"string": {
-											"computed_optional_required": "computed",
-											"description": "The table name (for warehouse assets)."
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "integration_account_id",
+										"string": {
+											"computed_optional_required": "computed"
 										}
 									},
 									{
 										"name": "integration_asset_type",
 										"string": {
-											"computed_optional_required": "computed",
-											"description": "The asset type as defined by the integration."
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "last_successful_run",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "last_updated_in_integration",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "last_viewed",
+										"string": {
+											"computed_optional_required": "computed"
 										}
 									},
 									{
 										"name": "owner",
 										"string": {
-											"computed_optional_required": "computed",
-											"description": "The primary owner of the asset."
+											"computed_optional_required": "computed"
 										}
 									},
 									{
@@ -748,43 +257,88 @@
 											"computed_optional_required": "computed",
 											"element_type": {
 												"string": {}
-											},
-											"description": "All owners of the asset."
-										}
-									},
-									{
-										"name": "created_in_integration",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the asset was created in the external integration."
-										}
-									},
-									{
-										"name": "last_updated_in_integration",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "When the asset was last updated in the external integration."
-										}
-									},
-									{
-										"name": "usage_percentage",
-										"float64": {
-											"computed_optional_required": "computed",
-											"description": "Usage percentage of the asset."
+											}
 										}
 									},
 									{
 										"name": "row_count",
 										"int64": {
-											"computed_optional_required": "computed",
-											"description": "Number of rows (for table assets)."
+											"computed_optional_required": "computed"
 										}
 									},
 									{
-										"name": "bytes",
+										"name": "schema_name",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "status",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "table_name",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "unique_viewers",
 										"int64": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "updated_at",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "upstream_dependencies",
+										"list": {
 											"computed_optional_required": "computed",
-											"description": "Size in bytes (for table assets)."
+											"element_type": {
+												"string": {}
+											}
+										}
+									},
+									{
+										"name": "url",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "usage_percentage",
+										"number": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "view_count",
+										"int64": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "view_count_from_timestamp",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "workspace_id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "workspace_name",
+										"string": {
+											"computed_optional_required": "computed"
 										}
 									}
 								]
@@ -801,15 +355,313 @@
 					{
 						"name": "audience",
 						"string": {
-							"computed_optional_required": "computed",
-							"description": "Audience value to use in the Azure federated credential configuration."
+							"computed_optional_required": "computed"
 						}
 					},
 					{
 						"name": "subject_id",
 						"string": {
+							"computed_optional_required": "computed"
+						}
+					}
+				]
+			}
+		},
+		{
+			"name": "operations",
+			"schema": {
+				"attributes": [
+					{
+						"name": "operation_type",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Filter by operation type. Comma-separated values are supported."
+						}
+					},
+					{
+						"name": "integration",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Integration identifier.",
+							"validators": [
+								{
+									"custom": {
+										"imports": [
+											{
+												"path": "github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+											}
+										],
+										"schema_definition": "stringvalidator.OneOf(\n\"AIRBYTE_CLOUD\",\n\"AIRBYTE_SERVER\",\n\"AIRFLOW\",\n\"ARCH\",\n\"ALTERYX_SERVER\",\n\"AWS_EC2\",\n\"AWS_ECS\",\n\"AWS_EMR\",\n\"AWS_EKS\",\n\"AWS_FIREHOSE\",\n\"AWS_GLUE\",\n\"AWS_LAMBDA\",\n\"AWS_RDS\",\n\"AWS_REDSHIFT\",\n\"AWS_S3\",\n\"AWS_BEDROCK\",\n\"AWS_SAGEMAKER\",\n\"AWS_SECRETS_MANAGER\",\n\"AZURE\",\n\"AZURE_CONTAINER_APPS\",\n\"AZURE_DATA_FACTORY\",\n\"AZURE_DATA_LAKE_STORAGE\",\n\"AZURE_KEY_VAULT\",\n\"AZURE_KUBERNETES_SERVICE\",\n\"AZURE_LOGIC_APPS\",\n\"AZURE_SYNAPSE_ANALYTICS\",\n\"AZURE_VM\",\n\"BAUPLAN\",\n\"BOOMI\",\n\"CDATA\",\n\"CENSUS\",\n\"CLAUDE\",\n\"COALESCE\",\n\"COUNT\",\n\"DATADOG\",\n\"DATABRICKS\",\n\"DATAPROC\",\n\"DATAZEN\",\n\"DBT\",\n\"DBT_CORE\",\n\"DLT\",\n\"DOMO\",\n\"DUCKDB\",\n\"EMAIL\",\n\"ESTUARY\",\n\"ETLEAP\",\n\"FABRIC\",\n\"FABRIC_SYNAPSE\",\n\"FIVETRAN\",\n\"FORTRA\",\n\"GCP_BIG_QUERY\",\n\"GCP_CLOUD_RUN\",\n\"GCP_CLOUD_FUNCTIONS\",\n\"GCP_CLOUD_STORAGE\",\n\"GCP_DATAFLOW\",\n\"GCP_DATAFORM\",\n\"GCP_DATASTREAM\",\n\"GCP_LOOKER\",\n\"GKE\",\n\"GITHUB_ACTIONS\",\n\"GOOGLE_CLOUD\",\n\"HEVO\",\n\"HEX\",\n\"HIGHTOUCH\",\n\"HTTP\",\n\"INFORMATICA_IICS\",\n\"INFORMATICA_POWERCENTER\",\n\"KAFKA\",\n\"KEBOOLA\",\n\"KLEENE\",\n\"LIGHTDASH\",\n\"LINUX_SSH\",\n\"MATILLION\",\n\"MATILLION_ETL\",\n\"METAPLANE\",\n\"MICROSOFT_TEAMS\",\n\"MICROSTRATEGY\",\n\"MOTHERDUCK\",\n\"NIMBLE\",\n\"OMNI\",\n\"OPEN_AI\",\n\"ORCHESTRA\",\n\"PARADIME\",\n\"PAGER_DUTY\",\n\"PINECONE\",\n\"PORTABLE\",\n\"POSTGRES\",\n\"POWER_AUTOMATE\",\n\"POWER_BI\",\n\"PREFECT_CLOUD\",\n\"PYTHON\",\n\"QLIK\",\n\"QLIK_REPLICATE\",\n\"RENDER\",\n\"RIVERY\",\n\"RUDDERSTACK\",\n\"SAP\",\n\"SFTP\",\n\"SIGMA\",\n\"SISENSE\",\n\"SLACK\",\n\"SNOWFLAKE\",\n\"SNOWPLOW\",\n\"SODA\",\n\"SQL_MESH\",\n\"SQL_SERVER\",\n\"STITCH\",\n\"STREAMKAP\",\n\"TABLEAU_CLOUD\",\n\"TALEND_CLOUD\",\n\"THOUGHTSPOT\",\n\"TOBIKO_CLOUD\",\n\"WEAVIATE\",\n\"WEBHOOK\",\n\"WELD\",\n\"WINDOWS_SSH\",\n)"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "time_from",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Start of the time window as an ISO 8601 datetime."
+						}
+					},
+					{
+						"name": "time_to",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "End of the time window as an ISO 8601 datetime."
+						}
+					},
+					{
+						"name": "external_id",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "External system identifier to filter by."
+						}
+					},
+					{
+						"name": "status",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Filter by status.",
+							"validators": [
+								{
+									"custom": {
+										"imports": [
+											{
+												"path": "github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+											}
+										],
+										"schema_definition": "stringvalidator.OneOf(\n\"CANCELLED\",\n\"FAILED\",\n\"REUSED\",\n\"SKIPPED\",\n\"SUCCEEDED\",\n\"UNKNOWN\",\n\"WARNING\",\n)"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "task_run_id",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Task run ID."
+						}
+					},
+					{
+						"name": "page_size",
+						"int64": {
+							"computed_optional_required": "computed"
+						}
+					},
+					{
+						"name": "results",
+						"list_nested": {
 							"computed_optional_required": "computed",
-							"description": "Subject identifier to use in the Azure federated credential configuration."
+							"nested_object": {
+								"attributes": [
+									{
+										"name": "account_id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "asset_external_id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "can_rerun",
+										"bool": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "completed_at",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "cost",
+										"number": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "credits",
+										"number": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "credits_label",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "currency",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "dependencies",
+										"list": {
+											"computed_optional_required": "computed",
+											"element_type": {
+												"string": {}
+											}
+										}
+									},
+									{
+										"name": "external_detail",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "external_id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "external_status",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "final_cost_amount",
+										"number": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "final_cost_currency",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "inserted_at",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "integration",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "integration_job",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "message",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "meta",
+										"single_nested": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "operation_duration",
+										"number": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "operation_name",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "operation_status",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "operation_type",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "pipeline_run_id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "raw_cost_amount",
+										"number": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "raw_cost_integration",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "raw_cost_label",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "raw_cost_units",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "rows_affected",
+										"int64": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "started_at",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "tags",
+										"list": {
+											"computed_optional_required": "computed",
+											"element_type": {
+												"string": {}
+											}
+										}
+									},
+									{
+										"name": "task_run_id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									}
+								]
+							}
 						}
 					}
 				]
@@ -823,210 +675,25 @@
 						"name": "id",
 						"string": {
 							"computed_optional_required": "required",
-							"description": "The pipeline run ID (UUID4)."
+							"description": "Pipeline run ID."
 						}
 					},
 					{
 						"name": "pipeline_id",
 						"string": {
-							"computed_optional_required": "computed",
-							"description": "The pipeline ID."
+							"computed_optional_required": "computed"
 						}
 					},
 					{
 						"name": "pipeline_name",
 						"string": {
-							"computed_optional_required": "computed",
-							"description": "The pipeline name."
+							"computed_optional_required": "computed"
 						}
 					},
 					{
 						"name": "run_status",
 						"string": {
-							"computed_optional_required": "computed",
-							"description": "The status of the pipeline run."
-						}
-					}
-				]
-			}
-		},
-		{
-			"name": "pipelines",
-			"schema": {
-				"attributes": [
-					{
-						"name": "pipelines",
-						"set_nested": {
-							"computed_optional_required": "computed",
-							"nested_object": {
-								"attributes": [
-									{
-										"name": "alias",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "created_at",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "default_branch",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "id",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "Pipeline id."
-										}
-									},
-									{
-										"name": "inputs",
-										"single_nested": {
-											"computed_optional_required": "computed",
-											"description": "Map of string keys to pipeline input definitions."
-										}
-									},
-									{
-										"name": "latest_run_completed_at",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "latest_run_created_at",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "latest_run_id",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "latest_run_message",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "latest_run_started_at",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "latest_run_status",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "Same values as pipeline run status on pipeline runs."
-										}
-									},
-									{
-										"name": "latest_version_number",
-										"int64": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "name",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "Display name."
-										}
-									},
-									{
-										"name": "num_tasks",
-										"int64": {
-											"computed_optional_required": "computed",
-											"description": "Omitted when not set."
-										}
-									},
-									{
-										"name": "paused",
-										"bool": {
-											"computed_optional_required": "computed",
-											"description": "Whether the pipeline is paused."
-										}
-									},
-									{
-										"name": "product_id",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "product_name",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "published_version_number",
-										"int64": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "repository",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "schedule",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "JSON string; the model coerces null to \"[]\"."
-										}
-									},
-									{
-										"name": "sensors",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "storage_provider",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "trigger_events",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "Stored as a JSON string when set."
-										}
-									},
-									{
-										"name": "updated_at",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "webhook",
-										"string": {
-											"computed_optional_required": "computed"
-										}
-									},
-									{
-										"name": "yaml_path",
-										"string": {
-											"computed_optional_required": "computed",
-											"description": "Path to the pipeline YAML in the repository, when applicable."
-										}
-									}
-								]
-							}
+							"computed_optional_required": "computed"
 						}
 					}
 				]
@@ -1040,14 +707,14 @@
 						"name": "pipeline_run_id",
 						"string": {
 							"computed_optional_required": "required",
-							"description": "The pipeline run ID (UUID4)."
+							"description": "Pipeline run ID."
 						}
 					},
 					{
 						"name": "task_run_id",
 						"string": {
 							"computed_optional_required": "required",
-							"description": "The task run ID (UUID4)."
+							"description": "Task run ID."
 						}
 					},
 					{
@@ -1056,8 +723,7 @@
 							"computed_optional_required": "computed",
 							"element_type": {
 								"string": {}
-							},
-							"description": "List of filenames."
+							}
 						}
 					}
 				]
@@ -1071,14 +737,14 @@
 						"name": "pipeline_run_id",
 						"string": {
 							"computed_optional_required": "required",
-							"description": "The pipeline run ID (UUID4)."
+							"description": "Pipeline run ID."
 						}
 					},
 					{
 						"name": "task_run_id",
 						"string": {
 							"computed_optional_required": "required",
-							"description": "The task run ID (UUID4)."
+							"description": "Task run ID."
 						}
 					},
 					{
@@ -1087,8 +753,248 @@
 							"computed_optional_required": "computed",
 							"element_type": {
 								"string": {}
-							},
-							"description": "List of filenames."
+							}
+						}
+					},
+					{
+						"name": "files",
+						"map_nested": {
+							"computed_optional_required": "computed",
+							"nested_object": {
+								"attributes": [
+									{
+										"name": "attempt_number",
+										"int64": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "display_name",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									}
+								]
+							}
+						}
+					}
+				]
+			}
+		},
+		{
+			"name": "task_runs",
+			"schema": {
+				"attributes": [
+					{
+						"name": "time_from",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Start of the time window as an ISO 8601 datetime."
+						}
+					},
+					{
+						"name": "time_to",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "End of the time window as an ISO 8601 datetime."
+						}
+					},
+					{
+						"name": "pipeline_ids",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Filter by pipeline IDs. Provide comma-separated UUIDs for multiple values."
+						}
+					},
+					{
+						"name": "status",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Filter by status. Comma-separated values are supported where the parameter accepts multiple values."
+						}
+					},
+					{
+						"name": "integration",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Integration identifier."
+						}
+					},
+					{
+						"name": "task_run_ids",
+						"string": {
+							"computed_optional_required": "computed_optional",
+							"description": "Filter by task run IDs. Provide comma-separated UUIDs for multiple values."
+						}
+					},
+					{
+						"name": "page_size",
+						"int64": {
+							"computed_optional_required": "computed"
+						}
+					},
+					{
+						"name": "results",
+						"list_nested": {
+							"computed_optional_required": "computed",
+							"nested_object": {
+								"attributes": [
+									{
+										"name": "account_id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "completed_at",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "compute_resource_id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "connection_id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "created_at",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "depends_on",
+										"list": {
+											"computed_optional_required": "computed",
+											"element_type": {
+												"string": {}
+											}
+										}
+									},
+									{
+										"name": "external_message",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "external_status",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "integration",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "integration_job",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "matrix_parent",
+										"bool": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "matrix_parent_id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "message",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "number_of_attempts",
+										"int64": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "pipeline_id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "pipeline_run_id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "platform_link",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "run_parameters",
+										"single_nested": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "started_at",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "status",
+										"string": {
+											"computed_optional_required": "computed",
+											"description": "NOTE: if changing these values, please also confirm the AWS Step Function state machine\nis not impacted. This can be done by looking at `terraform/modules/step_function/main.tf`, and\nviewing the state machine JSON definition."
+										}
+									},
+									{
+										"name": "task_id",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "task_name",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "task_parameters",
+										"single_nested": {
+											"computed_optional_required": "computed"
+										}
+									},
+									{
+										"name": "updated_at",
+										"string": {
+											"computed_optional_required": "computed"
+										}
+									}
+								]
+							}
 						}
 					}
 				]
@@ -1098,192 +1004,5 @@
 	"provider": {
 		"name": "orchestra"
 	},
-	"resources": [
-		{
-			"name": "imported_pipeline",
-			"schema": {
-				"attributes": [
-					{
-						"name": "alias",
-						"string": {
-							"computed_optional_required": "computed_optional",
-							"description": "The alias to identify the pipeline in Orchestra."
-						}
-					},
-					{
-						"name": "default_branch",
-						"string": {
-							"computed_optional_required": "required",
-							"description": "The default branch of the repository."
-						}
-					},
-					{
-						"name": "repository",
-						"string": {
-							"computed_optional_required": "required",
-							"description": "The repository slug or URL."
-						}
-					},
-					{
-						"name": "storage_provider",
-						"string": {
-							"computed_optional_required": "required",
-							"description": "The storage provider inferred from the repository URL."
-						}
-					},
-					{
-						"name": "working_branch",
-						"string": {
-							"computed_optional_required": "computed_optional",
-							"description": "The branch to import from."
-						}
-					},
-					{
-						"name": "yaml_path",
-						"string": {
-							"computed_optional_required": "required",
-							"description": "Path to the pipeline YAML file within the repository."
-						}
-					},
-					{
-						"name": "created_at",
-						"string": {
-							"computed_optional_required": "computed",
-							"description": "When the pipeline was created."
-						}
-					},
-					{
-						"name": "data",
-						"single_nested": {
-							"computed_optional_required": "computed",
-							"description": "JSON representation of the pipeline YAML."
-						}
-					},
-					{
-						"name": "id",
-						"string": {
-							"computed_optional_required": "computed",
-							"description": "The pipeline ID."
-						}
-					},
-					{
-						"name": "name",
-						"string": {
-							"computed_optional_required": "computed",
-							"description": "The pipeline name."
-						}
-					},
-					{
-						"name": "num_tasks",
-						"int64": {
-							"computed_optional_required": "computed",
-							"description": "Number of tasks in the pipeline."
-						}
-					},
-					{
-						"name": "paused",
-						"bool": {
-							"computed_optional_required": "computed",
-							"description": "Whether the pipeline is paused."
-						}
-					},
-					{
-						"name": "updated_at",
-						"string": {
-							"computed_optional_required": "computed",
-							"description": "When the pipeline was last updated."
-						}
-					}
-				]
-			}
-		},
-		{
-			"name": "pipeline",
-			"schema": {
-				"attributes": [
-					{
-						"name": "alias",
-						"string": {
-							"computed_optional_required": "required",
-							"description": "Unique identifier. Letters, numbers, underscores only. Max 255."
-						}
-					},
-					{
-						"name": "data",
-						"single_nested": {
-							"computed_optional_required": "required",
-							"description": "Pipeline definition. See the pipeline schema reference for the full structure."
-						}
-					},
-					{
-						"name": "published",
-						"bool": {
-							"computed_optional_required": "required",
-							"description": "Whether the pipeline is published and can be triggered."
-						}
-					},
-					{
-						"name": "storage_provider",
-						"string": {
-							"computed_optional_required": "computed_optional",
-							"default": {
-								"static": "ORCHESTRA"
-							},
-							"description": "Must be ORCHESTRA for API-created pipelines."
-						}
-					},
-					{
-						"name": "created_at",
-						"string": {
-							"computed_optional_required": "computed",
-							"description": "When the pipeline was created."
-						}
-					},
-					{
-						"name": "id",
-						"string": {
-							"computed_optional_required": "computed",
-							"description": "The pipeline ID."
-						}
-					},
-					{
-						"name": "name",
-						"string": {
-							"computed_optional_required": "computed",
-							"description": "The pipeline name."
-						}
-					},
-					{
-						"name": "num_tasks",
-						"int64": {
-							"computed_optional_required": "computed",
-							"description": "Number of tasks in the pipeline."
-						}
-					},
-					{
-						"name": "paused",
-						"bool": {
-							"computed_optional_required": "computed",
-							"description": "Whether the pipeline is paused."
-						}
-					},
-					{
-						"name": "updated_at",
-						"string": {
-							"computed_optional_required": "computed",
-							"description": "When the pipeline was last updated."
-						}
-					},
-					{
-						"name": "yaml_path",
-						"string": {
-							"computed_optional_required": "computed",
-							"description": "Path to the pipeline YAML file (null for API-created pipelines)."
-						}
-					}
-				]
-			}
-		}
-	],
 	"version": "0.1"
 }

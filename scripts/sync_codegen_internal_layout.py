@@ -160,9 +160,30 @@ def sync(src_root: Path, repo_root: Path) -> None:
         if src_pkg_dir.exists():
             # Clean target to keep diffs deterministic and prevent stale files.
             if target_dir.exists():
+                # The provider server wrapper (`internal/provider/provider.go`) is
+                # hand-written. terraform-plugin-framework-generator only
+                # regenerates the schema/model (`*_gen.go`), so we must preserve
+                # the wrapper across sync runs.
+                preserve_provider_go = new_dir == "internal/provider"
+                backup_path: Path | None = None
+                if preserve_provider_go:
+                    provider_go = target_dir / "provider.go"
+                    if provider_go.exists():
+                        backup_path = repo_root / ".tmp-provider-go.backup"
+                        # Best-effort: the backup file lives in repo_root so it
+                        # survives the rmtree.
+                        shutil.copy2(provider_go, backup_path)
+
                 shutil.rmtree(target_dir)
 
             shutil.move(str(src_pkg_dir), str(target_dir))
+
+            # Restore preserved wrapper, if any.
+            if target_dir.exists() and new_dir == "internal/provider":
+                backup_path = repo_root / ".tmp-provider-go.backup"
+                if backup_path.exists():
+                    shutil.copy2(backup_path, target_dir / "provider.go")
+                    backup_path.unlink(missing_ok=True)
         else:
             if not target_dir.exists():
                 # In regen runs, not every mapping may be present if generator output changes.

@@ -14,23 +14,17 @@ func PipelineRunStatusDataSourceSchema(ctx context.Context) schema.Schema {
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Required:            true,
-				Description:         "The pipeline run ID (UUID4).",
-				MarkdownDescription: "The pipeline run ID (UUID4).",
+				Description:         "Pipeline run ID.",
+				MarkdownDescription: "Pipeline run ID.",
 			},
 			"pipeline_id": schema.StringAttribute{
-				Computed:            true,
-				Description:         "The pipeline ID.",
-				MarkdownDescription: "The pipeline ID.",
+				Computed: true,
 			},
 			"pipeline_name": schema.StringAttribute{
-				Computed:            true,
-				Description:         "The pipeline name.",
-				MarkdownDescription: "The pipeline name.",
+				Computed: true,
 			},
 			"run_status": schema.StringAttribute{
-				Computed:            true,
-				Description:         "The status of the pipeline run.",
-				MarkdownDescription: "The status of the pipeline run.",
+				Computed: true,
 			},
 		},
 	}

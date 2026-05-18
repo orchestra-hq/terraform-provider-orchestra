@@ -17,10 +17,10 @@ description: |-
 
 ### Required
 
-- `id` (String) The pipeline run ID (UUID4).
+- `id` (String) Pipeline run ID.
 
 ### Read-Only
 
-- `pipeline_id` (String) The pipeline ID.
-- `pipeline_name` (String) The pipeline name.
-- `run_status` (String) The status of the pipeline run.
+- `pipeline_id` (String)
+- `pipeline_name` (String)
+- `run_status` (String)

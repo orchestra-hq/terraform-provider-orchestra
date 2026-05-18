@@ -17,39 +17,57 @@ description: |-
 
 ### Optional
 
-- `external_id` (String) Filter by external ID.
-- `integration` (String) Filter by integration.
-- `operation_type` (String) Filter by operation type.
-- `status` (String) Filter by operation status.
-- `task_run_id` (String) Filter by task run ID (UUID4).
-- `time_from` (String) Start of the time range (ISO 8601). Defaults to 7 days ago if omitted. Must be specified together with time_to.
-- `time_to` (String) End of the time range (ISO 8601). Defaults to now if omitted. Must be specified together with time_from. Maximum range is 7 days.
+- `external_id` (String) External system identifier to filter by.
+- `integration` (String) Integration identifier.
+- `operation_type` (String) Filter by operation type. Comma-separated values are supported.
+- `status` (String) Filter by status.
+- `task_run_id` (String) Task run ID.
+- `time_from` (String) Start of the time window as an ISO 8601 datetime.
+- `time_to` (String) End of the time window as an ISO 8601 datetime.
 
 ### Read-Only
 
-- `results` (Attributes Set) (see [below for nested schema](#nestedatt--results))
+- `page_size` (Number)
+- `results` (Attributes List) (see [below for nested schema](#nestedatt--results))
 
 <a id="nestedatt--results"></a>
 ### Nested Schema for `results`
 
 Read-Only:
 
-- `account_id` (String) The account ID.
-- `completed_at` (String) When the operation completed.
-- `dependencies` (List of String) Operation dependencies.
-- `external_detail` (String) Detail from the external system (e.g. SQL query).
-- `external_id` (String) ID in the external system.
-- `external_status` (String) Status from the external system.
-- `id` (String) The operation ID.
-- `inserted_at` (String) When the operation was inserted.
-- `integration` (String) The integration that performed this operation.
-- `integration_job` (String) The specific job type within the integration.
-- `message` (String) A human-readable message about the operation.
-- `operation_duration` (Number) Duration of the operation in seconds.
-- `operation_name` (String) The name of the operation.
-- `operation_status` (String) The status of the operation.
-- `operation_type` (String) The type of operation.
-- `pipeline_run_id` (String) The parent pipeline run ID.
-- `rows_affected` (Number) Number of rows affected by the operation.
-- `started_at` (String) When the operation started.
-- `task_run_id` (String) The parent task run ID.
+- `account_id` (String)
+- `asset_external_id` (String)
+- `can_rerun` (Boolean)
+- `completed_at` (String)
+- `cost` (Number)
+- `credits` (Number)
+- `credits_label` (String)
+- `currency` (String)
+- `dependencies` (List of String)
+- `external_detail` (String)
+- `external_id` (String)
+- `external_status` (String)
+- `final_cost_amount` (Number)
+- `final_cost_currency` (String)
+- `id` (String)
+- `inserted_at` (String)
+- `integration` (String)
+- `integration_job` (String)
+- `message` (String)
+- `meta` (Attributes) (see [below for nested schema](#nestedatt--results--meta))
+- `operation_duration` (Number)
+- `operation_name` (String)
+- `operation_status` (String)
+- `operation_type` (String)
+- `pipeline_run_id` (String)
+- `raw_cost_amount` (Number)
+- `raw_cost_integration` (String)
+- `raw_cost_label` (String)
+- `raw_cost_units` (String)
+- `rows_affected` (Number)
+- `started_at` (String)
+- `tags` (List of String)
+- `task_run_id` (String)
+
+<a id="nestedatt--results--meta"></a>
+### Nested Schema for `results.meta`

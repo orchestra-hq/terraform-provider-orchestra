@@ -17,9 +17,9 @@ description: |-
 
 ### Required
 
-- `pipeline_run_id` (String) The pipeline run ID (UUID4).
-- `task_run_id` (String) The task run ID (UUID4).
+- `pipeline_run_id` (String) Pipeline run ID.
+- `task_run_id` (String) Task run ID.
 
 ### Read-Only
 
-- `filenames` (List of String) List of filenames.
+- `filenames` (List of String)

@@ -61,7 +61,7 @@ func TestTaskRunLogsDataSourceSchema_AttributeCount(t *testing.T) {
 	ctx := context.Background()
 	s := task_run_logs.TaskRunLogsDataSourceSchema(ctx)
 
-	if got := len(s.Attributes); got != 3 {
-		t.Errorf("expected 3 attributes, got %d", got)
+	if got := len(s.Attributes); got != 4 {
+		t.Errorf("expected 4 attributes, got %d", got)
 	}
 }

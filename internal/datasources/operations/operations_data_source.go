@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/url"
 
@@ -123,11 +124,11 @@ func (d *OperationsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		}
 		return basetypes.NewInt64Value(*v)
 	}
-	float64Ptr := func(v *float64) basetypes.Float64Value {
+	float64Ptr := func(v *float64) basetypes.NumberValue {
 		if v == nil {
-			return basetypes.NewFloat64Null()
+			return basetypes.NewNumberNull()
 		}
-		return basetypes.NewFloat64Value(*v)
+		return basetypes.NewNumberValue(big.NewFloat(*v))
 	}
 
 	elements := make([]attr.Value, 0, len(api.Results))
@@ -162,6 +163,6 @@ func (d *OperationsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		elements = append(elements, el)
 	}
 
-	model.Results = types.SetValueMust(ResultsType{}, elements)
+	model.Results = types.ListValueMust(ResultsType{}, elements)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }

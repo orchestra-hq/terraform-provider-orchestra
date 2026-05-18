@@ -47,5 +47,6 @@ Read-Only:
 - `pipeline_version_number` (Number) The pipeline version number.
 - `run_status` (String) The status of the pipeline run.
 - `started_at` (String) When the pipeline run started executing.
+- `status` (String) The status of the pipeline run.
 - `triggered_by` (String) JSON string of trigger information for this pipeline run.
 - `updated_at` (String) When the pipeline run was last updated.

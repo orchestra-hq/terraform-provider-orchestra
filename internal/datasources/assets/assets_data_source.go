@@ -3,6 +3,7 @@ package assets
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/url"
 
@@ -90,11 +91,11 @@ func int64Ptr(v *int64) basetypes.Int64Value {
 	return basetypes.NewInt64Value(*v)
 }
 
-func float64Ptr(v *float64) basetypes.Float64Value {
+func float64Ptr(v *float64) basetypes.NumberValue {
 	if v == nil {
-		return basetypes.NewFloat64Null()
+		return basetypes.NewNumberNull()
 	}
-	return basetypes.NewFloat64Value(*v)
+	return basetypes.NewNumberValue(big.NewFloat(*v))
 }
 
 func stringsToListValue(values []string) basetypes.ListValue {
@@ -164,6 +165,6 @@ func (d *AssetsDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		elements = append(elements, el)
 	}
 
-	model.Results = types.SetValueMust(ResultsType{}, elements)
+	model.Results = types.ListValueMust(ResultsType{}, elements)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }

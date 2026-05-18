@@ -31,8 +31,8 @@ func TestAssetsDataSourceSchema_FilterAttributes(t *testing.T) {
 			if !sa.Optional {
 				t.Errorf("filter attribute %q should be Optional", name)
 			}
-			if sa.Required || sa.Computed {
-				t.Errorf("filter attribute %q should only be Optional", name)
+			if !sa.Computed {
+				t.Errorf("filter attribute %q should be Optional and Computed", name)
 			}
 		})
 	}
@@ -46,9 +46,9 @@ func TestAssetsDataSourceSchema_ResultsAttribute(t *testing.T) {
 	if !ok {
 		t.Fatal("expected results attribute")
 	}
-	setAttr, ok := a.(dschema.SetNestedAttribute)
+	setAttr, ok := a.(dschema.ListNestedAttribute)
 	if !ok {
-		t.Fatalf("results should be SetNestedAttribute, got %T", a)
+		t.Fatalf("results should be ListNestedAttribute, got %T", a)
 	}
 	if !setAttr.Computed {
 		t.Error("results should be Computed")
@@ -58,7 +58,7 @@ func TestAssetsDataSourceSchema_ResultsAttribute(t *testing.T) {
 func TestAssetsDataSourceSchema_ResultsNestedStringFields(t *testing.T) {
 	ctx := context.Background()
 	s := assets.AssetsDataSourceSchema(ctx)
-	nested := s.Attributes["results"].(dschema.SetNestedAttribute).NestedObject.Attributes
+	nested := s.Attributes["results"].(dschema.ListNestedAttribute).NestedObject.Attributes
 
 	stringFields := []string{
 		"account_id", "asset_id", "asset_name", "asset_type",
@@ -84,7 +84,7 @@ func TestAssetsDataSourceSchema_ResultsNestedStringFields(t *testing.T) {
 func TestAssetsDataSourceSchema_ResultsNestedInt64Fields(t *testing.T) {
 	ctx := context.Background()
 	nested := assets.AssetsDataSourceSchema(ctx).
-		Attributes["results"].(dschema.SetNestedAttribute).NestedObject.Attributes
+		Attributes["results"].(dschema.ListNestedAttribute).NestedObject.Attributes
 
 	for _, name := range []string{"bytes", "row_count"} {
 		t.Run(name, func(t *testing.T) {
@@ -102,21 +102,21 @@ func TestAssetsDataSourceSchema_ResultsNestedInt64Fields(t *testing.T) {
 func TestAssetsDataSourceSchema_ResultsNestedFloat64Field(t *testing.T) {
 	ctx := context.Background()
 	nested := assets.AssetsDataSourceSchema(ctx).
-		Attributes["results"].(dschema.SetNestedAttribute).NestedObject.Attributes
+		Attributes["results"].(dschema.ListNestedAttribute).NestedObject.Attributes
 
 	a, ok := nested["usage_percentage"]
 	if !ok {
 		t.Fatal("expected usage_percentage field")
 	}
-	if _, ok := a.(dschema.Float64Attribute); !ok {
-		t.Errorf("usage_percentage should be Float64Attribute, got %T", a)
+	if _, ok := a.(dschema.NumberAttribute); !ok {
+		t.Errorf("usage_percentage should be NumberAttribute, got %T", a)
 	}
 }
 
 func TestAssetsDataSourceSchema_ResultsNestedListFields(t *testing.T) {
 	ctx := context.Background()
 	nested := assets.AssetsDataSourceSchema(ctx).
-		Attributes["results"].(dschema.SetNestedAttribute).NestedObject.Attributes
+		Attributes["results"].(dschema.ListNestedAttribute).NestedObject.Attributes
 
 	for _, name := range []string{"downstream_dependencies", "owners", "upstream_dependencies"} {
 		t.Run(name, func(t *testing.T) {

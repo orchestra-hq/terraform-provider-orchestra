@@ -17,40 +17,54 @@ description: |-
 
 ### Optional
 
-- `integration` (String) Filter by integration. Comma-separated for multiple values (e.g. HTTP,SNOWFLAKE).
-- `pipeline_ids` (String) Filter by pipeline IDs (UUID4). Comma-separated for multiple values.
-- `status` (String) Filter by task run status. Comma-separated for multiple values (e.g. SUCCEEDED,FAILED).
-- `task_run_ids` (String) Filter by task run IDs (UUID4). Comma-separated for multiple values.
-- `time_from` (String) Start of the time range (ISO 8601). Defaults to 7 days ago if omitted. Must be specified together with time_to.
-- `time_to` (String) End of the time range (ISO 8601). Defaults to now if omitted. Must be specified together with time_from. Maximum range is 7 days.
+- `integration` (String) Integration identifier.
+- `pipeline_ids` (String) Filter by pipeline IDs. Provide comma-separated UUIDs for multiple values.
+- `status` (String) Filter by status. Comma-separated values are supported where the parameter accepts multiple values.
+- `task_run_ids` (String) Filter by task run IDs. Provide comma-separated UUIDs for multiple values.
+- `time_from` (String) Start of the time window as an ISO 8601 datetime.
+- `time_to` (String) End of the time window as an ISO 8601 datetime.
 
 ### Read-Only
 
-- `results` (Attributes Set) (see [below for nested schema](#nestedatt--results))
+- `page_size` (Number)
+- `results` (Attributes List) (see [below for nested schema](#nestedatt--results))
 
 <a id="nestedatt--results"></a>
 ### Nested Schema for `results`
 
 Read-Only:
 
-- `account_id` (String) The account ID.
-- `completed_at` (String) When the task run completed.
-- `connection_id` (String) The connection identifier used.
-- `created_at` (String) When the task run was created.
-- `external_message` (String) A message returned by the external integration.
-- `external_status` (String) The status returned by the external integration.
-- `id` (String) The task run ID.
-- `integration` (String) The integration used for this task.
-- `integration_job` (String) The specific job type within the integration.
-- `message` (String) A human-readable status message.
-- `number_of_attempts` (Number) Number of execution attempts.
-- `pipeline_id` (String) The pipeline ID.
-- `pipeline_run_id` (String) The parent pipeline run ID.
-- `platform_link` (String) A link to the run in the external platform.
-- `run_parameters` (String) JSON string of the runtime parameters for this execution.
-- `started_at` (String) When the task run started executing.
-- `status` (String) The status of the task run.
-- `task_id` (String) The task identifier.
-- `task_name` (String) The name of the task.
-- `task_parameters` (String) JSON string of the parameters configured for the task.
-- `updated_at` (String) When the task run was last updated.
+- `account_id` (String)
+- `completed_at` (String)
+- `compute_resource_id` (String)
+- `connection_id` (String)
+- `created_at` (String)
+- `depends_on` (List of String)
+- `external_message` (String)
+- `external_status` (String)
+- `id` (String)
+- `integration` (String)
+- `integration_job` (String)
+- `matrix_parent` (Boolean)
+- `matrix_parent_id` (String)
+- `message` (String)
+- `number_of_attempts` (Number)
+- `pipeline_id` (String)
+- `pipeline_run_id` (String)
+- `platform_link` (String)
+- `run_parameters` (Attributes) (see [below for nested schema](#nestedatt--results--run_parameters))
+- `started_at` (String)
+- `status` (String) NOTE: if changing these values, please also confirm the AWS Step Function state machine
+is not impacted. This can be done by looking at `terraform/modules/step_function/main.tf`, and
+viewing the state machine JSON definition.
+- `task_id` (String)
+- `task_name` (String)
+- `task_parameters` (Attributes) (see [below for nested schema](#nestedatt--results--task_parameters))
+- `updated_at` (String)
+
+<a id="nestedatt--results--run_parameters"></a>
+### Nested Schema for `results.run_parameters`
+
+
+<a id="nestedatt--results--task_parameters"></a>
+### Nested Schema for `results.task_parameters`

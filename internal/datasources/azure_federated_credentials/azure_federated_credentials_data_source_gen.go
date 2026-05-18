@@ -13,14 +13,10 @@ func AzureFederatedCredentialsDataSourceSchema(ctx context.Context) schema.Schem
 	return schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"audience": schema.StringAttribute{
-				Computed:            true,
-				Description:         "Audience value to use in the Azure federated credential configuration.",
-				MarkdownDescription: "Audience value to use in the Azure federated credential configuration.",
+				Computed: true,
 			},
 			"subject_id": schema.StringAttribute{
-				Computed:            true,
-				Description:         "Subject identifier to use in the Azure federated credential configuration.",
-				MarkdownDescription: "Subject identifier to use in the Azure federated credential configuration.",
+				Computed: true,
 			},
 		},
 	}

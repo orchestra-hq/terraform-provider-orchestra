@@ -125,11 +125,16 @@ func (d *TaskRunsDataSource) Read(ctx context.Context, req datasource.ReadReques
 			}
 			return basetypes.NewInt64Value(*v)
 		}
-		rawPtrToString := func(raw json.RawMessage) basetypes.StringValue {
+		// The generated schema for run/task parameters is an "empty object"
+		// (it accepts no nested attributes). We still need to provide an
+		// ObjectValue for the field, so we map any non-null payload to a
+		// known empty object (ignoring keys if present).
+		rawPtrToEmptyObject := func(raw json.RawMessage) basetypes.ObjectValue {
+			attributeTypes := map[string]attr.Type{}
 			if len(raw) == 0 || string(raw) == "null" {
-				return basetypes.NewStringNull()
+				return types.ObjectNull(attributeTypes)
 			}
-			return basetypes.NewStringValue(string(raw))
+			return types.ObjectValueMust(attributeTypes, map[string]attr.Value{})
 		}
 
 		el := ResultsValue{
@@ -147,18 +152,18 @@ func (d *TaskRunsDataSource) Read(ctx context.Context, req datasource.ReadReques
 			PipelineId:       stringPtr(r.PipelineId),
 			PipelineRunId:    stringPtr(r.PipelineRunId),
 			PlatformLink:     stringPtr(r.PlatformLink),
-			RunParameters:    rawPtrToString(r.RunParameters),
+			RunParameters:    rawPtrToEmptyObject(r.RunParameters),
 			StartedAt:        stringPtr(r.StartedAt),
 			Status:           stringPtr(r.Status),
 			TaskId:           stringPtr(r.TaskId),
 			TaskName:         stringPtr(r.TaskName),
-			TaskParameters:   rawPtrToString(r.TaskParameters),
+			TaskParameters:   rawPtrToEmptyObject(r.TaskParameters),
 			UpdatedAt:        stringPtr(r.UpdatedAt),
 			state:            attr.ValueStateKnown,
 		}
 		elements = append(elements, el)
 	}
 
-	model.Results = types.SetValueMust(ResultsType{}, elements)
+	model.Results = types.ListValueMust(ResultsType{}, elements)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }

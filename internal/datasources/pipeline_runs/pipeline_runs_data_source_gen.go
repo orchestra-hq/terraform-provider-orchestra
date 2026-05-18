@@ -101,6 +101,11 @@ func PipelineRunsDataSourceSchema(ctx context.Context) schema.Schema {
 							Description:         "The status of the pipeline run.",
 							MarkdownDescription: "The status of the pipeline run.",
 						},
+						"status": schema.StringAttribute{
+							Computed:            true,
+							Description:         "The status of the pipeline run.",
+							MarkdownDescription: "The status of the pipeline run.",
+						},
 						"started_at": schema.StringAttribute{
 							Computed:            true,
 							Description:         "When the pipeline run started executing.",
@@ -430,6 +435,24 @@ func (t ResultsType) ValueFromObject(ctx context.Context, in basetypes.ObjectVal
 			fmt.Sprintf(`run_status expected to be basetypes.StringValue, was: %T`, runStatusAttribute))
 	}
 
+	statusAttribute, ok := attributes["status"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`status is missing from object`)
+
+		return nil, diags
+	}
+
+	statusVal, ok := statusAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`status expected to be basetypes.StringValue, was: %T`, statusAttribute))
+	}
+
 	startedAtAttribute, ok := attributes["started_at"]
 
 	if !ok {
@@ -503,6 +526,7 @@ func (t ResultsType) ValueFromObject(ctx context.Context, in basetypes.ObjectVal
 		PipelineName:          pipelineNameVal,
 		PipelineVersionNumber: pipelineVersionNumberVal,
 		RunStatus:             runStatusVal,
+		Status:                statusVal,
 		StartedAt:             startedAtVal,
 		TriggeredBy:           triggeredByVal,
 		UpdatedAt:             updatedAtVal,
@@ -825,6 +849,24 @@ func NewResultsValue(attributeTypes map[string]attr.Type, attributes map[string]
 			fmt.Sprintf(`run_status expected to be basetypes.StringValue, was: %T`, runStatusAttribute))
 	}
 
+	statusAttribute, ok := attributes["status"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`status is missing from object`)
+
+		return NewResultsValueUnknown(), diags
+	}
+
+	statusVal, ok := statusAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`status expected to be basetypes.StringValue, was: %T`, statusAttribute))
+	}
+
 	startedAtAttribute, ok := attributes["started_at"]
 
 	if !ok {
@@ -898,6 +940,7 @@ func NewResultsValue(attributeTypes map[string]attr.Type, attributes map[string]
 		PipelineName:          pipelineNameVal,
 		PipelineVersionNumber: pipelineVersionNumberVal,
 		RunStatus:             runStatusVal,
+		Status:                statusVal,
 		StartedAt:             startedAtVal,
 		TriggeredBy:           triggeredByVal,
 		UpdatedAt:             updatedAtVal,
@@ -987,6 +1030,7 @@ type ResultsValue struct {
 	PipelineName          basetypes.StringValue `tfsdk:"pipeline_name"`
 	PipelineVersionNumber basetypes.Int64Value  `tfsdk:"pipeline_version_number"`
 	RunStatus             basetypes.StringValue `tfsdk:"run_status"`
+	Status                basetypes.StringValue `tfsdk:"status"`
 	StartedAt             basetypes.StringValue `tfsdk:"started_at"`
 	TriggeredBy           basetypes.StringValue `tfsdk:"triggered_by"`
 	UpdatedAt             basetypes.StringValue `tfsdk:"updated_at"`
@@ -994,7 +1038,7 @@ type ResultsValue struct {
 }
 
 func (v ResultsValue) ToTerraformValue(ctx context.Context) (tftypes.Value, error) {
-	attrTypes := make(map[string]tftypes.Type, 17)
+	attrTypes := make(map[string]tftypes.Type, 18)
 
 	var val tftypes.Value
 	var err error
@@ -1013,6 +1057,7 @@ func (v ResultsValue) ToTerraformValue(ctx context.Context) (tftypes.Value, erro
 	attrTypes["pipeline_name"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["pipeline_version_number"] = basetypes.Int64Type{}.TerraformType(ctx)
 	attrTypes["run_status"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["status"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["started_at"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["triggered_by"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["updated_at"] = basetypes.StringType{}.TerraformType(ctx)
@@ -1021,7 +1066,7 @@ func (v ResultsValue) ToTerraformValue(ctx context.Context) (tftypes.Value, erro
 
 	switch v.state {
 	case attr.ValueStateKnown:
-		vals := make(map[string]tftypes.Value, 17)
+		vals := make(map[string]tftypes.Value, 18)
 
 		val, err = v.AccountId.ToTerraformValue(ctx)
 
@@ -1135,6 +1180,14 @@ func (v ResultsValue) ToTerraformValue(ctx context.Context) (tftypes.Value, erro
 
 		vals["run_status"] = val
 
+		val, err = v.Status.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["status"] = val
+
 		val, err = v.StartedAt.ToTerraformValue(ctx)
 
 		if err != nil {
@@ -1203,6 +1256,7 @@ func (v ResultsValue) ToObjectValue(ctx context.Context) (basetypes.ObjectValue,
 		"pipeline_name":           basetypes.StringType{},
 		"pipeline_version_number": basetypes.Int64Type{},
 		"run_status":              basetypes.StringType{},
+		"status":                  basetypes.StringType{},
 		"started_at":              basetypes.StringType{},
 		"triggered_by":            basetypes.StringType{},
 		"updated_at":              basetypes.StringType{},
@@ -1233,6 +1287,7 @@ func (v ResultsValue) ToObjectValue(ctx context.Context) (basetypes.ObjectValue,
 			"pipeline_name":           v.PipelineName,
 			"pipeline_version_number": v.PipelineVersionNumber,
 			"run_status":              v.RunStatus,
+			"status":                  v.Status,
 			"started_at":              v.StartedAt,
 			"triggered_by":            v.TriggeredBy,
 			"updated_at":              v.UpdatedAt,
@@ -1312,6 +1367,10 @@ func (v ResultsValue) Equal(o attr.Value) bool {
 		return false
 	}
 
+	if !v.Status.Equal(other.Status) {
+		return false
+	}
+
 	if !v.StartedAt.Equal(other.StartedAt) {
 		return false
 	}
@@ -1351,6 +1410,7 @@ func (v ResultsValue) AttributeTypes(ctx context.Context) map[string]attr.Type {
 		"pipeline_name":           basetypes.StringType{},
 		"pipeline_version_number": basetypes.Int64Type{},
 		"run_status":              basetypes.StringType{},
+		"status":                  basetypes.StringType{},
 		"started_at":              basetypes.StringType{},
 		"triggered_by":            basetypes.StringType{},
 		"updated_at":              basetypes.StringType{},

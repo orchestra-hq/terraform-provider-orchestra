@@ -20,121 +20,111 @@ func TaskRunsDataSourceSchema(ctx context.Context) schema.Schema {
 		Attributes: map[string]schema.Attribute{
 			"integration": schema.StringAttribute{
 				Optional:            true,
-				Description:         "Filter by integration. Comma-separated for multiple values (e.g. HTTP,SNOWFLAKE).",
-				MarkdownDescription: "Filter by integration. Comma-separated for multiple values (e.g. HTTP,SNOWFLAKE).",
+				Computed:            true,
+				Description:         "Integration identifier.",
+				MarkdownDescription: "Integration identifier.",
+			},
+			"page_size": schema.Int64Attribute{
+				Computed: true,
 			},
 			"pipeline_ids": schema.StringAttribute{
 				Optional:            true,
-				Description:         "Filter by pipeline IDs (UUID4). Comma-separated for multiple values.",
-				MarkdownDescription: "Filter by pipeline IDs (UUID4). Comma-separated for multiple values.",
+				Computed:            true,
+				Description:         "Filter by pipeline IDs. Provide comma-separated UUIDs for multiple values.",
+				MarkdownDescription: "Filter by pipeline IDs. Provide comma-separated UUIDs for multiple values.",
 			},
-			"results": schema.SetNestedAttribute{
+			"results": schema.ListNestedAttribute{
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"account_id": schema.StringAttribute{
-							Computed:            true,
-							Description:         "The account ID.",
-							MarkdownDescription: "The account ID.",
+							Computed: true,
 						},
 						"completed_at": schema.StringAttribute{
-							Computed:            true,
-							Description:         "When the task run completed.",
-							MarkdownDescription: "When the task run completed.",
+							Computed: true,
+						},
+						"compute_resource_id": schema.StringAttribute{
+							Computed: true,
 						},
 						"connection_id": schema.StringAttribute{
-							Computed:            true,
-							Description:         "The connection identifier used.",
-							MarkdownDescription: "The connection identifier used.",
+							Computed: true,
 						},
 						"created_at": schema.StringAttribute{
-							Computed:            true,
-							Description:         "When the task run was created.",
-							MarkdownDescription: "When the task run was created.",
+							Computed: true,
+						},
+						"depends_on": schema.ListAttribute{
+							ElementType: types.StringType,
+							Computed:    true,
 						},
 						"external_message": schema.StringAttribute{
-							Computed:            true,
-							Description:         "A message returned by the external integration.",
-							MarkdownDescription: "A message returned by the external integration.",
+							Computed: true,
 						},
 						"external_status": schema.StringAttribute{
-							Computed:            true,
-							Description:         "The status returned by the external integration.",
-							MarkdownDescription: "The status returned by the external integration.",
+							Computed: true,
 						},
 						"id": schema.StringAttribute{
-							Computed:            true,
-							Description:         "The task run ID.",
-							MarkdownDescription: "The task run ID.",
+							Computed: true,
 						},
 						"integration": schema.StringAttribute{
-							Computed:            true,
-							Description:         "The integration used for this task.",
-							MarkdownDescription: "The integration used for this task.",
+							Computed: true,
 						},
 						"integration_job": schema.StringAttribute{
-							Computed:            true,
-							Description:         "The specific job type within the integration.",
-							MarkdownDescription: "The specific job type within the integration.",
+							Computed: true,
+						},
+						"matrix_parent": schema.BoolAttribute{
+							Computed: true,
+						},
+						"matrix_parent_id": schema.StringAttribute{
+							Computed: true,
 						},
 						"message": schema.StringAttribute{
-							Computed:            true,
-							Description:         "A human-readable status message.",
-							MarkdownDescription: "A human-readable status message.",
+							Computed: true,
 						},
 						"number_of_attempts": schema.Int64Attribute{
-							Computed:            true,
-							Description:         "Number of execution attempts.",
-							MarkdownDescription: "Number of execution attempts.",
+							Computed: true,
 						},
 						"pipeline_id": schema.StringAttribute{
-							Computed:            true,
-							Description:         "The pipeline ID.",
-							MarkdownDescription: "The pipeline ID.",
+							Computed: true,
 						},
 						"pipeline_run_id": schema.StringAttribute{
-							Computed:            true,
-							Description:         "The parent pipeline run ID.",
-							MarkdownDescription: "The parent pipeline run ID.",
+							Computed: true,
 						},
 						"platform_link": schema.StringAttribute{
-							Computed:            true,
-							Description:         "A link to the run in the external platform.",
-							MarkdownDescription: "A link to the run in the external platform.",
+							Computed: true,
 						},
-						"run_parameters": schema.StringAttribute{
-							Computed:            true,
-							Description:         "JSON string of the runtime parameters for this execution.",
-							MarkdownDescription: "JSON string of the runtime parameters for this execution.",
+						"run_parameters": schema.SingleNestedAttribute{
+							Attributes: map[string]schema.Attribute{},
+							CustomType: RunParametersType{
+								ObjectType: types.ObjectType{
+									AttrTypes: RunParametersValue{}.AttributeTypes(ctx),
+								},
+							},
+							Computed: true,
 						},
 						"started_at": schema.StringAttribute{
-							Computed:            true,
-							Description:         "When the task run started executing.",
-							MarkdownDescription: "When the task run started executing.",
+							Computed: true,
 						},
 						"status": schema.StringAttribute{
 							Computed:            true,
-							Description:         "The status of the task run.",
-							MarkdownDescription: "The status of the task run.",
+							Description:         "NOTE: if changing these values, please also confirm the AWS Step Function state machine\nis not impacted. This can be done by looking at `terraform/modules/step_function/main.tf`, and\nviewing the state machine JSON definition.",
+							MarkdownDescription: "NOTE: if changing these values, please also confirm the AWS Step Function state machine\nis not impacted. This can be done by looking at `terraform/modules/step_function/main.tf`, and\nviewing the state machine JSON definition.",
 						},
 						"task_id": schema.StringAttribute{
-							Computed:            true,
-							Description:         "The task identifier.",
-							MarkdownDescription: "The task identifier.",
+							Computed: true,
 						},
 						"task_name": schema.StringAttribute{
-							Computed:            true,
-							Description:         "The name of the task.",
-							MarkdownDescription: "The name of the task.",
+							Computed: true,
 						},
-						"task_parameters": schema.StringAttribute{
-							Computed:            true,
-							Description:         "JSON string of the parameters configured for the task.",
-							MarkdownDescription: "JSON string of the parameters configured for the task.",
+						"task_parameters": schema.SingleNestedAttribute{
+							Attributes: map[string]schema.Attribute{},
+							CustomType: TaskParametersType{
+								ObjectType: types.ObjectType{
+									AttrTypes: TaskParametersValue{}.AttributeTypes(ctx),
+								},
+							},
+							Computed: true,
 						},
 						"updated_at": schema.StringAttribute{
-							Computed:            true,
-							Description:         "When the task run was last updated.",
-							MarkdownDescription: "When the task run was last updated.",
+							Computed: true,
 						},
 					},
 					CustomType: ResultsType{
@@ -147,23 +137,27 @@ func TaskRunsDataSourceSchema(ctx context.Context) schema.Schema {
 			},
 			"status": schema.StringAttribute{
 				Optional:            true,
-				Description:         "Filter by task run status. Comma-separated for multiple values (e.g. SUCCEEDED,FAILED).",
-				MarkdownDescription: "Filter by task run status. Comma-separated for multiple values (e.g. SUCCEEDED,FAILED).",
+				Computed:            true,
+				Description:         "Filter by status. Comma-separated values are supported where the parameter accepts multiple values.",
+				MarkdownDescription: "Filter by status. Comma-separated values are supported where the parameter accepts multiple values.",
 			},
 			"task_run_ids": schema.StringAttribute{
 				Optional:            true,
-				Description:         "Filter by task run IDs (UUID4). Comma-separated for multiple values.",
-				MarkdownDescription: "Filter by task run IDs (UUID4). Comma-separated for multiple values.",
+				Computed:            true,
+				Description:         "Filter by task run IDs. Provide comma-separated UUIDs for multiple values.",
+				MarkdownDescription: "Filter by task run IDs. Provide comma-separated UUIDs for multiple values.",
 			},
 			"time_from": schema.StringAttribute{
 				Optional:            true,
-				Description:         "Start of the time range (ISO 8601). Defaults to 7 days ago if omitted. Must be specified together with time_to.",
-				MarkdownDescription: "Start of the time range (ISO 8601). Defaults to 7 days ago if omitted. Must be specified together with time_to.",
+				Computed:            true,
+				Description:         "Start of the time window as an ISO 8601 datetime.",
+				MarkdownDescription: "Start of the time window as an ISO 8601 datetime.",
 			},
 			"time_to": schema.StringAttribute{
 				Optional:            true,
-				Description:         "End of the time range (ISO 8601). Defaults to now if omitted. Must be specified together with time_from. Maximum range is 7 days.",
-				MarkdownDescription: "End of the time range (ISO 8601). Defaults to now if omitted. Must be specified together with time_from. Maximum range is 7 days.",
+				Computed:            true,
+				Description:         "End of the time window as an ISO 8601 datetime.",
+				MarkdownDescription: "End of the time window as an ISO 8601 datetime.",
 			},
 		},
 	}
@@ -171,8 +165,9 @@ func TaskRunsDataSourceSchema(ctx context.Context) schema.Schema {
 
 type TaskRunsModel struct {
 	Integration types.String `tfsdk:"integration"`
+	PageSize    types.Int64  `tfsdk:"page_size"`
 	PipelineIds types.String `tfsdk:"pipeline_ids"`
-	Results     types.Set    `tfsdk:"results"`
+	Results     types.List   `tfsdk:"results"`
 	Status      types.String `tfsdk:"status"`
 	TaskRunIds  types.String `tfsdk:"task_run_ids"`
 	TimeFrom    types.String `tfsdk:"time_from"`
@@ -240,6 +235,24 @@ func (t ResultsType) ValueFromObject(ctx context.Context, in basetypes.ObjectVal
 			fmt.Sprintf(`completed_at expected to be basetypes.StringValue, was: %T`, completedAtAttribute))
 	}
 
+	computeResourceIdAttribute, ok := attributes["compute_resource_id"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`compute_resource_id is missing from object`)
+
+		return nil, diags
+	}
+
+	computeResourceIdVal, ok := computeResourceIdAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`compute_resource_id expected to be basetypes.StringValue, was: %T`, computeResourceIdAttribute))
+	}
+
 	connectionIdAttribute, ok := attributes["connection_id"]
 
 	if !ok {
@@ -274,6 +287,24 @@ func (t ResultsType) ValueFromObject(ctx context.Context, in basetypes.ObjectVal
 		diags.AddError(
 			"Attribute Wrong Type",
 			fmt.Sprintf(`created_at expected to be basetypes.StringValue, was: %T`, createdAtAttribute))
+	}
+
+	dependsOnAttribute, ok := attributes["depends_on"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`depends_on is missing from object`)
+
+		return nil, diags
+	}
+
+	dependsOnVal, ok := dependsOnAttribute.(basetypes.ListValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`depends_on expected to be basetypes.ListValue, was: %T`, dependsOnAttribute))
 	}
 
 	externalMessageAttribute, ok := attributes["external_message"]
@@ -364,6 +395,42 @@ func (t ResultsType) ValueFromObject(ctx context.Context, in basetypes.ObjectVal
 		diags.AddError(
 			"Attribute Wrong Type",
 			fmt.Sprintf(`integration_job expected to be basetypes.StringValue, was: %T`, integrationJobAttribute))
+	}
+
+	matrixParentAttribute, ok := attributes["matrix_parent"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`matrix_parent is missing from object`)
+
+		return nil, diags
+	}
+
+	matrixParentVal, ok := matrixParentAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`matrix_parent expected to be basetypes.BoolValue, was: %T`, matrixParentAttribute))
+	}
+
+	matrixParentIdAttribute, ok := attributes["matrix_parent_id"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`matrix_parent_id is missing from object`)
+
+		return nil, diags
+	}
+
+	matrixParentIdVal, ok := matrixParentIdAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`matrix_parent_id expected to be basetypes.StringValue, was: %T`, matrixParentIdAttribute))
 	}
 
 	messageAttribute, ok := attributes["message"]
@@ -466,12 +533,12 @@ func (t ResultsType) ValueFromObject(ctx context.Context, in basetypes.ObjectVal
 		return nil, diags
 	}
 
-	runParametersVal, ok := runParametersAttribute.(basetypes.StringValue)
+	runParametersVal, ok := runParametersAttribute.(basetypes.ObjectValue)
 
 	if !ok {
 		diags.AddError(
 			"Attribute Wrong Type",
-			fmt.Sprintf(`run_parameters expected to be basetypes.StringValue, was: %T`, runParametersAttribute))
+			fmt.Sprintf(`run_parameters expected to be basetypes.ObjectValue, was: %T`, runParametersAttribute))
 	}
 
 	startedAtAttribute, ok := attributes["started_at"]
@@ -556,12 +623,12 @@ func (t ResultsType) ValueFromObject(ctx context.Context, in basetypes.ObjectVal
 		return nil, diags
 	}
 
-	taskParametersVal, ok := taskParametersAttribute.(basetypes.StringValue)
+	taskParametersVal, ok := taskParametersAttribute.(basetypes.ObjectValue)
 
 	if !ok {
 		diags.AddError(
 			"Attribute Wrong Type",
-			fmt.Sprintf(`task_parameters expected to be basetypes.StringValue, was: %T`, taskParametersAttribute))
+			fmt.Sprintf(`task_parameters expected to be basetypes.ObjectValue, was: %T`, taskParametersAttribute))
 	}
 
 	updatedAtAttribute, ok := attributes["updated_at"]
@@ -587,28 +654,32 @@ func (t ResultsType) ValueFromObject(ctx context.Context, in basetypes.ObjectVal
 	}
 
 	return ResultsValue{
-		AccountId:        accountIdVal,
-		CompletedAt:      completedAtVal,
-		ConnectionId:     connectionIdVal,
-		CreatedAt:        createdAtVal,
-		ExternalMessage:  externalMessageVal,
-		ExternalStatus:   externalStatusVal,
-		Id:               idVal,
-		Integration:      integrationVal,
-		IntegrationJob:   integrationJobVal,
-		Message:          messageVal,
-		NumberOfAttempts: numberOfAttemptsVal,
-		PipelineId:       pipelineIdVal,
-		PipelineRunId:    pipelineRunIdVal,
-		PlatformLink:     platformLinkVal,
-		RunParameters:    runParametersVal,
-		StartedAt:        startedAtVal,
-		Status:           statusVal,
-		TaskId:           taskIdVal,
-		TaskName:         taskNameVal,
-		TaskParameters:   taskParametersVal,
-		UpdatedAt:        updatedAtVal,
-		state:            attr.ValueStateKnown,
+		AccountId:         accountIdVal,
+		CompletedAt:       completedAtVal,
+		ComputeResourceId: computeResourceIdVal,
+		ConnectionId:      connectionIdVal,
+		CreatedAt:         createdAtVal,
+		DependsOn:         dependsOnVal,
+		ExternalMessage:   externalMessageVal,
+		ExternalStatus:    externalStatusVal,
+		Id:                idVal,
+		Integration:       integrationVal,
+		IntegrationJob:    integrationJobVal,
+		MatrixParent:      matrixParentVal,
+		MatrixParentId:    matrixParentIdVal,
+		Message:           messageVal,
+		NumberOfAttempts:  numberOfAttemptsVal,
+		PipelineId:        pipelineIdVal,
+		PipelineRunId:     pipelineRunIdVal,
+		PlatformLink:      platformLinkVal,
+		RunParameters:     runParametersVal,
+		StartedAt:         startedAtVal,
+		Status:            statusVal,
+		TaskId:            taskIdVal,
+		TaskName:          taskNameVal,
+		TaskParameters:    taskParametersVal,
+		UpdatedAt:         updatedAtVal,
+		state:             attr.ValueStateKnown,
 	}, diags
 }
 
@@ -711,6 +782,24 @@ func NewResultsValue(attributeTypes map[string]attr.Type, attributes map[string]
 			fmt.Sprintf(`completed_at expected to be basetypes.StringValue, was: %T`, completedAtAttribute))
 	}
 
+	computeResourceIdAttribute, ok := attributes["compute_resource_id"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`compute_resource_id is missing from object`)
+
+		return NewResultsValueUnknown(), diags
+	}
+
+	computeResourceIdVal, ok := computeResourceIdAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`compute_resource_id expected to be basetypes.StringValue, was: %T`, computeResourceIdAttribute))
+	}
+
 	connectionIdAttribute, ok := attributes["connection_id"]
 
 	if !ok {
@@ -745,6 +834,24 @@ func NewResultsValue(attributeTypes map[string]attr.Type, attributes map[string]
 		diags.AddError(
 			"Attribute Wrong Type",
 			fmt.Sprintf(`created_at expected to be basetypes.StringValue, was: %T`, createdAtAttribute))
+	}
+
+	dependsOnAttribute, ok := attributes["depends_on"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`depends_on is missing from object`)
+
+		return NewResultsValueUnknown(), diags
+	}
+
+	dependsOnVal, ok := dependsOnAttribute.(basetypes.ListValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`depends_on expected to be basetypes.ListValue, was: %T`, dependsOnAttribute))
 	}
 
 	externalMessageAttribute, ok := attributes["external_message"]
@@ -835,6 +942,42 @@ func NewResultsValue(attributeTypes map[string]attr.Type, attributes map[string]
 		diags.AddError(
 			"Attribute Wrong Type",
 			fmt.Sprintf(`integration_job expected to be basetypes.StringValue, was: %T`, integrationJobAttribute))
+	}
+
+	matrixParentAttribute, ok := attributes["matrix_parent"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`matrix_parent is missing from object`)
+
+		return NewResultsValueUnknown(), diags
+	}
+
+	matrixParentVal, ok := matrixParentAttribute.(basetypes.BoolValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`matrix_parent expected to be basetypes.BoolValue, was: %T`, matrixParentAttribute))
+	}
+
+	matrixParentIdAttribute, ok := attributes["matrix_parent_id"]
+
+	if !ok {
+		diags.AddError(
+			"Attribute Missing",
+			`matrix_parent_id is missing from object`)
+
+		return NewResultsValueUnknown(), diags
+	}
+
+	matrixParentIdVal, ok := matrixParentIdAttribute.(basetypes.StringValue)
+
+	if !ok {
+		diags.AddError(
+			"Attribute Wrong Type",
+			fmt.Sprintf(`matrix_parent_id expected to be basetypes.StringValue, was: %T`, matrixParentIdAttribute))
 	}
 
 	messageAttribute, ok := attributes["message"]
@@ -937,12 +1080,12 @@ func NewResultsValue(attributeTypes map[string]attr.Type, attributes map[string]
 		return NewResultsValueUnknown(), diags
 	}
 
-	runParametersVal, ok := runParametersAttribute.(basetypes.StringValue)
+	runParametersVal, ok := runParametersAttribute.(basetypes.ObjectValue)
 
 	if !ok {
 		diags.AddError(
 			"Attribute Wrong Type",
-			fmt.Sprintf(`run_parameters expected to be basetypes.StringValue, was: %T`, runParametersAttribute))
+			fmt.Sprintf(`run_parameters expected to be basetypes.ObjectValue, was: %T`, runParametersAttribute))
 	}
 
 	startedAtAttribute, ok := attributes["started_at"]
@@ -1027,12 +1170,12 @@ func NewResultsValue(attributeTypes map[string]attr.Type, attributes map[string]
 		return NewResultsValueUnknown(), diags
 	}
 
-	taskParametersVal, ok := taskParametersAttribute.(basetypes.StringValue)
+	taskParametersVal, ok := taskParametersAttribute.(basetypes.ObjectValue)
 
 	if !ok {
 		diags.AddError(
 			"Attribute Wrong Type",
-			fmt.Sprintf(`task_parameters expected to be basetypes.StringValue, was: %T`, taskParametersAttribute))
+			fmt.Sprintf(`task_parameters expected to be basetypes.ObjectValue, was: %T`, taskParametersAttribute))
 	}
 
 	updatedAtAttribute, ok := attributes["updated_at"]
@@ -1058,28 +1201,32 @@ func NewResultsValue(attributeTypes map[string]attr.Type, attributes map[string]
 	}
 
 	return ResultsValue{
-		AccountId:        accountIdVal,
-		CompletedAt:      completedAtVal,
-		ConnectionId:     connectionIdVal,
-		CreatedAt:        createdAtVal,
-		ExternalMessage:  externalMessageVal,
-		ExternalStatus:   externalStatusVal,
-		Id:               idVal,
-		Integration:      integrationVal,
-		IntegrationJob:   integrationJobVal,
-		Message:          messageVal,
-		NumberOfAttempts: numberOfAttemptsVal,
-		PipelineId:       pipelineIdVal,
-		PipelineRunId:    pipelineRunIdVal,
-		PlatformLink:     platformLinkVal,
-		RunParameters:    runParametersVal,
-		StartedAt:        startedAtVal,
-		Status:           statusVal,
-		TaskId:           taskIdVal,
-		TaskName:         taskNameVal,
-		TaskParameters:   taskParametersVal,
-		UpdatedAt:        updatedAtVal,
-		state:            attr.ValueStateKnown,
+		AccountId:         accountIdVal,
+		CompletedAt:       completedAtVal,
+		ComputeResourceId: computeResourceIdVal,
+		ConnectionId:      connectionIdVal,
+		CreatedAt:         createdAtVal,
+		DependsOn:         dependsOnVal,
+		ExternalMessage:   externalMessageVal,
+		ExternalStatus:    externalStatusVal,
+		Id:                idVal,
+		Integration:       integrationVal,
+		IntegrationJob:    integrationJobVal,
+		MatrixParent:      matrixParentVal,
+		MatrixParentId:    matrixParentIdVal,
+		Message:           messageVal,
+		NumberOfAttempts:  numberOfAttemptsVal,
+		PipelineId:        pipelineIdVal,
+		PipelineRunId:     pipelineRunIdVal,
+		PlatformLink:      platformLinkVal,
+		RunParameters:     runParametersVal,
+		StartedAt:         startedAtVal,
+		Status:            statusVal,
+		TaskId:            taskIdVal,
+		TaskName:          taskNameVal,
+		TaskParameters:    taskParametersVal,
+		UpdatedAt:         updatedAtVal,
+		state:             attr.ValueStateKnown,
 	}, diags
 }
 
@@ -1151,63 +1298,77 @@ func (t ResultsType) ValueType(ctx context.Context) attr.Value {
 var _ basetypes.ObjectValuable = ResultsValue{}
 
 type ResultsValue struct {
-	AccountId        basetypes.StringValue `tfsdk:"account_id"`
-	CompletedAt      basetypes.StringValue `tfsdk:"completed_at"`
-	ConnectionId     basetypes.StringValue `tfsdk:"connection_id"`
-	CreatedAt        basetypes.StringValue `tfsdk:"created_at"`
-	ExternalMessage  basetypes.StringValue `tfsdk:"external_message"`
-	ExternalStatus   basetypes.StringValue `tfsdk:"external_status"`
-	Id               basetypes.StringValue `tfsdk:"id"`
-	Integration      basetypes.StringValue `tfsdk:"integration"`
-	IntegrationJob   basetypes.StringValue `tfsdk:"integration_job"`
-	Message          basetypes.StringValue `tfsdk:"message"`
-	NumberOfAttempts basetypes.Int64Value  `tfsdk:"number_of_attempts"`
-	PipelineId       basetypes.StringValue `tfsdk:"pipeline_id"`
-	PipelineRunId    basetypes.StringValue `tfsdk:"pipeline_run_id"`
-	PlatformLink     basetypes.StringValue `tfsdk:"platform_link"`
-	RunParameters    basetypes.StringValue `tfsdk:"run_parameters"`
-	StartedAt        basetypes.StringValue `tfsdk:"started_at"`
-	Status           basetypes.StringValue `tfsdk:"status"`
-	TaskId           basetypes.StringValue `tfsdk:"task_id"`
-	TaskName         basetypes.StringValue `tfsdk:"task_name"`
-	TaskParameters   basetypes.StringValue `tfsdk:"task_parameters"`
-	UpdatedAt        basetypes.StringValue `tfsdk:"updated_at"`
-	state            attr.ValueState
+	AccountId         basetypes.StringValue `tfsdk:"account_id"`
+	CompletedAt       basetypes.StringValue `tfsdk:"completed_at"`
+	ComputeResourceId basetypes.StringValue `tfsdk:"compute_resource_id"`
+	ConnectionId      basetypes.StringValue `tfsdk:"connection_id"`
+	CreatedAt         basetypes.StringValue `tfsdk:"created_at"`
+	DependsOn         basetypes.ListValue   `tfsdk:"depends_on"`
+	ExternalMessage   basetypes.StringValue `tfsdk:"external_message"`
+	ExternalStatus    basetypes.StringValue `tfsdk:"external_status"`
+	Id                basetypes.StringValue `tfsdk:"id"`
+	Integration       basetypes.StringValue `tfsdk:"integration"`
+	IntegrationJob    basetypes.StringValue `tfsdk:"integration_job"`
+	MatrixParent      basetypes.BoolValue   `tfsdk:"matrix_parent"`
+	MatrixParentId    basetypes.StringValue `tfsdk:"matrix_parent_id"`
+	Message           basetypes.StringValue `tfsdk:"message"`
+	NumberOfAttempts  basetypes.Int64Value  `tfsdk:"number_of_attempts"`
+	PipelineId        basetypes.StringValue `tfsdk:"pipeline_id"`
+	PipelineRunId     basetypes.StringValue `tfsdk:"pipeline_run_id"`
+	PlatformLink      basetypes.StringValue `tfsdk:"platform_link"`
+	RunParameters     basetypes.ObjectValue `tfsdk:"run_parameters"`
+	StartedAt         basetypes.StringValue `tfsdk:"started_at"`
+	Status            basetypes.StringValue `tfsdk:"status"`
+	TaskId            basetypes.StringValue `tfsdk:"task_id"`
+	TaskName          basetypes.StringValue `tfsdk:"task_name"`
+	TaskParameters    basetypes.ObjectValue `tfsdk:"task_parameters"`
+	UpdatedAt         basetypes.StringValue `tfsdk:"updated_at"`
+	state             attr.ValueState
 }
 
 func (v ResultsValue) ToTerraformValue(ctx context.Context) (tftypes.Value, error) {
-	attrTypes := make(map[string]tftypes.Type, 21)
+	attrTypes := make(map[string]tftypes.Type, 25)
 
 	var val tftypes.Value
 	var err error
 
 	attrTypes["account_id"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["completed_at"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["compute_resource_id"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["connection_id"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["created_at"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["depends_on"] = basetypes.ListType{
+		ElemType: types.StringType,
+	}.TerraformType(ctx)
 	attrTypes["external_message"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["external_status"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["id"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["integration"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["integration_job"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["matrix_parent"] = basetypes.BoolType{}.TerraformType(ctx)
+	attrTypes["matrix_parent_id"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["message"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["number_of_attempts"] = basetypes.Int64Type{}.TerraformType(ctx)
 	attrTypes["pipeline_id"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["pipeline_run_id"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["platform_link"] = basetypes.StringType{}.TerraformType(ctx)
-	attrTypes["run_parameters"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["run_parameters"] = basetypes.ObjectType{
+		AttrTypes: RunParametersValue{}.AttributeTypes(ctx),
+	}.TerraformType(ctx)
 	attrTypes["started_at"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["status"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["task_id"] = basetypes.StringType{}.TerraformType(ctx)
 	attrTypes["task_name"] = basetypes.StringType{}.TerraformType(ctx)
-	attrTypes["task_parameters"] = basetypes.StringType{}.TerraformType(ctx)
+	attrTypes["task_parameters"] = basetypes.ObjectType{
+		AttrTypes: TaskParametersValue{}.AttributeTypes(ctx),
+	}.TerraformType(ctx)
 	attrTypes["updated_at"] = basetypes.StringType{}.TerraformType(ctx)
 
 	objectType := tftypes.Object{AttributeTypes: attrTypes}
 
 	switch v.state {
 	case attr.ValueStateKnown:
-		vals := make(map[string]tftypes.Value, 21)
+		vals := make(map[string]tftypes.Value, 25)
 
 		val, err = v.AccountId.ToTerraformValue(ctx)
 
@@ -1225,6 +1386,14 @@ func (v ResultsValue) ToTerraformValue(ctx context.Context) (tftypes.Value, erro
 
 		vals["completed_at"] = val
 
+		val, err = v.ComputeResourceId.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["compute_resource_id"] = val
+
 		val, err = v.ConnectionId.ToTerraformValue(ctx)
 
 		if err != nil {
@@ -1240,6 +1409,14 @@ func (v ResultsValue) ToTerraformValue(ctx context.Context) (tftypes.Value, erro
 		}
 
 		vals["created_at"] = val
+
+		val, err = v.DependsOn.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["depends_on"] = val
 
 		val, err = v.ExternalMessage.ToTerraformValue(ctx)
 
@@ -1280,6 +1457,22 @@ func (v ResultsValue) ToTerraformValue(ctx context.Context) (tftypes.Value, erro
 		}
 
 		vals["integration_job"] = val
+
+		val, err = v.MatrixParent.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["matrix_parent"] = val
+
+		val, err = v.MatrixParentId.ToTerraformValue(ctx)
+
+		if err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		vals["matrix_parent_id"] = val
 
 		val, err = v.Message.ToTerraformValue(ctx)
 
@@ -1406,28 +1599,128 @@ func (v ResultsValue) String() string {
 func (v ResultsValue) ToObjectValue(ctx context.Context) (basetypes.ObjectValue, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
+	var runParameters basetypes.ObjectValue
+
+	if v.RunParameters.IsNull() {
+		runParameters = types.ObjectNull(
+			RunParametersValue{}.AttributeTypes(ctx),
+		)
+	}
+
+	if v.RunParameters.IsUnknown() {
+		runParameters = types.ObjectUnknown(
+			RunParametersValue{}.AttributeTypes(ctx),
+		)
+	}
+
+	if !v.RunParameters.IsNull() && !v.RunParameters.IsUnknown() {
+		runParameters = types.ObjectValueMust(
+			RunParametersValue{}.AttributeTypes(ctx),
+			v.RunParameters.Attributes(),
+		)
+	}
+
+	var taskParameters basetypes.ObjectValue
+
+	if v.TaskParameters.IsNull() {
+		taskParameters = types.ObjectNull(
+			TaskParametersValue{}.AttributeTypes(ctx),
+		)
+	}
+
+	if v.TaskParameters.IsUnknown() {
+		taskParameters = types.ObjectUnknown(
+			TaskParametersValue{}.AttributeTypes(ctx),
+		)
+	}
+
+	if !v.TaskParameters.IsNull() && !v.TaskParameters.IsUnknown() {
+		taskParameters = types.ObjectValueMust(
+			TaskParametersValue{}.AttributeTypes(ctx),
+			v.TaskParameters.Attributes(),
+		)
+	}
+
+	var dependsOnVal basetypes.ListValue
+	switch {
+	case v.DependsOn.IsUnknown():
+		dependsOnVal = types.ListUnknown(types.StringType)
+	case v.DependsOn.IsNull():
+		dependsOnVal = types.ListNull(types.StringType)
+	default:
+		var d diag.Diagnostics
+		dependsOnVal, d = types.ListValue(types.StringType, v.DependsOn.Elements())
+		diags.Append(d...)
+	}
+
+	if diags.HasError() {
+		return types.ObjectUnknown(map[string]attr.Type{
+			"account_id":          basetypes.StringType{},
+			"completed_at":        basetypes.StringType{},
+			"compute_resource_id": basetypes.StringType{},
+			"connection_id":       basetypes.StringType{},
+			"created_at":          basetypes.StringType{},
+			"depends_on": basetypes.ListType{
+				ElemType: types.StringType,
+			},
+			"external_message":   basetypes.StringType{},
+			"external_status":    basetypes.StringType{},
+			"id":                 basetypes.StringType{},
+			"integration":        basetypes.StringType{},
+			"integration_job":    basetypes.StringType{},
+			"matrix_parent":      basetypes.BoolType{},
+			"matrix_parent_id":   basetypes.StringType{},
+			"message":            basetypes.StringType{},
+			"number_of_attempts": basetypes.Int64Type{},
+			"pipeline_id":        basetypes.StringType{},
+			"pipeline_run_id":    basetypes.StringType{},
+			"platform_link":      basetypes.StringType{},
+			"run_parameters": basetypes.ObjectType{
+				AttrTypes: RunParametersValue{}.AttributeTypes(ctx),
+			},
+			"started_at": basetypes.StringType{},
+			"status":     basetypes.StringType{},
+			"task_id":    basetypes.StringType{},
+			"task_name":  basetypes.StringType{},
+			"task_parameters": basetypes.ObjectType{
+				AttrTypes: TaskParametersValue{}.AttributeTypes(ctx),
+			},
+			"updated_at": basetypes.StringType{},
+		}), diags
+	}
+
 	attributeTypes := map[string]attr.Type{
-		"account_id":         basetypes.StringType{},
-		"completed_at":       basetypes.StringType{},
-		"connection_id":      basetypes.StringType{},
-		"created_at":         basetypes.StringType{},
+		"account_id":          basetypes.StringType{},
+		"completed_at":        basetypes.StringType{},
+		"compute_resource_id": basetypes.StringType{},
+		"connection_id":       basetypes.StringType{},
+		"created_at":          basetypes.StringType{},
+		"depends_on": basetypes.ListType{
+			ElemType: types.StringType,
+		},
 		"external_message":   basetypes.StringType{},
 		"external_status":    basetypes.StringType{},
 		"id":                 basetypes.StringType{},
 		"integration":        basetypes.StringType{},
 		"integration_job":    basetypes.StringType{},
+		"matrix_parent":      basetypes.BoolType{},
+		"matrix_parent_id":   basetypes.StringType{},
 		"message":            basetypes.StringType{},
 		"number_of_attempts": basetypes.Int64Type{},
 		"pipeline_id":        basetypes.StringType{},
 		"pipeline_run_id":    basetypes.StringType{},
 		"platform_link":      basetypes.StringType{},
-		"run_parameters":     basetypes.StringType{},
-		"started_at":         basetypes.StringType{},
-		"status":             basetypes.StringType{},
-		"task_id":            basetypes.StringType{},
-		"task_name":          basetypes.StringType{},
-		"task_parameters":    basetypes.StringType{},
-		"updated_at":         basetypes.StringType{},
+		"run_parameters": basetypes.ObjectType{
+			AttrTypes: RunParametersValue{}.AttributeTypes(ctx),
+		},
+		"started_at": basetypes.StringType{},
+		"status":     basetypes.StringType{},
+		"task_id":    basetypes.StringType{},
+		"task_name":  basetypes.StringType{},
+		"task_parameters": basetypes.ObjectType{
+			AttrTypes: TaskParametersValue{}.AttributeTypes(ctx),
+		},
+		"updated_at": basetypes.StringType{},
 	}
 
 	if v.IsNull() {
@@ -1441,27 +1734,31 @@ func (v ResultsValue) ToObjectValue(ctx context.Context) (basetypes.ObjectValue,
 	objVal, diags := types.ObjectValue(
 		attributeTypes,
 		map[string]attr.Value{
-			"account_id":         v.AccountId,
-			"completed_at":       v.CompletedAt,
-			"connection_id":      v.ConnectionId,
-			"created_at":         v.CreatedAt,
-			"external_message":   v.ExternalMessage,
-			"external_status":    v.ExternalStatus,
-			"id":                 v.Id,
-			"integration":        v.Integration,
-			"integration_job":    v.IntegrationJob,
-			"message":            v.Message,
-			"number_of_attempts": v.NumberOfAttempts,
-			"pipeline_id":        v.PipelineId,
-			"pipeline_run_id":    v.PipelineRunId,
-			"platform_link":      v.PlatformLink,
-			"run_parameters":     v.RunParameters,
-			"started_at":         v.StartedAt,
-			"status":             v.Status,
-			"task_id":            v.TaskId,
-			"task_name":          v.TaskName,
-			"task_parameters":    v.TaskParameters,
-			"updated_at":         v.UpdatedAt,
+			"account_id":          v.AccountId,
+			"completed_at":        v.CompletedAt,
+			"compute_resource_id": v.ComputeResourceId,
+			"connection_id":       v.ConnectionId,
+			"created_at":          v.CreatedAt,
+			"depends_on":          dependsOnVal,
+			"external_message":    v.ExternalMessage,
+			"external_status":     v.ExternalStatus,
+			"id":                  v.Id,
+			"integration":         v.Integration,
+			"integration_job":     v.IntegrationJob,
+			"matrix_parent":       v.MatrixParent,
+			"matrix_parent_id":    v.MatrixParentId,
+			"message":             v.Message,
+			"number_of_attempts":  v.NumberOfAttempts,
+			"pipeline_id":         v.PipelineId,
+			"pipeline_run_id":     v.PipelineRunId,
+			"platform_link":       v.PlatformLink,
+			"run_parameters":      runParameters,
+			"started_at":          v.StartedAt,
+			"status":              v.Status,
+			"task_id":             v.TaskId,
+			"task_name":           v.TaskName,
+			"task_parameters":     taskParameters,
+			"updated_at":          v.UpdatedAt,
 		})
 
 	return objVal, diags
@@ -1490,11 +1787,19 @@ func (v ResultsValue) Equal(o attr.Value) bool {
 		return false
 	}
 
+	if !v.ComputeResourceId.Equal(other.ComputeResourceId) {
+		return false
+	}
+
 	if !v.ConnectionId.Equal(other.ConnectionId) {
 		return false
 	}
 
 	if !v.CreatedAt.Equal(other.CreatedAt) {
+		return false
+	}
+
+	if !v.DependsOn.Equal(other.DependsOn) {
 		return false
 	}
 
@@ -1515,6 +1820,14 @@ func (v ResultsValue) Equal(o attr.Value) bool {
 	}
 
 	if !v.IntegrationJob.Equal(other.IntegrationJob) {
+		return false
+	}
+
+	if !v.MatrixParent.Equal(other.MatrixParent) {
+		return false
+	}
+
+	if !v.MatrixParentId.Equal(other.MatrixParentId) {
 		return false
 	}
 
@@ -1579,26 +1892,556 @@ func (v ResultsValue) Type(ctx context.Context) attr.Type {
 
 func (v ResultsValue) AttributeTypes(ctx context.Context) map[string]attr.Type {
 	return map[string]attr.Type{
-		"account_id":         basetypes.StringType{},
-		"completed_at":       basetypes.StringType{},
-		"connection_id":      basetypes.StringType{},
-		"created_at":         basetypes.StringType{},
+		"account_id":          basetypes.StringType{},
+		"completed_at":        basetypes.StringType{},
+		"compute_resource_id": basetypes.StringType{},
+		"connection_id":       basetypes.StringType{},
+		"created_at":          basetypes.StringType{},
+		"depends_on": basetypes.ListType{
+			ElemType: types.StringType,
+		},
 		"external_message":   basetypes.StringType{},
 		"external_status":    basetypes.StringType{},
 		"id":                 basetypes.StringType{},
 		"integration":        basetypes.StringType{},
 		"integration_job":    basetypes.StringType{},
+		"matrix_parent":      basetypes.BoolType{},
+		"matrix_parent_id":   basetypes.StringType{},
 		"message":            basetypes.StringType{},
 		"number_of_attempts": basetypes.Int64Type{},
 		"pipeline_id":        basetypes.StringType{},
 		"pipeline_run_id":    basetypes.StringType{},
 		"platform_link":      basetypes.StringType{},
-		"run_parameters":     basetypes.StringType{},
-		"started_at":         basetypes.StringType{},
-		"status":             basetypes.StringType{},
-		"task_id":            basetypes.StringType{},
-		"task_name":          basetypes.StringType{},
-		"task_parameters":    basetypes.StringType{},
-		"updated_at":         basetypes.StringType{},
+		"run_parameters": basetypes.ObjectType{
+			AttrTypes: RunParametersValue{}.AttributeTypes(ctx),
+		},
+		"started_at": basetypes.StringType{},
+		"status":     basetypes.StringType{},
+		"task_id":    basetypes.StringType{},
+		"task_name":  basetypes.StringType{},
+		"task_parameters": basetypes.ObjectType{
+			AttrTypes: TaskParametersValue{}.AttributeTypes(ctx),
+		},
+		"updated_at": basetypes.StringType{},
 	}
+}
+
+var _ basetypes.ObjectTypable = RunParametersType{}
+
+type RunParametersType struct {
+	basetypes.ObjectType
+}
+
+func (t RunParametersType) Equal(o attr.Type) bool {
+	other, ok := o.(RunParametersType)
+
+	if !ok {
+		return false
+	}
+
+	return t.ObjectType.Equal(other.ObjectType)
+}
+
+func (t RunParametersType) String() string {
+	return "RunParametersType"
+}
+
+func (t RunParametersType) ValueFromObject(ctx context.Context, in basetypes.ObjectValue) (basetypes.ObjectValuable, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	if diags.HasError() {
+		return nil, diags
+	}
+
+	return RunParametersValue{
+		state: attr.ValueStateKnown,
+	}, diags
+}
+
+func NewRunParametersValueNull() RunParametersValue {
+	return RunParametersValue{
+		state: attr.ValueStateNull,
+	}
+}
+
+func NewRunParametersValueUnknown() RunParametersValue {
+	return RunParametersValue{
+		state: attr.ValueStateUnknown,
+	}
+}
+
+func NewRunParametersValue(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) (RunParametersValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	// Reference: https://github.com/hashicorp/terraform-plugin-framework/issues/521
+	ctx := context.Background()
+
+	for name, attributeType := range attributeTypes {
+		attribute, ok := attributes[name]
+
+		if !ok {
+			diags.AddError(
+				"Missing RunParametersValue Attribute Value",
+				"While creating a RunParametersValue value, a missing attribute value was detected. "+
+					"A RunParametersValue must contain values for all attributes, even if null or unknown. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("RunParametersValue Attribute Name (%s) Expected Type: %s", name, attributeType.String()),
+			)
+
+			continue
+		}
+
+		if !attributeType.Equal(attribute.Type(ctx)) {
+			diags.AddError(
+				"Invalid RunParametersValue Attribute Type",
+				"While creating a RunParametersValue value, an invalid attribute value was detected. "+
+					"A RunParametersValue must use a matching attribute type for the value. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("RunParametersValue Attribute Name (%s) Expected Type: %s\n", name, attributeType.String())+
+					fmt.Sprintf("RunParametersValue Attribute Name (%s) Given Type: %s", name, attribute.Type(ctx)),
+			)
+		}
+	}
+
+	for name := range attributes {
+		_, ok := attributeTypes[name]
+
+		if !ok {
+			diags.AddError(
+				"Extra RunParametersValue Attribute Value",
+				"While creating a RunParametersValue value, an extra attribute value was detected. "+
+					"A RunParametersValue must not contain values beyond the expected attribute types. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("Extra RunParametersValue Attribute Name: %s", name),
+			)
+		}
+	}
+
+	if diags.HasError() {
+		return NewRunParametersValueUnknown(), diags
+	}
+
+	if diags.HasError() {
+		return NewRunParametersValueUnknown(), diags
+	}
+
+	return RunParametersValue{
+		state: attr.ValueStateKnown,
+	}, diags
+}
+
+func NewRunParametersValueMust(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) RunParametersValue {
+	object, diags := NewRunParametersValue(attributeTypes, attributes)
+
+	if diags.HasError() {
+		// This could potentially be added to the diag package.
+		diagsStrings := make([]string, 0, len(diags))
+
+		for _, diagnostic := range diags {
+			diagsStrings = append(diagsStrings, fmt.Sprintf(
+				"%s | %s | %s",
+				diagnostic.Severity(),
+				diagnostic.Summary(),
+				diagnostic.Detail()))
+		}
+
+		panic("NewRunParametersValueMust received error(s): " + strings.Join(diagsStrings, "\n"))
+	}
+
+	return object
+}
+
+func (t RunParametersType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
+	if in.Type() == nil {
+		return NewRunParametersValueNull(), nil
+	}
+
+	if !in.Type().Equal(t.TerraformType(ctx)) {
+		return nil, fmt.Errorf("expected %s, got %s", t.TerraformType(ctx), in.Type())
+	}
+
+	if !in.IsKnown() {
+		return NewRunParametersValueUnknown(), nil
+	}
+
+	if in.IsNull() {
+		return NewRunParametersValueNull(), nil
+	}
+
+	attributes := map[string]attr.Value{}
+
+	val := map[string]tftypes.Value{}
+
+	err := in.As(&val)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range val {
+		a, err := t.AttrTypes[k].ValueFromTerraform(ctx, v)
+
+		if err != nil {
+			return nil, err
+		}
+
+		attributes[k] = a
+	}
+
+	return NewRunParametersValueMust(RunParametersValue{}.AttributeTypes(ctx), attributes), nil
+}
+
+func (t RunParametersType) ValueType(ctx context.Context) attr.Value {
+	return RunParametersValue{}
+}
+
+var _ basetypes.ObjectValuable = RunParametersValue{}
+
+type RunParametersValue struct {
+	state attr.ValueState
+}
+
+func (v RunParametersValue) ToTerraformValue(ctx context.Context) (tftypes.Value, error) {
+	attrTypes := make(map[string]tftypes.Type, 0)
+
+	objectType := tftypes.Object{AttributeTypes: attrTypes}
+
+	switch v.state {
+	case attr.ValueStateKnown:
+		vals := make(map[string]tftypes.Value, 0)
+
+		if err := tftypes.ValidateValue(objectType, vals); err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		return tftypes.NewValue(objectType, vals), nil
+	case attr.ValueStateNull:
+		return tftypes.NewValue(objectType, nil), nil
+	case attr.ValueStateUnknown:
+		return tftypes.NewValue(objectType, tftypes.UnknownValue), nil
+	default:
+		panic(fmt.Sprintf("unhandled Object state in ToTerraformValue: %s", v.state))
+	}
+}
+
+func (v RunParametersValue) IsNull() bool {
+	return v.state == attr.ValueStateNull
+}
+
+func (v RunParametersValue) IsUnknown() bool {
+	return v.state == attr.ValueStateUnknown
+}
+
+func (v RunParametersValue) String() string {
+	return "RunParametersValue"
+}
+
+func (v RunParametersValue) ToObjectValue(ctx context.Context) (basetypes.ObjectValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	attributeTypes := map[string]attr.Type{}
+
+	if v.IsNull() {
+		return types.ObjectNull(attributeTypes), diags
+	}
+
+	if v.IsUnknown() {
+		return types.ObjectUnknown(attributeTypes), diags
+	}
+
+	objVal, diags := types.ObjectValue(
+		attributeTypes,
+		map[string]attr.Value{})
+
+	return objVal, diags
+}
+
+func (v RunParametersValue) Equal(o attr.Value) bool {
+	other, ok := o.(RunParametersValue)
+
+	if !ok {
+		return false
+	}
+
+	if v.state != other.state {
+		return false
+	}
+
+	if v.state != attr.ValueStateKnown {
+		return true
+	}
+
+	return true
+}
+
+func (v RunParametersValue) Type(ctx context.Context) attr.Type {
+	return RunParametersType{
+		basetypes.ObjectType{
+			AttrTypes: v.AttributeTypes(ctx),
+		},
+	}
+}
+
+func (v RunParametersValue) AttributeTypes(ctx context.Context) map[string]attr.Type {
+	return map[string]attr.Type{}
+}
+
+var _ basetypes.ObjectTypable = TaskParametersType{}
+
+type TaskParametersType struct {
+	basetypes.ObjectType
+}
+
+func (t TaskParametersType) Equal(o attr.Type) bool {
+	other, ok := o.(TaskParametersType)
+
+	if !ok {
+		return false
+	}
+
+	return t.ObjectType.Equal(other.ObjectType)
+}
+
+func (t TaskParametersType) String() string {
+	return "TaskParametersType"
+}
+
+func (t TaskParametersType) ValueFromObject(ctx context.Context, in basetypes.ObjectValue) (basetypes.ObjectValuable, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	if diags.HasError() {
+		return nil, diags
+	}
+
+	return TaskParametersValue{
+		state: attr.ValueStateKnown,
+	}, diags
+}
+
+func NewTaskParametersValueNull() TaskParametersValue {
+	return TaskParametersValue{
+		state: attr.ValueStateNull,
+	}
+}
+
+func NewTaskParametersValueUnknown() TaskParametersValue {
+	return TaskParametersValue{
+		state: attr.ValueStateUnknown,
+	}
+}
+
+func NewTaskParametersValue(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) (TaskParametersValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	// Reference: https://github.com/hashicorp/terraform-plugin-framework/issues/521
+	ctx := context.Background()
+
+	for name, attributeType := range attributeTypes {
+		attribute, ok := attributes[name]
+
+		if !ok {
+			diags.AddError(
+				"Missing TaskParametersValue Attribute Value",
+				"While creating a TaskParametersValue value, a missing attribute value was detected. "+
+					"A TaskParametersValue must contain values for all attributes, even if null or unknown. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("TaskParametersValue Attribute Name (%s) Expected Type: %s", name, attributeType.String()),
+			)
+
+			continue
+		}
+
+		if !attributeType.Equal(attribute.Type(ctx)) {
+			diags.AddError(
+				"Invalid TaskParametersValue Attribute Type",
+				"While creating a TaskParametersValue value, an invalid attribute value was detected. "+
+					"A TaskParametersValue must use a matching attribute type for the value. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("TaskParametersValue Attribute Name (%s) Expected Type: %s\n", name, attributeType.String())+
+					fmt.Sprintf("TaskParametersValue Attribute Name (%s) Given Type: %s", name, attribute.Type(ctx)),
+			)
+		}
+	}
+
+	for name := range attributes {
+		_, ok := attributeTypes[name]
+
+		if !ok {
+			diags.AddError(
+				"Extra TaskParametersValue Attribute Value",
+				"While creating a TaskParametersValue value, an extra attribute value was detected. "+
+					"A TaskParametersValue must not contain values beyond the expected attribute types. "+
+					"This is always an issue with the provider and should be reported to the provider developers.\n\n"+
+					fmt.Sprintf("Extra TaskParametersValue Attribute Name: %s", name),
+			)
+		}
+	}
+
+	if diags.HasError() {
+		return NewTaskParametersValueUnknown(), diags
+	}
+
+	if diags.HasError() {
+		return NewTaskParametersValueUnknown(), diags
+	}
+
+	return TaskParametersValue{
+		state: attr.ValueStateKnown,
+	}, diags
+}
+
+func NewTaskParametersValueMust(attributeTypes map[string]attr.Type, attributes map[string]attr.Value) TaskParametersValue {
+	object, diags := NewTaskParametersValue(attributeTypes, attributes)
+
+	if diags.HasError() {
+		// This could potentially be added to the diag package.
+		diagsStrings := make([]string, 0, len(diags))
+
+		for _, diagnostic := range diags {
+			diagsStrings = append(diagsStrings, fmt.Sprintf(
+				"%s | %s | %s",
+				diagnostic.Severity(),
+				diagnostic.Summary(),
+				diagnostic.Detail()))
+		}
+
+		panic("NewTaskParametersValueMust received error(s): " + strings.Join(diagsStrings, "\n"))
+	}
+
+	return object
+}
+
+func (t TaskParametersType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (attr.Value, error) {
+	if in.Type() == nil {
+		return NewTaskParametersValueNull(), nil
+	}
+
+	if !in.Type().Equal(t.TerraformType(ctx)) {
+		return nil, fmt.Errorf("expected %s, got %s", t.TerraformType(ctx), in.Type())
+	}
+
+	if !in.IsKnown() {
+		return NewTaskParametersValueUnknown(), nil
+	}
+
+	if in.IsNull() {
+		return NewTaskParametersValueNull(), nil
+	}
+
+	attributes := map[string]attr.Value{}
+
+	val := map[string]tftypes.Value{}
+
+	err := in.As(&val)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range val {
+		a, err := t.AttrTypes[k].ValueFromTerraform(ctx, v)
+
+		if err != nil {
+			return nil, err
+		}
+
+		attributes[k] = a
+	}
+
+	return NewTaskParametersValueMust(TaskParametersValue{}.AttributeTypes(ctx), attributes), nil
+}
+
+func (t TaskParametersType) ValueType(ctx context.Context) attr.Value {
+	return TaskParametersValue{}
+}
+
+var _ basetypes.ObjectValuable = TaskParametersValue{}
+
+type TaskParametersValue struct {
+	state attr.ValueState
+}
+
+func (v TaskParametersValue) ToTerraformValue(ctx context.Context) (tftypes.Value, error) {
+	attrTypes := make(map[string]tftypes.Type, 0)
+
+	objectType := tftypes.Object{AttributeTypes: attrTypes}
+
+	switch v.state {
+	case attr.ValueStateKnown:
+		vals := make(map[string]tftypes.Value, 0)
+
+		if err := tftypes.ValidateValue(objectType, vals); err != nil {
+			return tftypes.NewValue(objectType, tftypes.UnknownValue), err
+		}
+
+		return tftypes.NewValue(objectType, vals), nil
+	case attr.ValueStateNull:
+		return tftypes.NewValue(objectType, nil), nil
+	case attr.ValueStateUnknown:
+		return tftypes.NewValue(objectType, tftypes.UnknownValue), nil
+	default:
+		panic(fmt.Sprintf("unhandled Object state in ToTerraformValue: %s", v.state))
+	}
+}
+
+func (v TaskParametersValue) IsNull() bool {
+	return v.state == attr.ValueStateNull
+}
+
+func (v TaskParametersValue) IsUnknown() bool {
+	return v.state == attr.ValueStateUnknown
+}
+
+func (v TaskParametersValue) String() string {
+	return "TaskParametersValue"
+}
+
+func (v TaskParametersValue) ToObjectValue(ctx context.Context) (basetypes.ObjectValue, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	attributeTypes := map[string]attr.Type{}
+
+	if v.IsNull() {
+		return types.ObjectNull(attributeTypes), diags
+	}
+
+	if v.IsUnknown() {
+		return types.ObjectUnknown(attributeTypes), diags
+	}
+
+	objVal, diags := types.ObjectValue(
+		attributeTypes,
+		map[string]attr.Value{})
+
+	return objVal, diags
+}
+
+func (v TaskParametersValue) Equal(o attr.Value) bool {
+	other, ok := o.(TaskParametersValue)
+
+	if !ok {
+		return false
+	}
+
+	if v.state != other.state {
+		return false
+	}
+
+	if v.state != attr.ValueStateKnown {
+		return true
+	}
+
+	return true
+}
+
+func (v TaskParametersValue) Type(ctx context.Context) attr.Type {
+	return TaskParametersType{
+		basetypes.ObjectType{
+			AttrTypes: v.AttributeTypes(ctx),
+		},
+	}
+}
+
+func (v TaskParametersValue) AttributeTypes(ctx context.Context) map[string]attr.Type {
+	return map[string]attr.Type{}
 }

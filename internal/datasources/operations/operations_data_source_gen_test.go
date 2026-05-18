@@ -31,8 +31,8 @@ func TestOperationsDataSourceSchema_FilterAttributes(t *testing.T) {
 		if !sa.Optional {
 			t.Errorf("expected filter attribute %q to be Optional", name)
 		}
-		if sa.Required || sa.Computed {
-			t.Errorf("filter attribute %q should only be Optional", name)
+		if !sa.Computed {
+			t.Errorf("filter attribute %q should be Optional and Computed", name)
 		}
 	}
 }
@@ -45,9 +45,9 @@ func TestOperationsDataSourceSchema_ResultsAttribute(t *testing.T) {
 	if !ok {
 		t.Fatal("expected results attribute")
 	}
-	setAttr, ok := a.(dschema.SetNestedAttribute)
+	setAttr, ok := a.(dschema.ListNestedAttribute)
 	if !ok {
-		t.Fatal("results should be SetNestedAttribute")
+		t.Fatal("results should be ListNestedAttribute")
 	}
 	if !setAttr.Computed {
 		t.Error("results should be Computed")
@@ -58,7 +58,7 @@ func TestOperationsDataSourceSchema_ResultsNestedFields(t *testing.T) {
 	ctx := context.Background()
 	s := operations.OperationsDataSourceSchema(ctx)
 
-	setAttr := s.Attributes["results"].(dschema.SetNestedAttribute)
+	setAttr := s.Attributes["results"].(dschema.ListNestedAttribute)
 	nested := setAttr.NestedObject.Attributes
 
 	expected := []string{
@@ -77,7 +77,7 @@ func TestOperationsDataSourceSchema_DependenciesIsListAttribute(t *testing.T) {
 	ctx := context.Background()
 	s := operations.OperationsDataSourceSchema(ctx)
 
-	nested := s.Attributes["results"].(dschema.SetNestedAttribute).NestedObject.Attributes
+	nested := s.Attributes["results"].(dschema.ListNestedAttribute).NestedObject.Attributes
 	a, ok := nested["dependencies"]
 	if !ok {
 		t.Fatal("expected dependencies field in results")

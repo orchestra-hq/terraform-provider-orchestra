@@ -32,8 +32,8 @@ func TestTaskRunsDataSourceSchema_FilterAttributes(t *testing.T) {
 			if !sa.Optional {
 				t.Errorf("filter attribute %q should be Optional", name)
 			}
-			if sa.Required || sa.Computed {
-				t.Errorf("filter attribute %q should only be Optional", name)
+			if !sa.Computed {
+				t.Errorf("filter attribute %q should be Optional and Computed", name)
 			}
 		})
 	}
@@ -47,9 +47,9 @@ func TestTaskRunsDataSourceSchema_ResultsAttribute(t *testing.T) {
 	if !ok {
 		t.Fatal("expected results attribute")
 	}
-	setAttr, ok := a.(dschema.SetNestedAttribute)
+	setAttr, ok := a.(dschema.ListNestedAttribute)
 	if !ok {
-		t.Fatalf("results should be SetNestedAttribute, got %T", a)
+		t.Fatalf("results should be ListNestedAttribute, got %T", a)
 	}
 	if !setAttr.Computed {
 		t.Error("results should be Computed")
@@ -59,14 +59,14 @@ func TestTaskRunsDataSourceSchema_ResultsAttribute(t *testing.T) {
 func TestTaskRunsDataSourceSchema_ResultsNestedStringFields(t *testing.T) {
 	ctx := context.Background()
 	nested := task_runs.TaskRunsDataSourceSchema(ctx).
-		Attributes["results"].(dschema.SetNestedAttribute).NestedObject.Attributes
+		Attributes["results"].(dschema.ListNestedAttribute).NestedObject.Attributes
 
 	stringFields := []string{
 		"account_id", "completed_at", "connection_id", "created_at",
 		"external_message", "external_status", "id", "integration",
 		"integration_job", "message", "pipeline_id", "pipeline_run_id",
-		"platform_link", "run_parameters", "started_at", "status",
-		"task_id", "task_name", "task_parameters", "updated_at",
+		"platform_link", "started_at", "status",
+		"task_id", "task_name", "updated_at",
 	}
 	for _, name := range stringFields {
 		t.Run(name, func(t *testing.T) {
@@ -81,10 +81,26 @@ func TestTaskRunsDataSourceSchema_ResultsNestedStringFields(t *testing.T) {
 	}
 }
 
+func TestTaskRunsDataSourceSchema_ResultsNestedParametersAttributes(t *testing.T) {
+	ctx := context.Background()
+	nested := task_runs.TaskRunsDataSourceSchema(ctx).
+		Attributes["results"].(dschema.ListNestedAttribute).NestedObject.Attributes
+
+	for _, name := range []string{"run_parameters", "task_parameters"} {
+		a, ok := nested[name]
+		if !ok {
+			t.Fatalf("expected nested field %q", name)
+		}
+		if _, ok := a.(dschema.SingleNestedAttribute); !ok {
+			t.Errorf("field %q should be SingleNestedAttribute, got %T", name, a)
+		}
+	}
+}
+
 func TestTaskRunsDataSourceSchema_ResultsNestedInt64Fields(t *testing.T) {
 	ctx := context.Background()
 	nested := task_runs.TaskRunsDataSourceSchema(ctx).
-		Attributes["results"].(dschema.SetNestedAttribute).NestedObject.Attributes
+		Attributes["results"].(dschema.ListNestedAttribute).NestedObject.Attributes
 
 	a, ok := nested["number_of_attempts"]
 	if !ok {

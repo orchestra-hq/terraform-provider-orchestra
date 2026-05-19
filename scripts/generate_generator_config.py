@@ -218,6 +218,53 @@ def choose_single_operation(ops_by_id: Dict[str, List[OperationRef]], operation_
     return lst[0]
 
 
+# Terraform resource name -> OpenAPI operationIds for CRUD.
+RESOURCE_OPERATION_IDS: Dict[str, Dict[str, str]] = {
+    "pipeline": {
+        "create": "createPipeline",
+        "read": "listPipelines",
+        "update": "updatePipeline",
+        "delete": "deletePipeline",
+    },
+}
+
+# Terraform data source name -> OpenAPI operationId for read.
+DATA_SOURCE_OPERATION_IDS: Dict[str, str] = {
+    "assets": "listAssets",
+    "azure_federated_credentials": "getAzureFederatedCredentials",
+    "pipelines": "listPipelines",
+}
+
+
+def parse_name_filter(values: Optional[List[str]]) -> Optional[Set[str]]:
+    """Return None when the flag was omitted (include all), else the requested names."""
+    if values is None:
+        return None
+    names: Set[str] = set()
+    for value in values:
+        for part in value.split(","):
+            part = part.strip()
+            if part:
+                names.add(part)
+    return names
+
+
+def validate_name_filter(
+    requested: Optional[Set[str]],
+    *,
+    kind: str,
+    available: Set[str],
+) -> None:
+    if requested is None:
+        return
+    unknown = requested - available
+    if unknown:
+        raise SystemExit(
+            f"Unknown {kind}(s): {', '.join(sorted(unknown))}. "
+            f"Available: {', '.join(sorted(available))}"
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--openapi", default="openapi.yaml")
@@ -233,6 +280,24 @@ def main() -> None:
         dest="preserve_existing",
         action="store_false",
         help="Do not preserve manual schema ignores/aliases from existing --out.",
+    )
+    parser.add_argument(
+        "--resources",
+        nargs="+",
+        metavar="NAME",
+        help=(
+            "Only include these Terraform resources (comma-separated names allowed). "
+            "Omit to include all known resources."
+        ),
+    )
+    parser.add_argument(
+        "--data-sources",
+        nargs="+",
+        metavar="NAME",
+        help=(
+            "Only include these Terraform data sources (comma-separated names allowed). "
+            "Omit to include all known data sources."
+        ),
     )
     args = parser.parse_args()
 
@@ -257,6 +322,19 @@ def main() -> None:
         provider_name = provider_name[: -len("_api")]
 
     ops_by_id = collect_operations(openapi)
+
+    resource_filter = parse_name_filter(args.resources)
+    data_source_filter = parse_name_filter(args.data_sources)
+    validate_name_filter(
+        resource_filter,
+        kind="resource",
+        available=set(RESOURCE_OPERATION_IDS.keys()),
+    )
+    validate_name_filter(
+        data_source_filter,
+        kind="data source",
+        available=set(DATA_SOURCE_OPERATION_IDS.keys()),
+    )
 
     resources: Dict[str, Dict[str, Any]] = {}
     data_sources: Dict[str, Dict[str, Any]] = {}
@@ -299,18 +377,6 @@ def main() -> None:
 
         resources[name] = res_entry
 
-    # Plain resources: create/update/delete all exist.
-    # Repo-specific convention:
-    # Only the "Pipelines" domain is represented as Terraform resources in this provider.
-    pipeline_create = choose_single_operation(ops_by_id, "createPipeline")
-    pipeline_read = choose_single_operation(ops_by_id, "listPipelines")
-    pipeline_update = choose_single_operation(ops_by_id, "updatePipeline")
-    pipeline_delete = choose_single_operation(ops_by_id, "deletePipeline")
-    if pipeline_create and pipeline_read and pipeline_update and pipeline_delete:
-        add_resource("pipeline", pipeline_create, pipeline_read, pipeline_update, pipeline_delete, import_variant=False)
-
-    # Data sources follow the OpenAPI operation IDs directly.
-    # (These map to list/get operations but are not managed as Terraform resources.)
     def add_data_source(name: str, op: Optional[OperationRef]) -> None:
         if op is None:
             return
@@ -331,15 +397,54 @@ def main() -> None:
             entry["schema"] = schema
         data_sources[name] = entry
 
-    add_data_source("pipeline_runs", choose_single_operation(ops_by_id, "listPipelineRuns"))
-    add_data_source("pipeline_run_status", choose_single_operation(ops_by_id, "getPipelineRunStatus"))
-    add_data_source("task_runs", choose_single_operation(ops_by_id, "listTaskRuns"))
-    add_data_source("task_run_artifacts", choose_single_operation(ops_by_id, "listTaskRunArtifacts"))
-    add_data_source("task_run_logs", choose_single_operation(ops_by_id, "listTaskRunLogs"))
-    add_data_source("operations", choose_single_operation(ops_by_id, "listOperations"))
-    add_data_source("assets", choose_single_operation(ops_by_id, "listAssets"))
-    add_data_source("pipelines", choose_single_operation(ops_by_id, "listPipelines"))
-    add_data_source("azure_federated_credentials", choose_single_operation(ops_by_id, "getAzureFederatedCredentials"))
+    for resource_name, operation_ids in RESOURCE_OPERATION_IDS.items():
+        if resource_filter is not None and resource_name not in resource_filter:
+            continue
+        create = choose_single_operation(ops_by_id, operation_ids["create"])
+        read = choose_single_operation(ops_by_id, operation_ids["read"])
+        update = choose_single_operation(ops_by_id, operation_ids["update"])
+        delete = choose_single_operation(ops_by_id, operation_ids["delete"])
+        if not (create and read and update and delete):
+            missing_ops = [
+                op_id
+                for op_id, op in zip(
+                    operation_ids.values(),
+                    (create, read, update, delete),
+                )
+                if op is None
+            ]
+            raise SystemExit(
+                f"Resource {resource_name!r} is missing required OpenAPI operation(s): "
+                f"{', '.join(missing_ops)}"
+            )
+        add_resource(resource_name, create, read, update, delete, import_variant=False)
+
+    if resource_filter is not None:
+        missing_resources = resource_filter - set(resources.keys())
+        if missing_resources:
+            raise SystemExit(
+                "Requested resource(s) were not generated: "
+                f"{', '.join(sorted(missing_resources))}"
+            )
+
+    for data_source_name, operation_id in DATA_SOURCE_OPERATION_IDS.items():
+        if data_source_filter is not None and data_source_name not in data_source_filter:
+            continue
+        op = choose_single_operation(ops_by_id, operation_id)
+        if op is None:
+            raise SystemExit(
+                f"Data source {data_source_name!r} is missing required OpenAPI operation: "
+                f"{operation_id}"
+            )
+        add_data_source(data_source_name, op)
+
+    if data_source_filter is not None:
+        missing_data_sources = data_source_filter - set(data_sources.keys())
+        if missing_data_sources:
+            raise SystemExit(
+                "Requested data source(s) were not generated: "
+                f"{', '.join(sorted(missing_data_sources))}"
+            )
 
     # Preserve hand-tuned overrides from the current generator_config.yml so
     # we don't accidentally remove schema.ignores / schema.attributes.aliases.

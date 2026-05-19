@@ -10,13 +10,7 @@ import (
 
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/assets"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/azure_federated_credentials"
-	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/operations"
-	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/pipeline_run_status"
-	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/pipeline_runs"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/pipelines"
-	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/task_run_artifacts"
-	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/task_run_logs"
-	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/task_runs"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/pipeline"
 
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
@@ -74,17 +68,11 @@ func (p *orchestraProvider) Configure(ctx context.Context, req tfprovider.Config
 
 func (p *orchestraProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		func() datasource.DataSource { return &pipelines.PipelinesDataSource{} },
-		func() datasource.DataSource { return &pipeline_runs.PipelineRunsDataSource{} },
-		func() datasource.DataSource { return &pipeline_run_status.PipelineRunStatusDataSource{} },
-		func() datasource.DataSource { return &operations.OperationsDataSource{} },
 		func() datasource.DataSource { return &assets.AssetsDataSource{} },
-		func() datasource.DataSource { return &task_runs.TaskRunsDataSource{} },
-		func() datasource.DataSource { return &task_run_logs.TaskRunLogsDataSource{} },
-		func() datasource.DataSource { return &task_run_artifacts.TaskRunArtifactsDataSource{} },
 		func() datasource.DataSource {
 			return &azure_federated_credentials.AzureFederatedCredentialsDataSource{}
 		},
+		func() datasource.DataSource { return &pipelines.PipelinesDataSource{} },
 	}
 }
 

@@ -48,29 +48,7 @@ MAPPINGS: list[dict[str, str]] = [
         "new_dir": "internal/datasources/azure_federated_credentials",
         "new_package": "azure_federated_credentials",
     },
-    {"old_dir": "datasource_operations", "new_dir": "internal/datasources/operations", "new_package": "operations"},
-    {
-        "old_dir": "datasource_pipeline_run_status",
-        "new_dir": "internal/datasources/pipeline_run_status",
-        "new_package": "pipeline_run_status",
-    },
-    {
-        "old_dir": "datasource_pipeline_runs",
-        "new_dir": "internal/datasources/pipeline_runs",
-        "new_package": "pipeline_runs",
-    },
     {"old_dir": "datasource_pipelines", "new_dir": "internal/datasources/pipelines", "new_package": "pipelines"},
-    {
-        "old_dir": "datasource_task_run_artifacts",
-        "new_dir": "internal/datasources/task_run_artifacts",
-        "new_package": "task_run_artifacts",
-    },
-    {
-        "old_dir": "datasource_task_run_logs",
-        "new_dir": "internal/datasources/task_run_logs",
-        "new_package": "task_run_logs",
-    },
-    {"old_dir": "datasource_task_runs", "new_dir": "internal/datasources/task_runs", "new_package": "task_runs"},
 ]
 
 

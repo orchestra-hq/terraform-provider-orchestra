@@ -29,6 +29,16 @@ Run:
 python3 scripts/generate_generator_config.py --openapi "${OPENAPI_PATH:-openapi.yaml}" --out generator_config.yml
 ```
 
+Optional filters (omit to include all entries for that section):
+
+```bash
+python3 scripts/generate_generator_config.py \
+  --openapi "${OPENAPI_PATH:-openapi.yaml}" \
+  --out generator_config.yml \
+  --resources pipeline \
+  --data-sources assets,pipelines
+```
+
 ### 2) Generate `provider_code_spec.json`
 
 Run:
@@ -68,3 +78,7 @@ go test ./...
 ## Notes
 - This operation overwrites generated code under `internal/...` and test files.
 - It is designed to make `internal/datasources/*` and `internal/resources/*` match everything supported by `openapi.yaml` via the codegen pipeline.
+
+## References
+- [Mapping OAS to provider code specification](https://github.com/hashicorp/terraform-plugin-codegen-openapi/blob/main/DESIGN.md#mapping-oas-to-provider-code-specification) — `generator_config.yml` + `tfplugingen-openapi`
+- [Terraform Provider Code Specification](https://github.com/hashicorp/terraform-plugin-codegen-spec) — `provider_code_spec.json` + `tfplugingen-framework`

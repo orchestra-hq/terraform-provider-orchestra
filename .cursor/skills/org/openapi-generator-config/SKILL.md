@@ -8,6 +8,10 @@ metadata:
 
 When the user asks to “convert `openapi.yaml` to `generator_config.yml`” in this repo:
 
+## References
+- [Mapping OAS to provider code specification](https://github.com/hashicorp/terraform-plugin-codegen-openapi/blob/main/DESIGN.md#mapping-oas-to-provider-code-specification) — upstream rules for `generator_config.yml`
+- [Terraform Provider Code Specification](https://github.com/hashicorp/terraform-plugin-codegen-spec) — target format for `provider_code_spec.json`
+
 1. Use `OPENAPI_PATH` default `openapi.yaml` and `OUT_PATH` default `generator_config.yml` (repo root).
 2. Regenerate `OUT_PATH` by running the embedded Python below.
 3. The Python code will:

@@ -18,13 +18,7 @@ When the user asks to “add tests”, “set up testing”, “ensure test cove
    - Data sources (read-only data sources):
      - `internal/datasources/assets/assets_data_source.go`
      - `internal/datasources/azure_federated_credentials/azure_federated_credentials_data_source.go`
-     - `internal/datasources/operations/operations_data_source.go`
-     - `internal/datasources/pipeline_run_status/pipeline_run_status_data_source.go`
-     - `internal/datasources/pipeline_runs/pipeline_runs_data_source.go`
      - `internal/datasources/pipelines/pipelines_data_source.go`
-     - `internal/datasources/task_run_artifacts/task_run_artifacts_data_source.go`
-     - `internal/datasources/task_run_logs/task_run_logs_data_source.go`
-     - `internal/datasources/task_runs/task_runs_data_source.go`
 
 3. Ensure the repo stays aligned with codegen:
    - If schema/type tests are missing for a package, regenerate provider code + framework-generated tests using the existing OpenAPI/codegen sync flow.

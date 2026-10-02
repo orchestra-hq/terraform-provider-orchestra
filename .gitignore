@@ -22,3 +22,9 @@ scripts/**/__pycache__/
 
 # tfplugindocs
 .tmp-tfplugindocs/**
+
+# Codegen scratch output
+.tmp-tfplugingen-framework-go/
+
+# Local credentials for acceptance tests. Never committed.
+.env.local

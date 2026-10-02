@@ -1,0 +1,217 @@
+package apicontract_test
+
+import (
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"testing"
+
+	"gopkg.in/yaml.v3"
+)
+
+// Every (method, path) the provider calls. Keep this list in step with the
+// client call sites; the test below asserts each one exists in the spec.
+//
+// This exists because the provider once called PUT /pipelines/{alias},
+// DELETE /pipelines/{alias} and GET /pipelines?alias=... — none of which the
+// API has. Two failed loudly; the third silently returned the wrong pipeline.
+var calls = []struct {
+	method string
+	path   string
+	who    string
+}{
+	{"GET", "/pipeline", "pipeline resource: read"},
+	{"GET", "/pipelines/data", "pipeline resource: read definition"},
+	{"POST", "/pipelines", "pipeline resource: create"},
+	{"PUT", "/pipelines", "pipeline resource: update"},
+	{"DELETE", "/pipelines", "pipeline resource: delete"},
+	{"POST", "/pipelines/schema", "pipeline resource: plan-time validation"},
+	{"GET", "/pipelines", "pipelines data source"},
+	{"GET", "/assets", "assets data source"},
+	{"GET", "/compute_resources/azure/federated_credentials", "azure federated credentials data source"},
+	{"GET", "/environments", "environments data source"},
+	{"POST", "/environments", "environment resource: create"},
+	{"GET", "/environments/{environment_id}", "environment resource: read"},
+	{"PATCH", "/environments/{environment_id}", "environment resource: update"},
+	{"DELETE", "/environments/{environment_id}", "environment resource: delete"},
+	{"GET", "/integrations/connections", "integration connections data source"},
+}
+
+// Query parameters the provider sends, by endpoint. A parameter the endpoint
+// does not declare is silently ignored by the API, which is how the bad
+// GET /pipelines?alias=... read went unnoticed.
+var queryParams = map[string][]string{
+	"GET /pipeline":                 {"pipeline_id", "alias", "repository", "yaml_path", "version", "branch", "commit"},
+	"GET /pipelines/data":           {"pipeline_id", "alias", "repository", "yaml_path", "version", "branch", "commit"},
+	"GET /pipelines":                {"page", "page_size", "name"},
+	"DELETE /pipelines":             {"pipeline_id", "alias", "repository", "yaml_path"},
+	"GET /integrations/connections": {"integration", "authStatus"},
+	"GET /assets": {
+		"asset_type", "integration", "integration_account_id", "workspace_id",
+		"database_name", "schema_name", "status", "asset_ids",
+		"sort_column", "sort_direction", "page", "page_size",
+	},
+}
+
+type openAPI struct {
+	Paths map[string]map[string]struct {
+		Parameters []struct {
+			Name string `yaml:"name"`
+			In   string `yaml:"in"`
+		} `yaml:"parameters"`
+	} `yaml:"paths"`
+	Components struct {
+		Schemas map[string]struct {
+			Enum []string `yaml:"enum"`
+		} `yaml:"schemas"`
+	} `yaml:"components"`
+}
+
+func loadSpec(t *testing.T) openAPI {
+	t.Helper()
+
+	specPath := filepath.Join("..", "..", "openapi.yaml")
+	raw, err := os.ReadFile(specPath)
+	if err != nil {
+		t.Fatalf("read %s: %v (fetch it with: curl -sLo openapi.yaml https://docs.getorchestra.io/api/openapi.yaml)", specPath, err)
+	}
+
+	var spec openAPI
+	if err := yaml.Unmarshal(raw, &spec); err != nil {
+		t.Fatalf("parse %s: %v", specPath, err)
+	}
+	if len(spec.Paths) == 0 {
+		t.Fatalf("%s declares no paths", specPath)
+	}
+	return spec
+}
+
+func TestEveryCalledEndpointExists(t *testing.T) {
+	spec := loadSpec(t)
+
+	for _, call := range calls {
+		t.Run(call.method+" "+call.path, func(t *testing.T) {
+			methods, ok := spec.Paths[call.path]
+			if !ok {
+				t.Fatalf("%s calls %s %s, but the spec has no such path", call.who, call.method, call.path)
+			}
+			if _, ok := methods[strings.ToLower(call.method)]; !ok {
+				declared := make([]string, 0, len(methods))
+				for m := range methods {
+					declared = append(declared, strings.ToUpper(m))
+				}
+				sort.Strings(declared)
+				t.Fatalf("%s calls %s %s, but the spec declares only %v on that path",
+					call.who, call.method, call.path, declared)
+			}
+		})
+	}
+}
+
+func TestEverySentQueryParameterIsDeclared(t *testing.T) {
+	spec := loadSpec(t)
+
+	for endpoint, sent := range queryParams {
+		t.Run(endpoint, func(t *testing.T) {
+			method, p, ok := strings.Cut(endpoint, " ")
+			if !ok {
+				t.Fatalf("malformed endpoint key %q", endpoint)
+			}
+
+			op, ok := spec.Paths[p][strings.ToLower(method)]
+			if !ok {
+				t.Fatalf("spec has no %s %s", method, p)
+			}
+
+			declared := map[string]bool{}
+			for _, param := range op.Parameters {
+				if param.In == "query" {
+					declared[param.Name] = true
+				}
+			}
+
+			for _, name := range sent {
+				if !declared[name] {
+					t.Errorf("provider sends ?%s to %s, which the spec does not declare — the API will ignore it", name, endpoint)
+				}
+			}
+		})
+	}
+}
+
+// TestGeneratedEnumsMatchSpec guards the generated validator lists against
+// drift. The assets `integration` validator was once 13 values behind, which
+// rejected valid configuration at plan time.
+func TestGeneratedEnumsMatchSpec(t *testing.T) {
+	spec := loadSpec(t)
+
+	raw, err := os.ReadFile(filepath.Join("..", "enums", "enums_gen.go"))
+	if err != nil {
+		t.Fatalf("read generated enums: %v", err)
+	}
+	generated := string(raw)
+
+	blockRe := regexp.MustCompile(`(?s)// (\w+) is components\.schemas\.(\w+)\.\nvar \w+ = \[\]string\{(.*?)\n\}`)
+	valueRe := regexp.MustCompile(`"([^"]+)"`)
+
+	matches := blockRe.FindAllStringSubmatch(generated, -1)
+	if len(matches) == 0 {
+		t.Fatal("no enum blocks found in internal/enums/enums_gen.go")
+	}
+
+	for _, m := range matches {
+		goName, schemaName, body := m[1], m[2], m[3]
+
+		t.Run(goName, func(t *testing.T) {
+			schema, ok := spec.Components.Schemas[schemaName]
+			if !ok {
+				t.Fatalf("spec has no schema %s", schemaName)
+			}
+
+			var got []string
+			for _, v := range valueRe.FindAllStringSubmatch(body, -1) {
+				got = append(got, v[1])
+			}
+
+			want := append([]string(nil), schema.Enum...)
+			sort.Strings(want)
+			sort.Strings(got)
+
+			if strings.Join(want, ",") != strings.Join(got, ",") {
+				t.Errorf("%s is out of date with components.schemas.%s.\nRegenerate with: python3 scripts/generate_enums.py\nmissing: %v\nextra: %v",
+					goName, schemaName, difference(want, got), difference(got, want))
+			}
+		})
+	}
+}
+
+func difference(a, b []string) []string {
+	inB := make(map[string]bool, len(b))
+	for _, v := range b {
+		inB[v] = true
+	}
+	var out []string
+	for _, v := range a {
+		if !inB[v] {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// specParams returns the query parameters the spec declares for an operation.
+func specParams(spec openAPI, method, path string) []string {
+	op, ok := spec.Paths[path][strings.ToLower(method)]
+	if !ok {
+		return nil
+	}
+	var out []string
+	for _, p := range op.Parameters {
+		if p.In == "query" {
+			out = append(out, p.Name)
+		}
+	}
+	return out
+}

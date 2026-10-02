@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/alerts"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/tfconv"
 )
 
@@ -242,7 +243,7 @@ func definitionToWire(def *definitionTF, root path.Path, diags *diag.Diagnostics
 	for _, a := range def.Anomalies {
 		out.Anomalies = append(out.Anomalies, wireAnomaly{
 			Type:                    a.Type.ValueString(),
-			Destinations:            destinationsToWire(a.Destinations, root.AtName("anomalies"), diags),
+			Destinations:            alerts.ToWire(a.Destinations, root.AtName("anomalies"), diags),
 			MinBaselineSeconds:      int64PtrOrNil(a.MinBaselineSeconds),
 			PercentageAboveBaseline: int64PtrOrNil(a.PercentageAboveBaseline),
 			PercentageBelowBaseline: int64PtrOrNil(a.PercentageBelowBaseline),
@@ -276,7 +277,7 @@ func taskToWire(t taskTF, p path.Path, diags *diag.Diagnostics) wireTask {
 	for _, a := range t.Anomalies {
 		out.Anomalies = append(out.Anomalies, wireAnomaly{
 			Type:                    a.Type.ValueString(),
-			Destinations:            destinationsToWire(a.Destinations, p.AtName("anomalies"), diags),
+			Destinations:            alerts.ToWire(a.Destinations, p.AtName("anomalies"), diags),
 			MinBaselineSeconds:      int64PtrOrNil(a.MinBaselineSeconds),
 			PercentageAboveBaseline: int64PtrOrNil(a.PercentageAboveBaseline),
 			PercentageBelowBaseline: int64PtrOrNil(a.PercentageBelowBaseline),
@@ -376,40 +377,19 @@ func configurationToWire(c *configurationTF) *wireConfiguration {
 	return out
 }
 
-func alertsToWire(alerts []alertTF, p path.Path, diags *diag.Diagnostics) []wireAlert {
-	if len(alerts) == 0 {
+func alertsToWire(list []alertTF, p path.Path, diags *diag.Diagnostics) []wireAlert {
+	if len(list) == 0 {
 		return nil
 	}
-	out := make([]wireAlert, 0, len(alerts))
-	for i, a := range alerts {
+	out := make([]wireAlert, 0, len(list))
+	for i, a := range list {
 		out = append(out, wireAlert{
 			Name:          a.Name.ValueString(),
 			Statuses:      tfconv.GoStrings(a.Statuses),
-			Destinations:  destinationsToWire(a.Destinations, p.AtListIndex(i).AtName("destinations"), diags),
+			Destinations:  alerts.ToWire(a.Destinations, p.AtListIndex(i).AtName("destinations"), diags),
 			CustomMessage: strPtrOrNil(a.CustomMessage),
 			MaxLiveAlerts: parameterizedIntStr(a.MaxLiveAlerts),
 		})
-	}
-	return out
-}
-
-func destinationsToWire(dests []alertDestinationTF, p path.Path, diags *diag.Diagnostics) []wireAlertDestination {
-	if len(dests) == 0 {
-		return nil
-	}
-	out := make([]wireAlertDestination, 0, len(dests))
-	for i, d := range dests {
-		wd := wireAlertDestination{
-			Integration:  d.Integration.ValueString(),
-			Destination:  strPtrOrNil(d.Destination),
-			ConnectionID: strPtrOrNil(d.ConnectionID),
-		}
-		priority := int64PtrOrNil(d.Priority)
-		body := jsonAny(d.Body, p.AtListIndex(i).AtName("body"), diags)
-		if priority != nil || body != nil {
-			wd.Parameters = &wireAlertParameters{Priority: priority, Body: body}
-		}
-		out = append(out, wd)
 	}
 	return out
 }
@@ -524,7 +504,7 @@ func definitionFromWire(w *wireDefinition) (*definitionTF, error) {
 	for _, a := range w.Anomalies {
 		out.Anomalies = append(out.Anomalies, anomalyTF{
 			Type:                    types.StringValue(a.Type),
-			Destinations:            destinationsFromWire(a.Destinations),
+			Destinations:            alerts.FromWire(a.Destinations),
 			MinBaselineSeconds:      tfInt64(a.MinBaselineSeconds),
 			PercentageAboveBaseline: tfInt64(a.PercentageAboveBaseline),
 			PercentageBelowBaseline: tfInt64(a.PercentageBelowBaseline),
@@ -554,7 +534,7 @@ func taskFromWire(t wireTask) taskTF {
 	for _, a := range t.Anomalies {
 		out.Anomalies = append(out.Anomalies, taskAnomalyTF{
 			Type:                    types.StringValue(a.Type),
-			Destinations:            destinationsFromWire(a.Destinations),
+			Destinations:            alerts.FromWire(a.Destinations),
 			MinBaselineSeconds:      tfInt64(a.MinBaselineSeconds),
 			PercentageAboveBaseline: tfInt64(a.PercentageAboveBaseline),
 			PercentageBelowBaseline: tfInt64(a.PercentageBelowBaseline),
@@ -647,41 +627,19 @@ func configurationFromWire(c *wireConfiguration) *configurationTF {
 	return out
 }
 
-func alertsFromWire(alerts []wireAlert) []alertTF {
-	if len(alerts) == 0 {
+func alertsFromWire(list []wireAlert) []alertTF {
+	if len(list) == 0 {
 		return nil
 	}
-	out := make([]alertTF, 0, len(alerts))
-	for _, a := range alerts {
+	out := make([]alertTF, 0, len(list))
+	for _, a := range list {
 		out = append(out, alertTF{
 			Name:          types.StringValue(a.Name),
 			Statuses:      tfconv.Strings(a.Statuses),
-			Destinations:  destinationsFromWire(a.Destinations),
+			Destinations:  alerts.FromWire(a.Destinations),
 			CustomMessage: tfString(a.CustomMessage),
 			MaxLiveAlerts: tfParameterizedIntStr(a.MaxLiveAlerts),
 		})
-	}
-	return out
-}
-
-func destinationsFromWire(dests []wireAlertDestination) []alertDestinationTF {
-	if len(dests) == 0 {
-		return nil
-	}
-	out := make([]alertDestinationTF, 0, len(dests))
-	for _, d := range dests {
-		td := alertDestinationTF{
-			Integration:  types.StringValue(d.Integration),
-			Destination:  tfString(d.Destination),
-			ConnectionID: tfString(d.ConnectionID),
-			Priority:     types.Int64Null(),
-			Body:         jsontypes.NewNormalizedNull(),
-		}
-		if d.Parameters != nil {
-			td.Priority = tfInt64(d.Parameters.Priority)
-			td.Body = tfRawJSON(d.Parameters.Body)
-		}
-		out = append(out, td)
 	}
 	return out
 }

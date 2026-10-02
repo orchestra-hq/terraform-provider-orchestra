@@ -31,6 +31,7 @@ func TestProviderSchema(t *testing.T) {
 
 	wantResources := []string{
 		"orchestra_environment",
+		"orchestra_monitor",
 		"orchestra_pipeline",
 	}
 	for _, name := range wantResources {

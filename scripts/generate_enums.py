@@ -29,6 +29,8 @@ ENUMS: dict[str, str] = {
     "AssetStatus": "AssetStatuses",
     "IntegrationStatusEnum": "IntegrationStatuses",
     "AuthStatus": "AuthStatuses",
+    "MonitorGroupByEnum": "MonitorGroupBys",
+    "IncidentSeverityEnum": "IncidentSeverities",
 }
 
 

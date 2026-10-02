@@ -1,0 +1,282 @@
+package monitor
+
+import (
+	"regexp"
+
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/alerts"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/enums"
+)
+
+func MonitorResourceSchema() schema.Schema {
+	return schema.Schema{
+		Description: "A rule for which failures to group into one incident, and how that incident alerts.",
+		MarkdownDescription: "A rule for which failures to group into one incident, and how that incident alerts.\n\n" +
+			"`match` picks the events the monitor claims, `group_by` decides what makes two of them the same " +
+			"incident, and `action` says what happens when one opens. Where two monitors claim the same event, " +
+			"the one Orchestra evaluates first wins — see `order`.",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed:      true,
+				Description:   "The monitor ID.",
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+			},
+			"name": schema.StringAttribute{
+				Required:    true,
+				Description: "Monitor name, shown on the incidents it opens.",
+				Validators:  []validator.String{stringvalidator.LengthAtLeast(1)},
+			},
+			"description": schema.StringAttribute{
+				Optional:    true,
+				Description: "What this monitor is for.",
+			},
+			"enabled": schema.BoolAttribute{
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(true),
+				Description: "Whether the monitor claims events. A disabled monitor is skipped entirely.",
+			},
+			"order": schema.Int64Attribute{
+				Computed: true,
+				// Evaluation order is a property of the whole workspace, set by
+				// POST /monitors/reorder across every monitor at once. A
+				// per-resource attribute cannot express that without each
+				// monitor fighting its neighbours, so it is reported, not set.
+				Description: "Evaluation position within the workspace. Assigned by Orchestra; lower wins when two monitors claim the same event.",
+				MarkdownDescription: "Evaluation position within the workspace, assigned by Orchestra: where two monitors claim the same event, the lower `order` wins.\n\n" +
+					"Ordering is a workspace-wide operation (`POST /monitors/reorder` renumbers every monitor at once), so it is not settable here. Set it in the Orchestra UI.",
+			},
+			"match":    matchAttribute(),
+			"group_by": groupByAttribute(),
+			"trigger":  triggerAttribute(),
+			"action":   actionAttribute(),
+
+			// Server-owned.
+			"created_at": schema.StringAttribute{
+				Computed:      true,
+				Description:   "When the monitor was created.",
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+			},
+			"created_by": schema.StringAttribute{
+				Computed:      true,
+				Description:   "User who created the monitor.",
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+			},
+			"updated_at": schema.StringAttribute{
+				Computed:    true,
+				Description: "When the monitor was last updated.",
+			},
+			"updated_by": schema.StringAttribute{
+				Computed:    true,
+				Description: "User who last updated the monitor.",
+			},
+		},
+	}
+}
+
+func matchAttribute() schema.Attribute {
+	return schema.SingleNestedAttribute{
+		Required:    true,
+		Description: "Which events the monitor claims: AND across dimensions, OR within a list.",
+		MarkdownDescription: "Which events the monitor claims: AND across dimensions, OR within a list — " +
+			"`pipelines` plus `integrations` means events from those pipelines *and* those integrations.\n\n" +
+			"At least one dimension is required. A monitor that named none would claim every event on the account.",
+		Attributes: map[string]schema.Attribute{
+			"pipelines": schema.ListAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "Pipeline IDs to claim events from.",
+			},
+			"assets": schema.ListAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "Asset IDs to claim events from.",
+			},
+			"connections": schema.ListAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "Connection IDs to claim events from.",
+			},
+			"integrations": schema.ListAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "Integrations to claim events from.",
+				Validators: []validator.List{
+					listvalidator.ValueStringsAre(stringvalidator.OneOf(enums.Integrations...)),
+				},
+			},
+			"labels": schema.MapNestedAttribute{
+				Optional:     true,
+				NestedObject: labelMatchSchema(),
+				Description:  "Label matches keyed by label name. Max 32 labels.",
+				MarkdownDescription: "Label matches keyed by label name (max 32). Each entry is a JSON path into the " +
+					"event and the values that count as a match.",
+				Validators: []validator.Map{
+					mapvalidator.SizeAtMost(32),
+					mapvalidator.KeysAre(stringvalidator.RegexMatches(labelKeyPattern,
+						"must be 1-64 characters of letters, numbers, or _.:/-")),
+				},
+			},
+		},
+	}
+}
+
+func labelMatchSchema() schema.NestedAttributeObject {
+	return schema.NestedAttributeObject{
+		Attributes: map[string]schema.Attribute{
+			"path": schema.StringAttribute{
+				Required:    true,
+				Description: "JSON path into the event.",
+			},
+			"values": schema.ListAttribute{
+				Required:    true,
+				ElementType: types.StringType,
+				Description: "Values that count as a match. At least one.",
+				Validators:  []validator.List{listvalidator.SizeAtLeast(1)},
+			},
+		},
+	}
+}
+
+func groupByAttribute() schema.Attribute {
+	return schema.ListAttribute{
+		Required:    true,
+		ElementType: types.StringType,
+		Description: "What makes two claimed events the same incident. At least one.",
+		MarkdownDescription: "What makes two claimed events the same incident — grouping by `pipeline` opens one " +
+			"incident per pipeline, by `monitor` one for the monitor as a whole. At least one.",
+		Validators: []validator.List{
+			listvalidator.SizeAtLeast(1),
+			listvalidator.ValueStringsAre(stringvalidator.OneOf(enums.MonitorGroupBys...)),
+		},
+	}
+}
+
+func triggerAttribute() schema.Attribute {
+	return schema.SingleNestedAttribute{
+		Optional:    true,
+		Description: "Open an incident only after this many events in a window.",
+		MarkdownDescription: "Open an incident only after this many events in a window. Supplying `trigger` is " +
+			"what makes a monitor a threshold monitor; without it the first claimed event opens an incident.",
+		Attributes: map[string]schema.Attribute{
+			"count": schema.Int64Attribute{
+				Required:    true,
+				Description: "How many events before the incident opens. Must be more than 1.",
+				Validators:  []validator.Int64{int64validator.AtLeast(2)},
+			},
+			"within": schema.StringAttribute{
+				Required:            true,
+				Description:         "The window, as an ISO 8601 duration such as PT30M or PT2H.",
+				MarkdownDescription: "The window, as an ISO 8601 duration — `PT30M`, `PT2H`, `P1D`. Must be longer than zero.",
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(durationPattern, "must be an ISO 8601 duration such as PT30M, PT2H or P1D"),
+				},
+			},
+		},
+	}
+}
+
+func actionAttribute() schema.Attribute {
+	return schema.SingleNestedAttribute{
+		Optional:    true,
+		Description: "What happens when an incident opens.",
+		Attributes: map[string]schema.Attribute{
+			"mute": schema.BoolAttribute{
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+				Description: "Open the incident without alerting.",
+			},
+			"severity": schema.StringAttribute{
+				Optional:    true,
+				Description: "Severity to open the incident at.",
+				Validators:  []validator.String{stringvalidator.OneOf(enums.IncidentSeverities...)},
+			},
+			"assignee": schema.StringAttribute{
+				Optional:    true,
+				Description: "User ID to assign the incident to.",
+			},
+			"alerts": schema.SingleNestedAttribute{
+				Optional:    true,
+				Description: "Where to send the alert.",
+				Attributes: map[string]schema.Attribute{
+					"destinations": schema.ListNestedAttribute{
+						Optional:     true,
+						NestedObject: alerts.DestinationSchema(),
+						Description:  "Destinations to alert.",
+					},
+					"also_send_to_pipeline_destinations": schema.BoolAttribute{
+						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+						Description: "Also send to the destinations configured on the pipeline that produced the event.",
+					},
+				},
+			},
+		},
+	}
+}
+
+type monitorModel struct {
+	Id          types.String   `tfsdk:"id"`
+	Name        types.String   `tfsdk:"name"`
+	Description types.String   `tfsdk:"description"`
+	Enabled     types.Bool     `tfsdk:"enabled"`
+	Order       types.Int64    `tfsdk:"order"`
+	Match       *matchTF       `tfsdk:"match"`
+	GroupBy     []types.String `tfsdk:"group_by"`
+	Trigger     *triggerTF     `tfsdk:"trigger"`
+	Action      *actionTF      `tfsdk:"action"`
+
+	CreatedAt types.String `tfsdk:"created_at"`
+	CreatedBy types.String `tfsdk:"created_by"`
+	UpdatedAt types.String `tfsdk:"updated_at"`
+	UpdatedBy types.String `tfsdk:"updated_by"`
+}
+
+type matchTF struct {
+	Pipelines    []types.String          `tfsdk:"pipelines"`
+	Assets       []types.String          `tfsdk:"assets"`
+	Connections  []types.String          `tfsdk:"connections"`
+	Integrations []types.String          `tfsdk:"integrations"`
+	Labels       map[string]labelMatchTF `tfsdk:"labels"`
+}
+
+type labelMatchTF struct {
+	Path   types.String   `tfsdk:"path"`
+	Values []types.String `tfsdk:"values"`
+}
+
+type triggerTF struct {
+	Count  types.Int64  `tfsdk:"count"`
+	Within types.String `tfsdk:"within"`
+}
+
+type actionTF struct {
+	Mute     types.Bool   `tfsdk:"mute"`
+	Severity types.String `tfsdk:"severity"`
+	Assignee types.String `tfsdk:"assignee"`
+	Alerts   *alertsTF    `tfsdk:"alerts"`
+}
+
+type alertsTF struct {
+	Destinations                   []alerts.DestinationTF `tfsdk:"destinations"`
+	AlsoSendToPipelineDestinations types.Bool             `tfsdk:"also_send_to_pipeline_destinations"`
+}
+
+// Patterns from the spec: LabelKey's own pattern, and an ISO 8601 duration for
+// Duration (format: duration, gt: PT0S).
+var (
+	labelKeyPattern = regexp.MustCompile(`^[a-zA-Z0-9_.:/-]{1,64}$`)
+	durationPattern = regexp.MustCompile(`^P(?:\d+Y)?(?:\d+M)?(?:\d+W)?(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?$`)
+)

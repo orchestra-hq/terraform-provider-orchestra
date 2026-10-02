@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/alerts"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/enums"
 )
 
@@ -562,7 +563,7 @@ func alertSchema() schema.NestedAttributeObject {
 			},
 			"destinations": schema.ListNestedAttribute{
 				Required:     true,
-				NestedObject: alertDestinationSchema(),
+				NestedObject: alerts.DestinationSchema(),
 				Description:  "Where to send the alert.",
 				Validators:   []validator.List{listvalidator.SizeAtLeast(1)},
 			},
@@ -580,38 +581,6 @@ func alertSchema() schema.NestedAttributeObject {
 	}
 }
 
-func alertDestinationSchema() schema.NestedAttributeObject {
-	return schema.NestedAttributeObject{
-		Attributes: map[string]schema.Attribute{
-			"integration": schema.StringAttribute{
-				Required:    true,
-				Description: "Notification integration to send through.",
-				Validators:  []validator.String{stringvalidator.OneOf(enums.NotificationTypes...)},
-			},
-			"destination": schema.StringAttribute{
-				Optional:            true,
-				Description:         "Where to deliver: an email address, Slack channel, or webhook URL.",
-				MarkdownDescription: "Where to deliver: an email address, Slack channel, or webhook URL, depending on `integration`.",
-			},
-			"connection_id": schema.StringAttribute{
-				Optional:    true,
-				Description: "Connection to authenticate the delivery with.",
-			},
-			"priority": schema.Int64Attribute{
-				Optional:            true,
-				Description:         "Datadog notification priority (1-5). Only valid when integration is DATADOG.",
-				MarkdownDescription: "Datadog notification priority (1-5). Only valid when `integration = \"DATADOG\"`.",
-			},
-			"body": schema.StringAttribute{
-				Optional:            true,
-				CustomType:          jsontypes.NormalizedType{},
-				Description:         "Webhook request body, JSON-encoded. Only valid when integration is WEBHOOK.",
-				MarkdownDescription: "Webhook request body, JSON-encoded. Only valid when `integration = \"WEBHOOK\"`. The API accepts an object or a string, so encode either — `jsonencode({...})` or `jsonencode(\"text\")`.",
-			},
-		},
-	}
-}
-
 func anomalySchema(allowedTypes []string, operationScoped bool) schema.NestedAttributeObject {
 	attrs := map[string]schema.Attribute{
 		"type": schema.StringAttribute{
@@ -621,7 +590,7 @@ func anomalySchema(allowedTypes []string, operationScoped bool) schema.NestedAtt
 		},
 		"destinations": schema.ListNestedAttribute{
 			Optional:     true,
-			NestedObject: alertDestinationSchema(),
+			NestedObject: alerts.DestinationSchema(),
 			Description:  "Where to send the anomaly alert.",
 		},
 		"min_baseline_seconds": schema.Int64Attribute{

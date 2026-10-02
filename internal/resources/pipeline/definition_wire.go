@@ -1,6 +1,10 @@
 package pipeline
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/alerts"
+)
 
 // Wire types mirror the OpenAPI `PipelineModel` tree exactly (camelCase JSON,
 // pointers for nullable scalars). They are the payload of the `data` field on
@@ -130,38 +134,23 @@ type wireInput struct {
 }
 
 type wireAlert struct {
-	Name          string                 `json:"name"`
-	Statuses      []string               `json:"statuses"`
-	Destinations  []wireAlertDestination `json:"destinations"`
-	CustomMessage *string                `json:"customMessage,omitempty"`
+	Name          string                   `json:"name"`
+	Statuses      []string                 `json:"statuses"`
+	Destinations  []alerts.WireDestination `json:"destinations"`
+	CustomMessage *string                  `json:"customMessage,omitempty"`
 	// MaxLiveAlerts is ParameterizedIntStr: an integer or a ${{ }} template.
 	MaxLiveAlerts *json.RawMessage `json:"maxLiveAlerts,omitempty"`
-}
-
-type wireAlertDestination struct {
-	Integration  string               `json:"integration"`
-	Destination  *string              `json:"destination,omitempty"`
-	ConnectionID *string              `json:"connectionId,omitempty"`
-	Parameters   *wireAlertParameters `json:"parameters,omitempty"`
-}
-
-// wireAlertParameters is the anyOf of BaseDatadogNotificationParametersModel
-// and WebhookAlertParametersModel. The two have disjoint fields, so a single
-// flattened struct round-trips both.
-type wireAlertParameters struct {
-	Priority *int64          `json:"priority,omitempty"`
-	Body     json.RawMessage `json:"body,omitempty"`
 }
 
 // wireAnomaly flattens the discriminated oneOf of the four duration-anomaly
 // models. They share every field except the `type` discriminator.
 type wireAnomaly struct {
-	Type                    string                 `json:"type"`
-	Destinations            []wireAlertDestination `json:"destinations,omitempty"`
-	MinBaselineSeconds      *int64                 `json:"minBaselineSeconds,omitempty"`
-	PercentageAboveBaseline *int64                 `json:"percentageAboveBaseline,omitempty"`
-	PercentageBelowBaseline *int64                 `json:"percentageBelowBaseline,omitempty"`
-	OperationTypes          []string               `json:"operationTypes"`
-	OperationNames          []string               `json:"operationNames"`
-	MaxAnomalies            *int64                 `json:"maxAnomalies,omitempty"`
+	Type                    string                   `json:"type"`
+	Destinations            []alerts.WireDestination `json:"destinations,omitempty"`
+	MinBaselineSeconds      *int64                   `json:"minBaselineSeconds,omitempty"`
+	PercentageAboveBaseline *int64                   `json:"percentageAboveBaseline,omitempty"`
+	PercentageBelowBaseline *int64                   `json:"percentageBelowBaseline,omitempty"`
+	OperationTypes          []string                 `json:"operationTypes"`
+	OperationNames          []string                 `json:"operationNames"`
+	MaxAnomalies            *int64                   `json:"maxAnomalies,omitempty"`
 }

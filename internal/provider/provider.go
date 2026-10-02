@@ -17,6 +17,7 @@ import (
 	datasourcepipeline "github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/pipeline"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/pipelines"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/environment"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/monitor"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/pipeline"
 
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
@@ -138,6 +139,7 @@ func (p *orchestraProvider) DataSources(ctx context.Context) []func() datasource
 func (p *orchestraProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		func() resource.Resource { return &environment.EnvironmentResource{} },
+		func() resource.Resource { return &monitor.MonitorResource{} },
 		func() resource.Resource { return &pipeline.PipelineResource{} },
 	}
 }

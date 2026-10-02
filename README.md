@@ -68,6 +68,7 @@ The provider fails at configure time when no key resolves, rather than on the fi
 |---|---|
 | `orchestra_pipeline` | `POST/PUT/DELETE /pipelines`, `GET /pipeline`, `GET /pipelines/data`, `POST /pipelines/schema` |
 | `orchestra_environment` | `POST/GET/PATCH/DELETE /environments[/{id}]` |
+| `orchestra_monitor` | `POST /monitors`, `GET/PUT/DELETE /monitors/{id}` |
 
 ### Data sources
 

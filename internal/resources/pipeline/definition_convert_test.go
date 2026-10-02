@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"encoding/json"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/alerts"
 	"reflect"
 	"testing"
 
@@ -61,7 +62,7 @@ func sampleDefinition() *definitionTF {
 							Statuses:      []types.String{types.StringValue("FAILED")},
 							CustomMessage: types.StringValue("dbt build failed"),
 							MaxLiveAlerts: types.StringValue("${{ ENV.MAX_ALERTS }}"),
-							Destinations: []alertDestinationTF{{
+							Destinations: []alerts.DestinationTF{{
 								Integration:  types.StringValue("SLACK"),
 								Destination:  types.StringValue("#data-alerts"),
 								ConnectionID: types.StringNull(),
@@ -77,7 +78,7 @@ func sampleDefinition() *definitionTF {
 							OperationTypes:          []types.String{types.StringValue("MATERIALISATION")},
 							OperationNames:          []types.String{types.StringValue("fct_*")},
 							MaxAnomalies:            types.Int64Value(5),
-							Destinations: []alertDestinationTF{{
+							Destinations: []alerts.DestinationTF{{
 								Integration:  types.StringValue("DATADOG"),
 								Destination:  types.StringNull(),
 								ConnectionID: types.StringValue("conn-1"),
@@ -162,7 +163,7 @@ func sampleDefinition() *definitionTF {
 			Statuses:      []types.String{types.StringValue("FAILED"), types.StringValue("WARNING")},
 			CustomMessage: types.StringNull(),
 			MaxLiveAlerts: types.StringValue("5"),
-			Destinations: []alertDestinationTF{{
+			Destinations: []alerts.DestinationTF{{
 				Integration:  types.StringValue("WEBHOOK"),
 				Destination:  types.StringValue("https://example.invalid/hook"),
 				ConnectionID: types.StringNull(),

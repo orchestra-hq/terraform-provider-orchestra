@@ -401,3 +401,20 @@ var AuthStatuses = []string{
 	"SUCCEEDED",
 	"DEPRECATED",
 }
+
+// MonitorGroupBys is components.schemas.MonitorGroupByEnum.
+var MonitorGroupBys = []string{
+	"asset",
+	"task",
+	"pipeline",
+	"connection",
+	"monitor",
+}
+
+// IncidentSeverities is components.schemas.IncidentSeverityEnum.
+var IncidentSeverities = []string{
+	"CRITICAL",
+	"HIGH",
+	"MEDIUM",
+	"LOW",
+}

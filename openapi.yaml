@@ -476,6 +476,138 @@ paths:
           $ref: '#/components/responses/RateLimited'
       security:
       - BearerAuth: []
+  /audit_events:
+    get:
+      tags:
+      - Audit
+      summary: List audit events
+      description: 'List the audit trail for the workspace the credential resolves
+        to, newest first: who did what, to which resource, and what changed.
+
+
+        `occurred_after` is required and sets how far back the trail is read; every
+        other filter narrows within that window.'
+      parameters:
+      - name: occurred_after
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Occurred After
+        description: Only events at or after this time, as an ISO 8601 timestamp (e.g.
+          2026-09-01T00:00:00Z). Required.
+      - name: occurred_before
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Occurred Before
+        description: Only events at or before this time, as an ISO 8601 timestamp.
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 25
+          title: Page Size
+        description: Number of items per page. Defaults to 25; maximum 100.
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+        description: Page number. Must be greater than or equal to 1.
+      - name: actor_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Actor Id
+        description: Only events performed by this actor, matched on the recorded
+          actor id.
+      - name: action
+        in: query
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: Action
+        description: 'Filter by action. Comma-separated values are supported. One
+          of: ACCOUNT_CREATED, ACCOUNT_DELETED, ACCOUNT_SETTINGS_UPDATED, ACCOUNT_UPDATED,
+          AGENT_CREATED, AGENT_DELETED, AGENT_UPDATED, API_KEY_ROTATED, ASSET_CREATED,
+          ASSET_DELETED, ASSET_DEPENDENCIES_CREATED, ASSET_UPDATED, ENVIRONMENT_CREATED,
+          ENVIRONMENT_DELETED, ENVIRONMENT_UPDATED, GIT_CONNECTION_CREATED, GIT_CONNECTION_DELETED,
+          GIT_CONNECTION_UPDATED, GROUP_CREATED, GROUP_DELETED, GROUP_UPDATED, INCIDENT_MERGED,
+          INCIDENT_STATUS_UPDATED, INCIDENT_UNMERGED, INCIDENT_UPDATED, INTEGRATION_CONNECTION_CREATED,
+          INTEGRATION_CONNECTION_DELETED, INTEGRATION_CONNECTION_UPDATED, INTEGRATION_CONNECTION_VALIDATED,
+          INTEGRATION_STATE_UPDATED, INVITE_SENT, IP_RESTRICTIONS_UPDATED, LOGIN_GOOGLE,
+          LOGIN_KEYCLOAK, LOGIN_MICROSOFT, LOGIN_OKTA, LOGIN_PASSWORD, MONITOR_CREATED,
+          MONITOR_DELETED, MONITOR_UPDATED, MONITORS_REORDERED, ORGANISATION_SETTINGS_UPDATED,
+          PIPELINE_CREATED, PIPELINE_DELETED, PIPELINE_IMPORTED, PIPELINE_PAUSED,
+          PIPELINE_RUN_CANCELLED, PIPELINE_RUN_RESTARTED, PIPELINE_STARTED, PIPELINE_UPDATED,
+          PRODUCT_CREATED, PRODUCT_DELETED, PRODUCT_UPDATED, SKILL_CREATED, SKILL_DELETED,
+          SKILL_IMPORTED, SKILL_UPDATED, TASK_RUN_OUTPUT_SET, USER_ADDED_TO_ACCOUNT,
+          USER_ADDED_TO_GROUP, USER_CREATED, USER_DEACTIVATED, USER_MIGRATED, USER_REACTIVATED,
+          USER_REMOVED_FROM_GROUP, USER_UPDATED.'
+      - name: resource_type
+        in: query
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: Resource Type
+        description: 'Filter by the type of resource acted on. Comma-separated values
+          are supported. One of: ACCOUNT, AGENT, API_KEY, ASSET, ENVIRONMENT, GIT_CONNECTION,
+          GROUP, INCIDENT, INTEGRATION_CONNECTION, INTEGRATION_STATE, INVITE, IP_RESTRICTIONS,
+          MONITOR, ORGANISATION, PIPELINE, PIPELINE_RUN, PRODUCT, SKILL, TASK_RUN,
+          USER.'
+      - name: resource_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resource Id
+        description: Only events on this resource, by its id or YAML name.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_AuditEventResponse_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - BearerAuthReadOnly: []
   /compute_resources/azure/federated_credentials:
     get:
       tags:
@@ -746,7 +878,8 @@ paths:
 
         Filters apply to top-level incidents only - a child is always returned alongside
         its parent, so a filtered list still shows the full incident rather than part
-        of one.'
+        of one. Use `name` to filter incidents by a case-insensitive substring match
+        on the incident name.'
       parameters:
       - name: page_size
         in: query
@@ -791,6 +924,17 @@ paths:
           default: false
           title: Include Archived
         description: Include archived incidents. Defaults to false.
+      - name: name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 255
+          - type: 'null'
+          title: Name
+        description: Filter by a case-insensitive substring match on the incident
+          name.
       - name: X-Orchestra-Account-Id
         in: header
         required: false
@@ -1090,6 +1234,96 @@ paths:
       x-orchestra-mcp: true
       security:
       - BearerAuth: []
+  /incidents/{incident_id}/mute:
+    post:
+      tags:
+      - Incidents
+      summary: Mute an incident
+      description: Silence further alerts on this incident until the account's alert
+        budget next refills. Already muted is a no-op.
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Incident Id
+        description: Incident ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentDetailResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - BearerAuth: []
+  /incidents/{incident_id}/unmute:
+    post:
+      tags:
+      - Incidents
+      summary: Unmute an incident
+      description: Lift this incident's mute early. A no-op if it was never muted,
+        or already lapsed.
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Incident Id
+        description: Incident ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentDetailResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - BearerAuth: []
   /incidents/{incident_id}/comments:
     post:
       tags:
@@ -1107,9 +1341,14 @@ paths:
         `agentSessionId` names the Orchestra agent session behind the write. The row
         is then attributed to Orchestra AI and linked to that session rather than
         to the API key; an agent takes the id from its `ORCHESTRA_AGENT_SESSION_ID`
-        environment variable. The `AI_DIAGNOSIS_*` types require it, and each is recorded
-        once per session per incident - posting the same one twice returns the row
+        environment variable. The `AI_DIAGNOSIS_*` types require it. A session may
+        write several over its life, but posting the same text twice returns the row
         already written.
+
+
+        `description` sets the incident''s description alongside an `AI_DIAGNOSIS_COMPLETED`
+        or `AI_DIAGNOSIS_FAILED` row, and needs edit permission on the incident. It
+        is not applied over a description a person wrote.
 
 
         The timeline is append-only: nothing can edit or delete a row once it is there.'
@@ -1282,6 +1521,275 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - BearerAuthReadOnly: []
+  /monitors:
+    get:
+      tags:
+      - Monitors
+      summary: List monitors
+      description: List the workspace's monitors in evaluation order. Where two monitors
+        claim the same event, the one with the lower `order` wins.
+      parameters:
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MonitorResponse'
+                title: Response List Monitors
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - BearerAuthReadOnly: []
+    post:
+      tags:
+      - Monitors
+      summary: Create a monitor
+      description: 'Create a monitor: a rule for which failures to group into one
+        incident, and how that incident alerts. `match` picks the events it claims,
+        `groupBy` what makes two of them one incident, and `action` what happens to
+        it - including `mute`, which claims the events and raises no incident or alert
+        at all. Left out, `order` puts the new monitor last, so it only claims events
+        no existing monitor claims.'
+      parameters:
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MonitorDefinition'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonitorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - BearerAuth: []
+  /monitors/reorder:
+    post:
+      tags:
+      - Monitors
+      summary: Reorder monitors
+      description: Set the evaluation order of the workspace's monitors. `monitorIds`
+        must name every monitor exactly once; each monitor's `order` becomes its position
+        in the list.
+      parameters:
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderMonitorsRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MonitorResponse'
+                title: Response Reorder Monitors
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - BearerAuth: []
+  /monitors/{monitor_id}:
+    get:
+      tags:
+      - Monitors
+      summary: Get a monitor
+      description: Fetch a single monitor's definition.
+      parameters:
+      - name: monitor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Monitor Id
+        description: Monitor ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonitorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - BearerAuthReadOnly: []
+    put:
+      tags:
+      - Monitors
+      summary: Update a monitor
+      description: Replace a monitor's definition with the one in the body. A field
+        left out takes its default rather than keeping its stored value, except `order`,
+        which keeps the monitor's place.
+      parameters:
+      - name: monitor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Monitor Id
+        description: Monitor ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MonitorDefinition'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonitorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - BearerAuth: []
+    delete:
+      tags:
+      - Monitors
+      summary: Delete a monitor
+      description: Delete a monitor. Incidents it already claimed keep their link
+        to it; new events fall through to the next matching monitor or the built-in
+        grouping rules.
+      parameters:
+      - name: monitor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Monitor Id
+        description: Monitor ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - BearerAuth: []
   /operations:
     get:
       tags:
@@ -2567,6 +3075,60 @@ paths:
       x-orchestra-mcp: true
       security:
       - BearerAuth: []
+  /pipelines/{pipeline_id_or_alias}/pause:
+    put:
+      tags:
+      - Pipelines
+      summary: Pause or unpause a pipeline
+      description: Pause or unpause a pipeline by alias or pipeline ID. A paused pipeline's
+        schedules, sensors, trigger events, and `start_pipeline` calls do not start
+        new runs.
+      parameters:
+      - name: pipeline_id_or_alias
+        in: path
+        required: true
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: string
+          title: Pipeline Id Or Alias
+        description: Pipeline ID or alias.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PausePipelineRequestModel'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - BearerAuth: []
   /pipelines/schema:
     post:
       tags:
@@ -3037,6 +3599,54 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - BearerAuth: []
+  /accounts:
+    get:
+      summary: List workspaces
+      tags:
+      - Accounts
+      description: 'Lists the workspaces your credential can reach. An API key is
+        issued to one workspace, so it lists that workspace alone. An OAuth token
+        lists every workspace its user is a member of, checked at the time of the
+        call.
+
+
+        Use the ids returned here as the `X-Orchestra-Account-Id` header on endpoints
+        that act within a workspace.'
+      x-orchestra-mcp: true
+      responses:
+        '200':
+          description: The workspaces the credential can reach.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                      description: The workspace id. Pass it as the `X-Orchestra-Account-Id`
+                        header on endpoints that act within a workspace.
+                    name:
+                      type: string
+                      description: The workspace name as shown in Orchestra.
+                  required:
+                  - id
+                  - name
+                  additionalProperties: false
+        '401':
+          description: The credential is missing, malformed, expired or revoked.
+        '403':
+          description: The request came from outside the organisation's allowed IP
+            ranges. Applies to API keys only.
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:read
+    servers:
+    - url: https://app.getorchestra.io/public/v1
 components:
   schemas:
     AirflowWebhookRequest:
@@ -3733,6 +4343,8 @@ components:
           - int
           - bool
           - integration_credential
+          - dict
+          - list
           title: Type
         value:
           anyOf:
@@ -3740,6 +4352,10 @@ components:
           - type: boolean
           - type: integer
           - type: number
+          - additionalProperties: true
+            type: object
+          - items: {}
+            type: array
           title: Value
       type: object
       required:
@@ -3859,7 +4475,9 @@ components:
       - KAFKA_CHECK_TOPIC
       - KEBOOLA_RUN_FLOW
       - LIGHTDASH_REFRESH_DASHBOARD
+      - LIGHTDASH_REFRESH_PRE_AGGREGATE
       - LINUX_SSH_EXECUTE_COMMAND
+      - MARIADB_RUN_QUERY
       - MATILLION_ETL_RUN_JOB
       - MATILLION_EXECUTE_PIPELINE
       - METAPLANE_RUN_MONITOR
@@ -3999,6 +4617,7 @@ components:
       - KLEENE
       - LIGHTDASH
       - LINUX_SSH
+      - MARIADB
       - MATILLION
       - MATILLION_ETL
       - METAPLANE
@@ -4560,6 +5179,16 @@ components:
           description: If true, the input can be omitted even without a default value.
             If false (default) and no default is set, this input MUST appear in every
             trigger's runInputs (schedules, sensors, etc.).
+        options:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            minItems: 1
+          - type: 'null'
+          title: Options
+          description: Fixed list of values this input is allowed to take. Only valid
+            on inputs of type string.
       additionalProperties: false
       type: object
       required:
@@ -5219,6 +5848,7 @@ components:
       - DATABRICKS_QUERY
       - FABRIC_SYNAPSE_QUERY
       - GCP_BIG_QUERY_QUERY
+      - MARIADB_QUERY
       - MONGODB_QUERY
       - MYSQL_QUERY
       - ORCHESTRA_PIPELINE_STATUS
@@ -5927,6 +6557,10 @@ components:
           - type: boolean
           - type: 'null'
           title: Hasanomalies
+        anomalySummary:
+          anyOf:
+          - $ref: '#/components/schemas/AnomalySummary'
+          - type: 'null'
         anomalies:
           anyOf:
           - additionalProperties:
@@ -7026,6 +7660,11 @@ components:
           - type: string
           - type: 'null'
           title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
         assignee:
           anyOf:
           - type: string
@@ -7064,6 +7703,17 @@ components:
           - type: string
           - type: 'null'
           title: Archivedat
+        mutedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mutedat
+        monitorId:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Monitorid
         children:
           items:
             $ref: '#/components/schemas/IncidentResponse'
@@ -7081,6 +7731,12 @@ components:
             $ref: '#/components/schemas/IncidentRelatedResourceResponse'
           type: array
           title: Relatedresources
+          default: []
+        alertThreads:
+          items:
+            $ref: '#/components/schemas/IncidentAlertThreadResponse'
+          type: array
+          title: Alertthreads
           default: []
       additionalProperties: false
       type: object
@@ -7132,6 +7788,16 @@ components:
           anyOf:
           - $ref: '#/components/schemas/IncidentResourceTypeEnum'
           - type: 'null'
+        triggerType:
+          anyOf:
+          - $ref: '#/components/schemas/IncidentTriggerTypeEnum'
+          - type: 'null'
+        pipelineId:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Pipelineid
         pipelineRunId:
           anyOf:
           - type: string
@@ -7165,6 +7831,16 @@ components:
           - type: string
           - type: 'null'
           title: Commitsha
+        groupBy:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Groupby
+        externalEventPath:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Externaleventpath
       additionalProperties: false
       type: object
       required:
@@ -7186,17 +7862,22 @@ components:
       - CHILD_MERGED
       - COMMENT_ADDED
       - CREATED
+      - DESCRIPTION_CHANGED
       - EVENT
       - MERGED_INTO
+      - MUTED
       - RENAMED
       - SEVERITY_CHANGED
       - STATUS_CHANGED
       - UNASSIGNED
       - UNMERGED
+      - UNMUTED
       title: IncidentEventTypeEnum
     IncidentResourceTypeEnum:
       type: string
       enum:
+      - ASSET
+      - EXTERNAL
       - OPERATION
       - PIPELINE
       - SENSOR
@@ -7217,6 +7898,11 @@ components:
           - type: string
           - type: 'null'
           title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
         assignee:
           anyOf:
           - type: string
@@ -7255,6 +7941,17 @@ components:
           - type: string
           - type: 'null'
           title: Archivedat
+        mutedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mutedat
+        monitorId:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Monitorid
         children:
           items:
             $ref: '#/components/schemas/IncidentResponse'
@@ -7382,6 +8079,11 @@ components:
           - type: string
           - type: 'null'
           title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
       additionalProperties: false
       type: object
       title: PublicPatchIncidentRequest
@@ -7401,12 +8103,65 @@ components:
         name:
           type: string
           title: Name
+        firstSeenAt:
+          type: string
+          title: Firstseenat
+        parentPipelineRunId:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Parentpipelinerunid
+        parentTaskRunId:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Parenttaskrunid
+        storesTaskRunLogs:
+          type: boolean
+          title: Storestaskrunlogs
+          default: false
+        integration:
+          anyOf:
+          - $ref: '#/components/schemas/IntegrationsEnum'
+          - type: 'null'
+        assetIntegrationAccountId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assetintegrationaccountid
+        assetType:
+          anyOf:
+          - $ref: '#/components/schemas/AssetTypeEnum'
+          - type: 'null'
+        assetDatabaseName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assetdatabasename
+        assetSchemaName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assetschemaname
+        assetWorkspaceId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assetworkspaceid
+        assetWorkspaceName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assetworkspacename
       additionalProperties: false
       type: object
       required:
       - resourceType
       - resourceId
       - name
+      - firstSeenAt
       title: IncidentRelatedResourceResponse
       description: 'A resource an incident''s events point at.
 
@@ -7429,7 +8184,7 @@ components:
           title: Minbaselineseconds
           description: Skip whatever is monitored when its baseline is shorter than
             this
-          default: 0
+          default: 10
         percentageAboveBaseline:
           type: integer
           maximum: 1000.0
@@ -7459,7 +8214,7 @@ components:
           title: Minbaselineseconds
           description: Skip whatever is monitored when its baseline is shorter than
             this
-          default: 0
+          default: 10
         percentageBelowBaseline:
           type: integer
           maximum: 99.0
@@ -7527,7 +8282,7 @@ components:
           title: Minbaselineseconds
           description: Skip whatever is monitored when its baseline is shorter than
             this
-          default: 0
+          default: 10
         percentageAboveBaseline:
           type: integer
           maximum: 1000.0
@@ -7557,7 +8312,7 @@ components:
           title: Minbaselineseconds
           description: Skip whatever is monitored when its baseline is shorter than
             this
-          default: 0
+          default: 10
         percentageBelowBaseline:
           type: integer
           maximum: 99.0
@@ -7689,7 +8444,7 @@ components:
           title: Minbaselineseconds
           description: Skip whatever is monitored when its baseline is shorter than
             this
-          default: 0
+          default: 10
         percentageAboveBaseline:
           type: integer
           maximum: 1000.0
@@ -7747,7 +8502,7 @@ components:
           title: Minbaselineseconds
           description: Skip whatever is monitored when its baseline is shorter than
             this
-          default: 0
+          default: 10
         percentageBelowBaseline:
           type: integer
           maximum: 99.0
@@ -7795,6 +8550,551 @@ components:
       anyOf:
       - type: string
       - type: integer
+    AnomalySummary:
+      properties:
+        pipeline:
+          type: integer
+          title: Pipeline
+        task:
+          type: integer
+          title: Task
+        operation:
+          type: integer
+          title: Operation
+      additionalProperties: false
+      type: object
+      required:
+      - pipeline
+      - task
+      - operation
+      title: AnomalySummary
+      description: 'How many anomalies a pipeline run carries at each level.
+
+
+        An anomaly row''s level is implied by the ids it carries, so the counts are
+        grouped
+
+        out of the rows rather than stored: see `get_anomaly_summaries_for_pipeline_runs`.'
+    AuditActionEnum:
+      type: string
+      enum:
+      - ACCOUNT_CREATED
+      - ACCOUNT_DELETED
+      - ACCOUNT_SETTINGS_UPDATED
+      - ACCOUNT_UPDATED
+      - AGENT_CREATED
+      - AGENT_DELETED
+      - AGENT_UPDATED
+      - API_KEY_ROTATED
+      - ASSET_CREATED
+      - ASSET_DELETED
+      - ASSET_DEPENDENCIES_CREATED
+      - ASSET_UPDATED
+      - ENVIRONMENT_CREATED
+      - ENVIRONMENT_DELETED
+      - ENVIRONMENT_UPDATED
+      - GIT_CONNECTION_CREATED
+      - GIT_CONNECTION_DELETED
+      - GIT_CONNECTION_UPDATED
+      - GROUP_CREATED
+      - GROUP_DELETED
+      - GROUP_UPDATED
+      - INCIDENT_MERGED
+      - INCIDENT_STATUS_UPDATED
+      - INCIDENT_UNMERGED
+      - INCIDENT_UPDATED
+      - INTEGRATION_CONNECTION_CREATED
+      - INTEGRATION_CONNECTION_DELETED
+      - INTEGRATION_CONNECTION_UPDATED
+      - INTEGRATION_CONNECTION_VALIDATED
+      - INTEGRATION_STATE_UPDATED
+      - INVITE_SENT
+      - IP_RESTRICTIONS_UPDATED
+      - LOGIN_GOOGLE
+      - LOGIN_KEYCLOAK
+      - LOGIN_MICROSOFT
+      - LOGIN_OKTA
+      - LOGIN_PASSWORD
+      - MONITOR_CREATED
+      - MONITOR_DELETED
+      - MONITOR_UPDATED
+      - MONITORS_REORDERED
+      - ORGANISATION_SETTINGS_UPDATED
+      - PIPELINE_CREATED
+      - PIPELINE_DELETED
+      - PIPELINE_IMPORTED
+      - PIPELINE_PAUSED
+      - PIPELINE_RUN_CANCELLED
+      - PIPELINE_RUN_RESTARTED
+      - PIPELINE_STARTED
+      - PIPELINE_UPDATED
+      - PRODUCT_CREATED
+      - PRODUCT_DELETED
+      - PRODUCT_UPDATED
+      - SKILL_CREATED
+      - SKILL_DELETED
+      - SKILL_IMPORTED
+      - SKILL_UPDATED
+      - TASK_RUN_OUTPUT_SET
+      - USER_ADDED_TO_ACCOUNT
+      - USER_ADDED_TO_GROUP
+      - USER_CREATED
+      - USER_DEACTIVATED
+      - USER_MIGRATED
+      - USER_REACTIVATED
+      - USER_REMOVED_FROM_GROUP
+      - USER_UPDATED
+      title: AuditActionEnum
+      description: 'Every action the audit trail records, flat rather than a resource
+        type crossed with a
+
+        verb. A composed pair admits nonsense like LOGIN on PIPELINE, and forces the
+        UI to handle
+
+        combinations that never occur; flat keeps the display-string table 1:1 with
+        the members.'
+    AuditActorTypeEnum:
+      type: string
+      enum:
+      - API
+      - SYSTEM
+      - USER
+      title: AuditActorTypeEnum
+      description: 'Who performed an audited action. API is a key acting for a person,
+        SYSTEM is Orchestra
+
+        acting on the account''s behalf.'
+    AuditEventResponse:
+      properties:
+        auditEventId:
+          type: string
+          format: uuid
+          title: Auditeventid
+        occurredAt:
+          type: string
+          title: Occurredat
+        action:
+          $ref: '#/components/schemas/AuditActionEnum'
+        resourceType:
+          $ref: '#/components/schemas/AuditResourceTypeEnum'
+        resourceId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resourceid
+        resourceName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resourcename
+        actorType:
+          $ref: '#/components/schemas/AuditActorTypeEnum'
+        actorId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Actorid
+        actorEmail:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Actoremail
+        sourceService:
+          type: string
+          title: Sourceservice
+        changes:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Changes
+        ipAddress:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ipaddress
+        userAgent:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Useragent
+      additionalProperties: false
+      type: object
+      required:
+      - auditEventId
+      - occurredAt
+      - action
+      - resourceType
+      - actorType
+      - sourceService
+      title: AuditEventResponse
+      description: '`occurred_at` is the emitter''s clock; `recorded_at` is deliberately
+        not exposed.'
+    AuditResourceTypeEnum:
+      type: string
+      enum:
+      - ACCOUNT
+      - AGENT
+      - API_KEY
+      - ASSET
+      - ENVIRONMENT
+      - GIT_CONNECTION
+      - GROUP
+      - INCIDENT
+      - INTEGRATION_CONNECTION
+      - INTEGRATION_STATE
+      - INVITE
+      - IP_RESTRICTIONS
+      - MONITOR
+      - ORGANISATION
+      - PIPELINE
+      - PIPELINE_RUN
+      - PRODUCT
+      - SKILL
+      - TASK_RUN
+      - USER
+      title: AuditResourceTypeEnum
+      description: 'What an audited action was performed on. Used for filtering and
+        for the per-resource
+
+        history tab, so it is a typed column rather than free text.'
+    IncidentTriggerTypeEnum:
+      type: string
+      enum:
+      - ANOMALY
+      - EXTERNAL
+      - FAILED
+      - WARNING
+      title: IncidentTriggerTypeEnum
+      description: 'The kind of signal that produced an incident event. Producers
+        state what happened;
+
+        the Incident Manager maps it to a severity and applies the grouping invariants.'
+    PaginatedResponse_AuditEventResponse_:
+      properties:
+        page:
+          type: integer
+          title: Page
+        pageSize:
+          type: integer
+          title: Pagesize
+        total:
+          type: integer
+          title: Total
+        results:
+          items:
+            $ref: '#/components/schemas/AuditEventResponse'
+          type: array
+          title: Results
+      additionalProperties: false
+      type: object
+      required:
+      - page
+      - pageSize
+      - total
+      - results
+      title: PaginatedResponse[AuditEventResponse]
+    Duration:
+      type: string
+      format: duration
+      gt: PT0S
+    IncidentAlertThreadResponse:
+      properties:
+        integration:
+          $ref: '#/components/schemas/IntegrationsEnum'
+        channelName:
+          type: string
+          title: Channelname
+        url:
+          type: string
+          title: Url
+      additionalProperties: false
+      type: object
+      required:
+      - integration
+      - channelName
+      - url
+      title: IncidentAlertThreadResponse
+      description: The thread an incident's first alert started in a channel, and
+        the channel's name.
+    JsonPath:
+      type: string
+    LabelKey:
+      type: string
+      maxLength: 64
+      minLength: 1
+      pattern: ^[a-zA-Z0-9_.:/-]+$
+    LabelMatch:
+      properties:
+        path:
+          $ref: '#/components/schemas/JsonPath'
+        values:
+          items:
+            type: string
+          type: array
+          minItems: 1
+          title: Values
+      additionalProperties: false
+      type: object
+      required:
+      - path
+      - values
+      title: LabelMatch
+      description: One place on an event body a label is read from, and the values
+        that match there.
+    MonitorAction:
+      properties:
+        mute:
+          type: boolean
+          title: Mute
+          default: false
+        severity:
+          anyOf:
+          - $ref: '#/components/schemas/IncidentSeverityEnum'
+          - type: 'null'
+        assignee:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Assignee
+        alerts:
+          $ref: '#/components/schemas/MonitorAlerts'
+      additionalProperties: false
+      type: object
+      title: MonitorAction
+      description: 'What happens to the events this monitor claimed.
+
+
+        ``mute`` claims them and sends no alert - the known-broken-thing case. They
+        are still
+
+        recorded, on incidents the monitor owns, so a mute is silent without being
+        invisible.'
+    MonitorAlerts:
+      properties:
+        destinations:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/AlertDestinationModel'
+            type: array
+          - type: 'null'
+          title: Destinations
+        alsoSendToPipelineDestinations:
+          type: boolean
+          title: Alsosendtopipelinedestinations
+          default: false
+      additionalProperties: false
+      type: object
+      title: MonitorAlerts
+      description: 'Where this monitor''s incidents alert. How many alerts one may
+        send and when it
+
+        re-alerts stay account-wide in ``IncidentSettings``.
+
+
+        ``destinations`` left out inherits the pipeline''s own; given, it replaces
+        them, so an
+
+        author redirecting alerts does not double-send by default.'
+    MonitorDefinition:
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        enabled:
+          type: boolean
+          title: Enabled
+          default: true
+        order:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Order
+        match:
+          $ref: '#/components/schemas/MonitorMatch'
+        groupBy:
+          items:
+            $ref: '#/components/schemas/MonitorGroupByEnum'
+          type: array
+          minItems: 1
+          title: Groupby
+        trigger:
+          anyOf:
+          - $ref: '#/components/schemas/MonitorTrigger'
+          - type: 'null'
+        action:
+          $ref: '#/components/schemas/MonitorAction'
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      - match
+      - groupBy
+      title: MonitorDefinition
+      description: 'One monitor, as authored.
+
+
+        ``order`` breaks the tie where two monitors both claim an event, lower winning.
+        Left
+
+        out, a new monitor goes last and an edited one keeps its place, so creating
+        a monitor
+
+        never silently takes events an existing one claims.
+
+        Overlap is not rejected here: match sets are dynamic, so two monitors that
+        do not
+
+        overlap today may overlap tomorrow when an asset appears.'
+    MonitorGroupByEnum:
+      type: string
+      enum:
+      - asset
+      - task
+      - pipeline
+      - connection
+      - monitor
+      title: MonitorGroupByEnum
+      description: 'What makes two events this monitor claimed one incident.
+
+
+        Every value but ``MONITOR`` resolves to a typed column that already exists
+        on
+
+        ``incident_events``. ``MONITOR`` means "everything this monitor claims is
+        one
+
+        incident", which is served by ``monitor_id`` on the incident instead.'
+    MonitorMatch:
+      properties:
+        pipelines:
+          items:
+            type: string
+            format: uuid4
+          type: array
+          title: Pipelines
+        assets:
+          items:
+            type: string
+            format: uuid4
+          type: array
+          title: Assets
+        connections:
+          items:
+            type: string
+          type: array
+          title: Connections
+        integrations:
+          items:
+            $ref: '#/components/schemas/IntegrationsEnum'
+          type: array
+          title: Integrations
+        labels:
+          additionalProperties:
+            items:
+              $ref: '#/components/schemas/LabelMatch'
+            type: array
+            minItems: 1
+          propertyNames:
+            $ref: '#/components/schemas/LabelKey'
+          type: object
+          maxProperties: 32
+          title: Labels
+      additionalProperties: false
+      type: object
+      title: MonitorMatch
+      description: 'Which events a monitor claims: AND across dimensions, OR within
+        a list.
+
+
+        At least one dimension has to be given. A monitor matching every dimension
+        by saying
+
+        nothing would claim every event on the account, which is never what an author
+        means.'
+    MonitorResponse:
+      properties:
+        monitorId:
+          type: string
+          format: uuid4
+          title: Monitorid
+        definition:
+          $ref: '#/components/schemas/MonitorDefinition'
+        createdAt:
+          type: string
+          title: Createdat
+        createdBy:
+          type: string
+          format: uuid4
+          title: Createdby
+        updatedAt:
+          type: string
+          title: Updatedat
+        updatedBy:
+          type: string
+          format: uuid4
+          title: Updatedby
+      additionalProperties: false
+      type: object
+      required:
+      - monitorId
+      - definition
+      - createdAt
+      - createdBy
+      - updatedAt
+      - updatedBy
+      title: MonitorResponse
+      description: A monitor as authored, plus who made and last changed it.
+    MonitorTrigger:
+      properties:
+        count:
+          type: integer
+          exclusiveMinimum: 1.0
+          title: Count
+        within:
+          $ref: '#/components/schemas/Duration'
+      additionalProperties: false
+      type: object
+      required:
+      - count
+      - within
+      title: MonitorTrigger
+      description: 'The threshold a counting monitor fires on. Its presence is what
+        makes the monitor a
+
+        threshold monitor, so there is no separate kind field.'
+    PausePipelineRequestModel:
+      properties:
+        paused:
+          type: boolean
+          title: Paused
+      additionalProperties: false
+      type: object
+      required:
+      - paused
+      title: PausePipelineRequestModel
+      description: Request body for pausing a pipeline.
+    ReorderMonitorsRequest:
+      properties:
+        monitorIds:
+          items:
+            type: string
+            format: uuid4
+          type: array
+          title: Monitorids
+      additionalProperties: false
+      type: object
+      required:
+      - monitorIds
+      title: ReorderMonitorsRequest
+      description: Every monitor on the account, in the order they should be evaluated.
   securitySchemes:
     BearerAuth:
       type: http
@@ -7812,6 +9112,24 @@ components:
 
 
         This endpoint only reads data, so a standard or read-only API key works.'
+    ApiKey:
+      type: http
+      scheme: bearer
+      description: 'An API key from your workspace settings, passed as `Authorization:
+        Bearer <API_KEY>`. A read-only key works on endpoints that only read.'
+    OAuth:
+      type: oauth2
+      description: 'An access token issued to a user by Orchestra, passed as `Authorization:
+        Bearer <ACCESS_TOKEN>`. Clients register themselves at the authorization server;
+        there is no client secret.'
+      flows:
+        authorizationCode:
+          authorizationUrl: https://app.getorchestra.io/oauth/authorize
+          tokenUrl: https://app.getorchestra.io/oauth/token
+          refreshUrl: https://app.getorchestra.io/oauth/token
+          scopes:
+            orchestra:read: Read data in the workspaces you can access.
+            orchestra:write: Read and change data in the workspaces you can access.
   responses:
     BadRequest:
       description: The request was invalid for the current resource state.
@@ -7861,5 +9179,7 @@ tags:
     Orchestra, and the metadata for your connected integrations
 - name: Environments
   description: Endpoints for managing environments
+- name: Accounts
+  description: Workspaces in your organisation.
 security:
 - BearerAuth: []

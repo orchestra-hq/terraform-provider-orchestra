@@ -1,6 +1,7 @@
 package apicontract_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -55,13 +56,44 @@ var queryParams = map[string][]string{
 	},
 }
 
+type operation struct {
+	Parameters []struct {
+		Name string `yaml:"name"`
+		In   string `yaml:"in"`
+	} `yaml:"parameters"`
+}
+
+// pathItem holds the operations on one path. Not every key under a path is an
+// HTTP method — OpenAPI allows `servers`, `parameters`, `summary` and more as
+// siblings, and the spec does use them (`/accounts` carries its own `servers`
+// list). Decoding into a plain map of operations fails on those, so the methods
+// are picked out by name.
+type pathItem map[string]operation
+
+func (p *pathItem) UnmarshalYAML(value *yaml.Node) error {
+	methods := map[string]bool{
+		"get": true, "put": true, "post": true, "delete": true,
+		"options": true, "head": true, "patch": true, "trace": true,
+	}
+	out := pathItem{}
+	// A mapping node alternates key, value, key, value.
+	for i := 0; i+1 < len(value.Content); i += 2 {
+		name := value.Content[i].Value
+		if !methods[strings.ToLower(name)] {
+			continue
+		}
+		var op operation
+		if err := value.Content[i+1].Decode(&op); err != nil {
+			return fmt.Errorf("%s: %w", name, err)
+		}
+		out[strings.ToLower(name)] = op
+	}
+	*p = out
+	return nil
+}
+
 type openAPI struct {
-	Paths map[string]map[string]struct {
-		Parameters []struct {
-			Name string `yaml:"name"`
-			In   string `yaml:"in"`
-		} `yaml:"parameters"`
-	} `yaml:"paths"`
+	Paths      map[string]pathItem `yaml:"paths"`
 	Components struct {
 		Schemas map[string]struct {
 			Enum []string `yaml:"enum"`

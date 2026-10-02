@@ -6,8 +6,8 @@ This is the **Terraform provider for Orchestra**, a Go module built on the
 [Terraform Plugin Framework](https://developer.hashicorp.com/terraform/plugin/framework). It manages Orchestra
 pipelines and environments through the Orchestra REST API.
 
-Build with `make build`, test with `make test`, vet with `make vet`, format with `make format`, and regenerate
-reference docs with `make docs`.
+Build with `make build`, test with `make test`, vet with `make vet`, format with `make format`, regenerate
+reference docs with `make docs`, and refresh the spec with `make openapi`. `make help` lists them all.
 
 > This file previously contained the agent guide for the Mintlify documentation site
 > (`orchestra-hq/orchestra-docs`). Its rules — `.mdx` only, `docs.json` navigation, Mintlify components — do not
@@ -30,7 +30,7 @@ once targeted endpoints that did not exist, and one of those failed silently.
 1. **Refresh and read the spec.**
 
    ```bash
-   curl -sSLo openapi.yaml https://docs.getorchestra.io/api/openapi.yaml
+   make openapi   # fetches openapi.yaml and regenerates internal/enums
    ```
 
    Check the exact path, method, query parameters, request body schema and response schema. Watch for:

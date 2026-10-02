@@ -2,10 +2,15 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
@@ -16,7 +21,16 @@ type PipelineResource struct {
 	client *client.Client
 }
 
-var _ resource.Resource = &PipelineResource{}
+var (
+	_ resource.Resource                   = &PipelineResource{}
+	_ resource.ResourceWithConfigure      = &PipelineResource{}
+	_ resource.ResourceWithImportState    = &PipelineResource{}
+	_ resource.ResourceWithValidateConfig = &PipelineResource{}
+	_ resource.ResourceWithModifyPlan     = &PipelineResource{}
+)
+
+// uuidPattern distinguishes a pipeline ID from an alias on import.
+var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 func (r *PipelineResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_pipeline"
@@ -30,7 +44,7 @@ func (r *PipelineResource) Schema(ctx context.Context, _ resource.SchemaRequest,
 func (r *PipelineResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	_ = ctx
 	if req.ProviderData == nil {
-		resp.Diagnostics.AddError("Missing ProviderData", "ProviderData was not set for this resource")
+		// Configure is called with nil ProviderData during early validation.
 		return
 	}
 
@@ -43,75 +57,197 @@ func (r *PipelineResource) Configure(ctx context.Context, req resource.Configure
 	r.client = c
 }
 
+// ---------- API response shapes ----------
+
+// pipelineResponse is components.schemas.PipelineResponse. The create/update
+// endpoints return CreateOrUpdatePipelineResponse, a superset that also carries
+// the definition, so the same struct decodes both.
 type pipelineResponse struct {
-	Alias           *string `json:"alias"`
-	Id              *string `json:"id"`
-	Name            *string `json:"name"`
-	NumTasks        *int64  `json:"numTasks"`
-	YamlPath        *string `json:"yamlPath"`
-	CreatedAt       *string `json:"createdAt"`
-	UpdatedAt       *string `json:"updatedAt"`
-	Paused          *bool   `json:"paused"`
-	Published       *bool   `json:"published"`
-	StorageProvider *string `json:"storageProvider"`
+	Id                     *string         `json:"id"`
+	Name                   *string         `json:"name"`
+	NumTasks               *int64          `json:"numTasks"`
+	YamlPath               *string         `json:"yamlPath"`
+	CreatedAt              *string         `json:"createdAt"`
+	UpdatedAt              *string         `json:"updatedAt"`
+	Paused                 *bool           `json:"paused"`
+	StorageProvider        *string         `json:"storageProvider"`
+	Repository             *string         `json:"repository"`
+	DefaultBranch          *string         `json:"defaultBranch"`
+	Alias                  *string         `json:"alias"`
+	LatestVersionNumber    *int64          `json:"latestVersionNumber"`
+	PublishedVersionNumber *int64          `json:"publishedVersionNumber"`
+	Data                   *wireDefinition `json:"data"`
 }
 
-func (r *PipelineResource) readByAlias(ctx context.Context, alias string) (pipelineResponse, error) {
-	q := url.Values{}
-	q.Set("alias", alias)
+// selector identifies a pipeline for the by-selector endpoints. The API accepts
+// pipeline_id, alias, or the repository/yaml_path pair.
+type selector struct {
+	pipelineID string
+	alias      string
+	repository string
+	yamlPath   string
+}
 
-	var api []pipelineResponse
-	if err := r.client.DoJSON(ctx, http.MethodGet, "/pipelines", q, nil, &api); err != nil {
+func (s selector) query() url.Values {
+	q := url.Values{}
+	switch {
+	case s.pipelineID != "":
+		q.Set("pipeline_id", s.pipelineID)
+	case s.alias != "":
+		q.Set("alias", s.alias)
+	case s.repository != "" && s.yamlPath != "":
+		q.Set("repository", s.repository)
+		q.Set("yaml_path", s.yamlPath)
+	}
+	return q
+}
+
+func (s selector) empty() bool {
+	return s.pipelineID == "" && s.alias == "" && (s.repository == "" || s.yamlPath == "")
+}
+
+func (s selector) String() string {
+	switch {
+	case s.pipelineID != "":
+		return "pipeline_id=" + s.pipelineID
+	case s.alias != "":
+		return "alias=" + s.alias
+	default:
+		return fmt.Sprintf("repository=%s yaml_path=%s", s.repository, s.yamlPath)
+	}
+}
+
+func selectorFor(m PipelineModel) selector {
+	return selector{
+		pipelineID: strValue(m.Id),
+		alias:      strValue(m.Alias),
+		yamlPath:   strValue(m.YamlPath),
+	}
+}
+
+func strValue(v types.String) string {
+	if v.IsNull() || v.IsUnknown() {
+		return ""
+	}
+	return v.ValueString()
+}
+
+func isSet(v types.String) bool { return strValue(v) != "" }
+
+// ---------- API calls ----------
+
+// getPipeline reads a single pipeline via GET /pipeline. Note the singular
+// path: GET /pipelines is a list endpoint and ignores selector parameters.
+func (r *PipelineResource) getPipeline(ctx context.Context, s selector) (pipelineResponse, error) {
+	var out pipelineResponse
+	if err := r.client.DoJSON(ctx, http.MethodGet, "/pipeline", s.query(), nil, &out); err != nil {
 		return pipelineResponse{}, err
 	}
+	if out.Id == nil {
+		return pipelineResponse{}, fmt.Errorf("%w: no pipeline for %s", client.ErrNotFound, s)
+	}
+	return out, nil
+}
 
-	if len(api) == 0 {
-		return pipelineResponse{}, fmt.Errorf("pipeline not found for alias=%s", alias)
+// getDefinition reads the pipeline definition via GET /pipelines/data.
+func (r *PipelineResource) getDefinition(ctx context.Context, s selector) (*wireDefinition, error) {
+	var out wireDefinition
+	if err := r.client.DoJSON(ctx, http.MethodGet, "/pipelines/data", s.query(), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ---------- validation ----------
+
+func (r *PipelineResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var model PipelineModel
+	if diags := req.Config.Get(ctx, &model); diags.HasError() {
+		// A config that still holds unknown values (one wired to another
+		// resource's output, say) cannot be decoded into the model. There is
+		// nothing to validate yet, and the same config is checked again in
+		// Create/Update once the values are known.
+		return
 	}
 
-	return api[0], nil
-}
-
-func (r *PipelineResource) readByRepoYaml(ctx context.Context, repo, yamlPath string) (pipelineResponse, error) {
-	q := url.Values{}
-	q.Set("repository", repo)
-	q.Set("yaml_path", yamlPath)
-
-	var api []pipelineResponse
-	if err := r.client.DoJSON(ctx, http.MethodGet, "/pipelines", q, nil, &api); err != nil {
-		return pipelineResponse{}, err
+	if model.Data == nil {
+		return
 	}
 
-	if len(api) == 0 {
-		return pipelineResponse{}, fmt.Errorf("pipeline not found for repository=%s yaml_path=%s", repo, yamlPath)
+	// IDs are merged into the API's single `pipeline` object, so they must be
+	// unique across both maps.
+	for id := range model.Data.Tasks {
+		if _, clash := model.Data.TaskGroups[id]; clash {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("data").AtName("tasks").AtMapKey(id),
+				"Duplicate pipeline entry ID",
+				fmt.Sprintf("%q is used by both `task_groups` and `tasks`. The API merges them into one object, so IDs must be unique across both.", id),
+			)
+		}
 	}
 
-	return api[0], nil
-}
-
-func isStringSet(s types.String) bool {
-	return !s.IsNull() && !s.IsUnknown() && s.ValueString() != ""
-}
-
-func (r *PipelineResource) isGitImportMode(m PipelineModel) bool {
-	// When any git-selection inputs are set, we assume git-import mode.
-	// Actual required field validation happens in Create/Update.
-	return isStringSet(m.Repository) || isStringSet(m.YamlPath) || isStringSet(m.DefaultBranch) || isStringSet(m.WorkingBranch)
-}
-
-func ptrStringToTF(p *string) types.String {
-	if p == nil {
-		return types.StringNull()
+	if len(model.Data.TaskGroups) == 0 && len(model.Data.Tasks) == 0 {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("data"),
+			"Empty pipeline",
+			"Set at least one entry in `task_groups` or `tasks`.",
+		)
 	}
-	return types.StringValue(*p)
 }
 
-func ptrBoolToTF(p *bool) types.Bool {
-	if p == nil {
-		return types.BoolNull()
+// ModifyPlan checks the definition against POST /pipelines/schema, so an
+// invalid pipeline is reported at plan time rather than failing the apply.
+//
+// Findings are warnings, not errors. That endpoint also validates
+// account-specific references when a credential is supplied, so a definition
+// naming an environment created in the same apply would otherwise fail a plan
+// that is actually fine — and there would be no way to opt out.
+func (r *PipelineResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if r.client == nil || req.Plan.Raw.IsNull() {
+		// No client during early validation; a null plan means destroy.
+		return
 	}
-	return types.BoolValue(*p)
+
+	var plan PipelineModel
+	if diags := req.Plan.Get(ctx, &plan); diags.HasError() {
+		// Values still unknown at plan time; nothing to validate yet.
+		return
+	}
+	if plan.Data == nil {
+		return
+	}
+
+	var encodeDiags diag.Diagnostics
+	def := definitionToWire(plan.Data, path.Root("data"), &encodeDiags)
+	if encodeDiags.HasError() || def == nil {
+		// Surfaced properly by ValidateConfig and again at apply.
+		return
+	}
+
+	err := r.client.DoJSON(ctx, http.MethodPost, "/pipelines/schema", nil, def, nil)
+	if err == nil {
+		return
+	}
+
+	var apiErr *client.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode == http.StatusTooManyRequests {
+		// The endpoint is rate limited to 20 requests per minute per IP, and a
+		// transient network failure is not a config problem either.
+		return
+	}
+
+	resp.Diagnostics.AddAttributeWarning(
+		path.Root("data"),
+		"Orchestra rejected this pipeline definition",
+		fmt.Sprintf(
+			"POST /pipelines/schema returned %d:\n\n%s\n\n"+
+				"The apply will fail unless this is a reference that only exists once the rest of this plan is applied.",
+			apiErr.StatusCode, strings.TrimSpace(apiErr.Body),
+		),
+	)
 }
+
+// ---------- CRUD ----------
 
 func (r *PipelineResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	if r.client == nil {
@@ -119,135 +255,45 @@ func (r *PipelineResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	var model PipelineModel
-	if diags := req.Config.Get(ctx, &model); diags.HasError() {
-		resp.Diagnostics.Append(diags...)
+	var plan PipelineModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	importMode := r.isGitImportMode(model)
+	var api pipelineResponse
 
-	// NOTE: The generated TF schema represents `data` as an empty object.
-	// Until the schema is extended, we can only send `{}` as the pipeline definition.
-	data := map[string]any{}
-
-	if importMode {
-		repo := model.Repository.ValueString()
-		yamlPath := model.YamlPath.ValueString()
-		defaultBranch := model.DefaultBranch.ValueString()
-		storageProvider := model.StorageProvider.ValueString()
-
-		if repo == "" || model.Repository.IsUnknown() || model.Repository.IsNull() {
-			resp.Diagnostics.AddError("Missing repository", "`repository` is required for git-storage pipelines")
+	{
+		def := definitionToWire(plan.Data, path.Root("data"), &resp.Diagnostics)
+		if resp.Diagnostics.HasError() {
 			return
 		}
-		if yamlPath == "" || model.YamlPath.IsUnknown() || model.YamlPath.IsNull() {
-			resp.Diagnostics.AddError("Missing yaml_path", "`yaml_path` is required for git-storage pipelines")
-			return
-		}
-		if defaultBranch == "" || model.DefaultBranch.IsUnknown() || model.DefaultBranch.IsNull() {
-			resp.Diagnostics.AddError("Missing default_branch", "`default_branch` is required for git-storage pipelines")
-			return
-		}
-		if storageProvider == "" || model.StorageProvider.IsUnknown() || model.StorageProvider.IsNull() {
-			resp.Diagnostics.AddError("Missing storage_provider", "`storage_provider` is required for git-storage pipelines")
+		if def == nil {
+			resp.Diagnostics.AddAttributeError(path.Root("data"), "Missing definition",
+				"`data` is required when creating a pipeline.")
 			return
 		}
 
 		body := map[string]any{
-			"defaultBranch":   defaultBranch,
-			"repository":      repo,
-			"storageProvider": storageProvider,
-			"yamlPath":        yamlPath,
+			"data":            def,
+			"published":       plan.Published.ValueBool(),
+			"storageProvider": "ORCHESTRA",
+		}
+		if isSet(plan.Alias) {
+			body["alias"] = strValue(plan.Alias)
 		}
 
-		if isStringSet(model.Alias) {
-			body["alias"] = model.Alias.ValueString()
-		}
-		if isStringSet(model.WorkingBranch) {
-			body["workingBranch"] = model.WorkingBranch.ValueString()
-		}
-
-		if err := r.client.DoJSON(ctx, http.MethodPost, "/pipelines/import", nil, body, nil); err != nil {
-			resp.Diagnostics.AddError("API error", fmt.Sprintf("failed to import pipeline: %s", err))
+		if err := r.client.DoJSON(ctx, http.MethodPost, "/pipelines", nil, body, &api); err != nil {
+			resp.Diagnostics.AddError("Cannot create pipeline", err.Error())
 			return
 		}
+	}
 
-		api, err := r.readByRepoYaml(ctx, repo, yamlPath)
-		if err != nil {
-			resp.Diagnostics.AddError("Read after import failed", err.Error())
-			return
-		}
-
-		model.Id = types.StringValue(ptrString(api.Id))
-		model.Name = types.StringValue(ptrString(api.Name))
-		model.NumTasks = types.Int64Value(ptrInt64(api.NumTasks))
-		model.Paused = types.BoolValue(ptrBool(api.Paused))
-		model.Published = ptrBoolToTF(api.Published)
-		model.CreatedAt = types.StringValue(ptrString(api.CreatedAt))
-		model.UpdatedAt = types.StringValue(ptrString(api.UpdatedAt))
-		model.YamlPath = types.StringValue(ptrString(api.YamlPath))
-		model.StorageProvider = types.StringValue(ptrString(api.StorageProvider))
-		model.Alias = ptrStringToTF(api.Alias)
-		model.Data = NewDataValueNull()
-
-		// Preserve import selectors in state.
-		model.Repository = types.StringValue(repo)
-		model.DefaultBranch = types.StringValue(defaultBranch)
-
-		resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
+	r.apply(ctx, &plan, api, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	alias := model.Alias.ValueString()
-	if alias == "" || model.Alias.IsUnknown() || model.Alias.IsNull() {
-		resp.Diagnostics.AddError("Missing alias", "`alias` is required")
-		return
-	}
-	if model.Published.IsNull() || model.Published.IsUnknown() {
-		resp.Diagnostics.AddError("Missing published", "`published` is required")
-		return
-	}
-
-	storageProvider := "ORCHESTRA"
-	if isStringSet(model.StorageProvider) {
-		storageProvider = model.StorageProvider.ValueString()
-	}
-
-	body := map[string]any{
-		"alias":           alias,
-		"published":       model.Published.ValueBool(),
-		"storageProvider": storageProvider,
-		"data":            data,
-	}
-
-	if err := r.client.DoJSON(ctx, http.MethodPost, "/pipelines", nil, body, nil); err != nil {
-		resp.Diagnostics.AddError("API error", fmt.Sprintf("failed to create pipeline: %s", err))
-		return
-	}
-
-	api, err := r.readByAlias(ctx, alias)
-	if err != nil {
-		resp.Diagnostics.AddError("Read after create failed", err.Error())
-		return
-	}
-
-	model.Id = types.StringValue(ptrString(api.Id))
-	model.Name = types.StringValue(ptrString(api.Name))
-	model.NumTasks = types.Int64Value(ptrInt64(api.NumTasks))
-	model.Paused = types.BoolValue(ptrBool(api.Paused))
-	model.Published = ptrBoolToTF(api.Published)
-	model.CreatedAt = types.StringValue(ptrString(api.CreatedAt))
-	model.UpdatedAt = types.StringValue(ptrString(api.UpdatedAt))
-	model.YamlPath = types.StringValue(ptrString(api.YamlPath))
-	model.StorageProvider = types.StringValue(ptrString(api.StorageProvider))
-	model.Alias = types.StringValue(ptrString(api.Alias))
-	model.Repository = types.StringNull()
-	model.DefaultBranch = types.StringNull()
-	model.WorkingBranch = types.StringNull()
-	model.Data = NewDataValueNull()
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *PipelineResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -256,37 +302,45 @@ func (r *PipelineResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	var model PipelineModel
-	if diags := req.State.Get(ctx, &model); diags.HasError() {
-		resp.Diagnostics.Append(diags...)
+	var state PipelineModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	alias := model.Alias.ValueString()
-	if alias == "" {
-		resp.Diagnostics.AddError("Missing alias", "Alias is required to read the pipeline")
+	s := selectorFor(state)
+	if s.empty() {
+		resp.Diagnostics.AddError("Cannot identify pipeline",
+			"State has no `id`, `alias`, or `repository`/`yaml_path` to read the pipeline by.")
 		return
 	}
 
-	api, err := r.readByAlias(ctx, alias)
+	api, err := r.getPipeline(ctx, s)
 	if err != nil {
-		resp.Diagnostics.AddError("API error", err.Error())
+		if errors.Is(err, client.ErrNotFound) {
+			// Deleted outside Terraform: drop it so the next plan recreates it.
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError("Cannot read pipeline", err.Error())
 		return
 	}
 
-	model.Id = types.StringValue(ptrString(api.Id))
-	model.Name = types.StringValue(ptrString(api.Name))
-	model.NumTasks = types.Int64Value(ptrInt64(api.NumTasks))
-	model.Paused = types.BoolValue(ptrBool(api.Paused))
-	model.Published = ptrBoolToTF(api.Published)
-	model.CreatedAt = types.StringValue(ptrString(api.CreatedAt))
-	model.UpdatedAt = types.StringValue(ptrString(api.UpdatedAt))
-	model.YamlPath = types.StringValue(ptrString(api.YamlPath))
-	model.StorageProvider = types.StringValue(ptrString(api.StorageProvider))
-	model.Alias = types.StringValue(ptrString(api.Alias))
-	model.Data = NewDataValueNull()
+	def, err := r.getDefinition(ctx, s)
+	if err != nil {
+		if !errors.Is(err, client.ErrNotFound) {
+			resp.Diagnostics.AddError("Cannot read pipeline definition", err.Error())
+			return
+		}
+	} else {
+		api.Data = def
+	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
+	r.apply(ctx, &state, api, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *PipelineResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -295,129 +349,51 @@ func (r *PipelineResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	var model PipelineModel
-	if diags := req.Config.Get(ctx, &model); diags.HasError() {
-		resp.Diagnostics.Append(diags...)
+	var plan, state PipelineModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	importMode := r.isGitImportMode(model)
+	// Carry the server-assigned ID across, since the plan leaves it unchanged.
+	plan.Id = state.Id
 
-	if importMode {
-		repo := model.Repository.ValueString()
-		yamlPath := model.YamlPath.ValueString()
-		defaultBranch := model.DefaultBranch.ValueString()
-		storageProvider := model.StorageProvider.ValueString()
+	var api pipelineResponse
 
-		if repo == "" || model.Repository.IsUnknown() || model.Repository.IsNull() {
-			resp.Diagnostics.AddError("Missing repository", "`repository` is required for git-storage pipelines")
+	{
+		def := definitionToWire(plan.Data, path.Root("data"), &resp.Diagnostics)
+		if resp.Diagnostics.HasError() {
 			return
 		}
-		if yamlPath == "" || model.YamlPath.IsUnknown() || model.YamlPath.IsNull() {
-			resp.Diagnostics.AddError("Missing yaml_path", "`yaml_path` is required for git-storage pipelines")
-			return
-		}
-		if defaultBranch == "" || model.DefaultBranch.IsUnknown() || model.DefaultBranch.IsNull() {
-			resp.Diagnostics.AddError("Missing default_branch", "`default_branch` is required for git-storage pipelines")
-			return
-		}
-		if storageProvider == "" || model.StorageProvider.IsUnknown() || model.StorageProvider.IsNull() {
-			resp.Diagnostics.AddError("Missing storage_provider", "`storage_provider` is required for git-storage pipelines")
+		if def == nil {
+			resp.Diagnostics.AddAttributeError(path.Root("data"), "Missing definition",
+				"`data` is required when updating a pipeline.")
 			return
 		}
 
 		body := map[string]any{
-			"defaultBranch":   defaultBranch,
-			"repository":      repo,
-			"storageProvider": storageProvider,
-			"yamlPath":        yamlPath,
+			"data":      def,
+			"published": plan.Published.ValueBool(),
 		}
-		if isStringSet(model.Alias) {
-			body["alias"] = model.Alias.ValueString()
-		}
-		if isStringSet(model.WorkingBranch) {
-			body["workingBranch"] = model.WorkingBranch.ValueString()
+		// The selector goes in the body for this endpoint, not the path.
+		if isSet(state.Id) {
+			body["pipelineId"] = strValue(state.Id)
+		} else {
+			body["alias"] = strValue(state.Alias)
 		}
 
-		// Re-import. The server is expected to be idempotent for this operation.
-		if err := r.client.DoJSON(ctx, http.MethodPost, "/pipelines/import", nil, body, nil); err != nil {
-			resp.Diagnostics.AddError("API error", fmt.Sprintf("failed to import pipeline: %s", err))
+		if err := r.client.DoJSON(ctx, http.MethodPut, "/pipelines", nil, body, &api); err != nil {
+			resp.Diagnostics.AddError("Cannot update pipeline", err.Error())
 			return
 		}
+	}
 
-		api, err := r.readByRepoYaml(ctx, repo, yamlPath)
-		if err != nil {
-			resp.Diagnostics.AddError("Read after update failed", err.Error())
-			return
-		}
-
-		model.Id = types.StringValue(ptrString(api.Id))
-		model.Name = types.StringValue(ptrString(api.Name))
-		model.NumTasks = types.Int64Value(ptrInt64(api.NumTasks))
-		model.Paused = types.BoolValue(ptrBool(api.Paused))
-		model.Published = ptrBoolToTF(api.Published)
-		model.CreatedAt = types.StringValue(ptrString(api.CreatedAt))
-		model.UpdatedAt = types.StringValue(ptrString(api.UpdatedAt))
-		model.YamlPath = types.StringValue(ptrString(api.YamlPath))
-		model.StorageProvider = types.StringValue(ptrString(api.StorageProvider))
-		model.Alias = ptrStringToTF(api.Alias)
-		model.Data = NewDataValueNull()
-
-		model.Repository = types.StringValue(repo)
-		model.DefaultBranch = types.StringValue(defaultBranch)
-
-		resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
+	r.apply(ctx, &plan, api, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	alias := model.Alias.ValueString()
-	if alias == "" || model.Alias.IsUnknown() || model.Alias.IsNull() {
-		resp.Diagnostics.AddError("Missing alias", "`alias` is required")
-		return
-	}
-	if model.Published.IsNull() || model.Published.IsUnknown() {
-		resp.Diagnostics.AddError("Missing published", "`published` is required")
-		return
-	}
-
-	storageProvider := "ORCHESTRA"
-	if isStringSet(model.StorageProvider) {
-		storageProvider = model.StorageProvider.ValueString()
-	}
-
-	body := map[string]any{
-		"published":       model.Published.ValueBool(),
-		"storageProvider": storageProvider,
-		"data":            map[string]any{},
-	}
-
-	if err := r.client.DoJSON(ctx, http.MethodPut, fmt.Sprintf("/pipelines/%s", alias), nil, body, nil); err != nil {
-		resp.Diagnostics.AddError("API error", fmt.Sprintf("failed to update pipeline: %s", err))
-		return
-	}
-
-	api, err := r.readByAlias(ctx, alias)
-	if err != nil {
-		resp.Diagnostics.AddError("Read after update failed", err.Error())
-		return
-	}
-
-	model.Id = types.StringValue(ptrString(api.Id))
-	model.Name = types.StringValue(ptrString(api.Name))
-	model.NumTasks = types.Int64Value(ptrInt64(api.NumTasks))
-	model.Paused = types.BoolValue(ptrBool(api.Paused))
-	model.Published = ptrBoolToTF(api.Published)
-	model.CreatedAt = types.StringValue(ptrString(api.CreatedAt))
-	model.UpdatedAt = types.StringValue(ptrString(api.UpdatedAt))
-	model.YamlPath = types.StringValue(ptrString(api.YamlPath))
-	model.StorageProvider = types.StringValue(ptrString(api.StorageProvider))
-	model.Alias = types.StringValue(ptrString(api.Alias))
-	model.Repository = types.StringNull()
-	model.DefaultBranch = types.StringNull()
-	model.WorkingBranch = types.StringNull()
-	model.Data = NewDataValueNull()
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *PipelineResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -426,40 +402,91 @@ func (r *PipelineResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	var model PipelineModel
-	if diags := req.State.Get(ctx, &model); diags.HasError() {
-		resp.Diagnostics.Append(diags...)
+	var state PipelineModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	alias := model.Alias.ValueString()
-	if alias == "" {
+	s := selectorFor(state)
+	if s.empty() {
 		return
 	}
 
-	if err := r.client.DoJSON(ctx, http.MethodDelete, fmt.Sprintf("/pipelines/%s", alias), nil, nil, nil); err != nil {
-		resp.Diagnostics.AddError("API error", fmt.Sprintf("failed to delete pipeline: %s", err))
+	// Selector goes in the query string for DELETE /pipelines.
+	if err := r.client.DoJSON(ctx, http.MethodDelete, "/pipelines", s.query(), nil, nil); err != nil {
+		if errors.Is(err, client.ErrNotFound) {
+			return
+		}
+		resp.Diagnostics.AddError("Cannot delete pipeline", err.Error())
+	}
+}
+
+func (r *PipelineResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	id := strings.TrimSpace(req.ID)
+	if id == "" {
+		resp.Diagnostics.AddError("Invalid import ID", "Supply a pipeline alias or pipeline ID.")
 		return
 	}
+
+	if uuidPattern.MatchString(id) {
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), id)...)
+		return
+	}
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("alias"), id)...)
 }
 
-func ptrString(p *string) string {
-	if p == nil {
-		return ""
+// apply copies an API response onto the model, leaving configured-only fields
+// (published, working_branch) as the caller set them.
+func (r *PipelineResource) apply(ctx context.Context, m *PipelineModel, api pipelineResponse, diags *diag.Diagnostics) {
+	_ = ctx
+
+	m.Id = tfString(api.Id)
+	m.Name = tfString(api.Name)
+	m.NumTasks = tfInt64(api.NumTasks)
+	m.Paused = tfBool(api.Paused)
+	m.CreatedAt = tfString(api.CreatedAt)
+	m.UpdatedAt = tfString(api.UpdatedAt)
+	m.YamlPath = tfString(api.YamlPath)
+	m.LatestVersionNumber = tfInt64(api.LatestVersionNumber)
+	m.PublishedVersionNumber = tfInt64(api.PublishedVersionNumber)
+
+	// These are Optional+Computed and the API omits them for some pipeline
+	// shapes (a pipeline with no alias, say).
+	// settle() makes sure an unset one lands in state as null rather than
+	// staying unknown, which Terraform rejects after apply.
+	m.Alias = settle(api.Alias, m.Alias)
+
+	// `published` is write-only: PipelineResponse does not carry it, so there is
+	// nothing to refresh from and the configured value stands.
+	if m.Published.IsNull() || m.Published.IsUnknown() {
+		m.Published = types.BoolValue(false)
 	}
-	return *p
+
+	if api.Data != nil {
+		def, err := definitionFromWire(api.Data)
+		if err != nil {
+			diags.AddAttributeError(path.Root("data"), "Cannot decode pipeline definition", err.Error())
+			return
+		}
+		m.Data = def
+	}
 }
 
-func ptrInt64(p *int64) int64 {
-	if p == nil {
-		return 0
+// settle resolves an Optional+Computed string: the API's value when it has
+// one, the planned value when that is known, otherwise null.
+func settle(fromAPI *string, planned types.String) types.String {
+	if fromAPI != nil {
+		return types.StringValue(*fromAPI)
 	}
-	return *p
+	return known(planned)
 }
 
-func ptrBool(p *bool) bool {
-	if p == nil {
-		return false
+// known converts an unknown value to null. An unknown left in state after
+// apply is rejected by Terraform as an inconsistent result.
+func known(v types.String) types.String {
+	if v.IsUnknown() {
+		return types.StringNull()
 	}
-	return *p
+	return v
 }

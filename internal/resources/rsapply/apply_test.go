@@ -1698,19 +1698,34 @@ func monitorStub(t *testing.T) (*stub, string) {
 		if def == nil {
 			def = map[string]any{}
 		}
-		// Defaults the API applies on the way out.
+		// Defaults the API applies on the way out, verified against the live
+		// API: every match dimension comes back as a list even when it was not
+		// sent, and `action.alerts` materialises as an object.
 		if _, ok := def["enabled"]; !ok {
 			def["enabled"] = true
 		}
 		def["order"] = 0
+		match, _ := def["match"].(map[string]any)
+		if match == nil {
+			match = map[string]any{}
+			def["match"] = match
+		}
+		for _, dim := range []string{"pipelines", "assets", "connections", "integrations"} {
+			if _, ok := match[dim]; !ok {
+				match[dim] = []any{}
+			}
+		}
 		if a, ok := def["action"].(map[string]any); ok {
 			if _, ok := a["mute"]; !ok {
 				a["mute"] = false
 			}
-			if al, ok := a["alerts"].(map[string]any); ok {
-				if _, ok := al["alsoSendToPipelineDestinations"]; !ok {
-					al["alsoSendToPipelineDestinations"] = false
-				}
+			al, _ := a["alerts"].(map[string]any)
+			if al == nil {
+				al = map[string]any{}
+				a["alerts"] = al
+			}
+			if _, ok := al["alsoSendToPipelineDestinations"]; !ok {
+				al["alsoSendToPipelineDestinations"] = false
 			}
 		}
 		return map[string]any{

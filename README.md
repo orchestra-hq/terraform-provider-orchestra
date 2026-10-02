@@ -161,9 +161,8 @@ TF_ACC=1 ORCHESTRA_API_KEY=... go test ./... -run '^TestAcc' -v -timeout 30m
 Only one thing is generated: `internal/enums/enums_gen.go`, the validator lists for the spec's enums.
 
 ```bash
-curl -sSLo openapi.yaml https://docs.getorchestra.io/api/openapi.yaml
-python3 scripts/generate_enums.py --openapi openapi.yaml --out internal/enums/enums_gen.go
-make docs
+make openapi   # refresh openapi.yaml from the docs site, then regenerate the enums
+make docs      # regenerate docs/ from the schemas and examples/
 ```
 
 `TestGeneratedEnumsMatchSpec` fails if the committed file drifts from the spec, so a refresh that skips the

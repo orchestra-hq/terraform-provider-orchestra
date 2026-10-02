@@ -23,9 +23,14 @@ PROVIDERS_SCHEMA ?=
 # Where tfplugindocs writes temporary intermediate files.
 TFPLUGINDOCS_TEMP_DIR ?= .tmp-tfplugindocs
 
-GO_FILES := $(shell git ls-files '*.go')
+# `git ls-files` lists deleted-but-tracked files and misses new ones, so walk
+# the tree instead. gofmt skips directories beginning with a dot.
+GOFMT_PATHS ?= .
 
-.PHONY: help docs docs-clean tfplugindocs build compile test vet clean provider-bin format format-check
+OPENAPI_URL ?= https://docs.getorchestra.io/api/openapi.yaml
+OPENAPI_PATH ?= openapi.yaml
+
+.PHONY: help docs docs-clean tfplugindocs build compile test vet clean provider-bin format format-check openapi enums
 
 help:
 	@echo "Usage:"
@@ -35,6 +40,8 @@ help:
 	@echo "  make vet           Run go vet"
 	@echo "  make provider-bin Build Terraform provider executable (if cmd entrypoint exists)"
 	@echo "  make clean         Remove temp artifacts"
+	@echo "  make openapi       Refresh openapi.yaml from the docs site, then regenerate enums"
+	@echo "  make enums         Regenerate internal/enums from openapi.yaml"
 	@echo "  make docs          Generate Terraform provider docs into ./docs"
 	@echo "  make docs-clean    Remove generated docs and temp artifacts"
 	@echo ""
@@ -81,6 +88,18 @@ provider-bin:
 		echo "Add a cmd/*/main.go (or update PROVIDER_MAIN_PKG) to enable provider-bin builds."; \
 	fi
 
+openapi:
+	@echo "Fetching $(OPENAPI_URL)"
+	@curl --fail --silent --show-error --location --output "$(OPENAPI_PATH)" "$(OPENAPI_URL)"
+	@$(MAKE) enums
+
+enums:
+	@python3 scripts/generate_enums.py --openapi "$(OPENAPI_PATH)" --out internal/enums/enums_gen.go
+	@gofmt -w internal/enums
+
+# Needs the Terraform CLI on PATH. On macOS it also needs a short TMPDIR: the
+# plugin handshake uses a unix socket, and paths over 104 characters fail with
+# "bind: invalid argument".
 docs: tfplugindocs
 	@rm -rf "$(RENDERED_WEBSITE_DIR)"
 	@mkdir -p "$(RENDERED_WEBSITE_DIR)"
@@ -108,14 +127,12 @@ docs-clean:
 	@rm -rf "$(RENDERED_WEBSITE_DIR)" "$(TFPLUGINDOCS_TEMP_DIR)"
 
 format:
-	@if [ -z "$(GO_FILES)" ]; then echo "No Go files found."; exit 0; fi
-	@echo "Running gofmt on Go files..."
-	@gofmt -w $(GO_FILES)
+	@echo "Running gofmt..."
+	@gofmt -w $(GOFMT_PATHS)
 
 format-check:
-	@if [ -z "$(GO_FILES)" ]; then echo "No Go files found."; exit 0; fi
 	@echo "Checking gofmt..."
-	@formatted="$$(gofmt -l $(GO_FILES))"; \
+	@formatted="$$(gofmt -l $(GOFMT_PATHS))"; \
 	if [ -n "$$formatted" ]; then \
 		echo "The following files are not gofmt-formatted:"; \
 		echo "$$formatted"; \

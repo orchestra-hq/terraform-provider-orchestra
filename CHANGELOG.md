@@ -29,8 +29,13 @@ anyone building from source should expect to rewrite their configuration.
 
 ### Added
 
-- `orchestra_environment` resource, and `orchestra_pipeline`, `orchestra_environment`, `orchestra_environments`
-  and `orchestra_integration_connections` data sources.
+- `orchestra_environment` and `orchestra_monitor` resources, and `orchestra_pipeline`, `orchestra_environment`,
+  `orchestra_environments` and `orchestra_integration_connections` data sources.
+- `orchestra_monitor` manages incident grouping and alerting: `match` picks the events a monitor claims,
+  `group_by` decides what makes two of them one incident, `trigger` makes it a threshold monitor, and `action`
+  says what happens when one opens. `order` is reported but not settable — evaluation order is set across the
+  whole workspace by `POST /monitors/reorder`, so a per-resource attribute would have monitors fighting each
+  other on every apply.
 - `orchestra_pipeline.data` is now the full pipeline definition — tasks, task groups, schedules, sensors,
   trigger events, alerts, anomalies, inputs and configuration — validated at plan time against
   `POST /pipelines/schema`.

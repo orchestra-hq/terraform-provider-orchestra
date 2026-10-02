@@ -5,10 +5,13 @@ package tfconv
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -140,4 +143,68 @@ func GoStringMap(m map[string]types.String) map[string]string {
 		out[k] = v.ValueString()
 	}
 	return out
+}
+
+// StringPtrOrNil returns nil for a null or unknown value, otherwise a pointer
+// to it. It is the encoding counterpart of String.
+func StringPtrOrNil(v types.String) *string {
+	if v.IsNull() || v.IsUnknown() {
+		return nil
+	}
+	s := v.ValueString()
+	return &s
+}
+
+// BoolPtrOrNil is StringPtrOrNil for bools.
+func BoolPtrOrNil(v types.Bool) *bool {
+	if v.IsNull() || v.IsUnknown() {
+		return nil
+	}
+	b := v.ValueBool()
+	return &b
+}
+
+// Int64PtrOrNil is StringPtrOrNil for integers.
+func Int64PtrOrNil(v types.Int64) *int64 {
+	if v.IsNull() || v.IsUnknown() {
+		return nil
+	}
+	i := v.ValueInt64()
+	return &i
+}
+
+// JSONObject validates that a normalized JSON string is an object and returns
+// it verbatim. The bytes go straight to the API: decoding into map[string]any
+// would turn every number into a float64 and silently round integers above
+// 2^53, which is the range warehouse job IDs and Snowflake IDs live in.
+func JSONObject(v jsontypes.Normalized, p path.Path, diags *diag.Diagnostics) json.RawMessage {
+	if v.IsNull() || v.IsUnknown() {
+		return nil
+	}
+	var probe map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(v.ValueString()), &probe); err != nil {
+		diags.AddAttributeError(p, "Invalid JSON object", fmt.Sprintf("Expected a JSON object: %s", err))
+		return nil
+	}
+	return json.RawMessage(v.ValueString())
+}
+
+// JSONAny is JSONObject without the object requirement.
+func JSONAny(v jsontypes.Normalized, p path.Path, diags *diag.Diagnostics) json.RawMessage {
+	if v.IsNull() || v.IsUnknown() {
+		return nil
+	}
+	if !json.Valid([]byte(v.ValueString())) {
+		diags.AddAttributeError(p, "Invalid JSON", "Expected a JSON value.")
+		return nil
+	}
+	return json.RawMessage(v.ValueString())
+}
+
+// RawJSON is the inverse of JSONObject and JSONAny.
+func RawJSON(raw json.RawMessage) jsontypes.Normalized {
+	if len(raw) == 0 || string(raw) == "null" {
+		return jsontypes.NewNormalizedNull()
+	}
+	return jsontypes.NewNormalizedValue(string(raw))
 }

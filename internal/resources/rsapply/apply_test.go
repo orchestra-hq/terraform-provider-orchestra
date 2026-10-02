@@ -1678,3 +1678,203 @@ func TestPipelineReadNotFoundNamesTheSelector(t *testing.T) {
 		t.Error("a pipeline the API no longer has was left in state")
 	}
 }
+
+// monitorStub answers the monitor endpoints the way the live API does: it
+// echoes the stored definition back with the server-side defaults filled in
+// (`enabled`, `action.mute`, `alsoSendToPipelineDestinations`) and assigns
+// `order`, which is workspace-wide and not settable per monitor.
+func monitorStub(t *testing.T) (*stub, string) {
+	t.Helper()
+
+	s := &stub{}
+	const id = "77777777-7777-7777-7777-777777777777"
+	var stored json.RawMessage
+
+	response := func() map[string]any {
+		var def map[string]any
+		if stored != nil {
+			_ = json.Unmarshal(stored, &def)
+		}
+		if def == nil {
+			def = map[string]any{}
+		}
+		// Defaults the API applies on the way out.
+		if _, ok := def["enabled"]; !ok {
+			def["enabled"] = true
+		}
+		def["order"] = 0
+		if a, ok := def["action"].(map[string]any); ok {
+			if _, ok := a["mute"]; !ok {
+				a["mute"] = false
+			}
+			if al, ok := a["alerts"].(map[string]any); ok {
+				if _, ok := al["alsoSendToPipelineDestinations"]; !ok {
+					al["alsoSendToPipelineDestinations"] = false
+				}
+			}
+		}
+		return map[string]any{
+			"monitorId": id, "definition": def,
+			"createdAt": "2026-01-01T00:00:00Z", "createdBy": "00000000-0000-0000-0000-000000000001",
+			"updatedAt": "2026-01-02T00:00:00Z", "updatedBy": "00000000-0000-0000-0000-000000000001",
+		}
+	}
+
+	absorb := func() {
+		if raw := s.last().RawBody; raw != "" {
+			stored = json.RawMessage(raw)
+		}
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/monitors", func(w http.ResponseWriter, r *http.Request) {
+		s.record(r)
+		absorb()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(response())
+	})
+	mux.HandleFunc("/monitors/", func(w http.ResponseWriter, r *http.Request) {
+		s.record(r)
+		if r.Method == http.MethodDelete {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method == http.MethodPut {
+			absorb()
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(response())
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		s.record(r)
+		t.Errorf("unexpected request to %s %s", r.Method, r.URL.Path)
+		http.Error(w, "unhandled", http.StatusNotFound)
+	})
+
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return s, srv.URL
+}
+
+func monitorValue(t *testing.T, objType tftypes.Object, name, channel string) tftypes.Value {
+	t.Helper()
+	return buildValue(t, objType, map[string]any{
+		"name":     name,
+		"group_by": []any{"pipeline"},
+		"match": map[string]any{
+			"integrations": []any{"SNOWFLAKE", "DBT"},
+		},
+		"action": map[string]any{
+			"severity": "HIGH",
+			"alerts": map[string]any{
+				"destinations": []any{
+					map[string]any{"integration": "SLACK", "destination": channel},
+				},
+			},
+		},
+	})
+}
+
+// TestMonitorLifecycle covers create, in-place update, read and delete, and —
+// through planAndApply — that no server-defaulted field breaks the apply and
+// that an edit never plans a replacement.
+func TestMonitorLifecycle(t *testing.T) {
+	const id = "77777777-7777-7777-7777-777777777777"
+	calls, baseURL := monitorStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	ctx := context.Background()
+
+	objType := schemaResp.ResourceSchemas["orchestra_monitor"].ValueType().(tftypes.Object)
+	comp := computedAttrs(schemaResp.ResourceSchemas["orchestra_monitor"])
+
+	created := planAndApply(t, server, "orchestra_monitor", objType,
+		tftypes.NewValue(objType, nil), monitorValue(t, objType, "warehouse", "#a"), comp)
+
+	create := calls.find(http.MethodPost, "/monitors")
+	if create == nil {
+		t.Fatalf("no POST /monitors; calls were %v", calls.paths())
+	}
+	// The definition is the request body itself, not wrapped.
+	if create.Body["name"] != "warehouse" {
+		t.Errorf("create body is not the definition: %#v", create.Body)
+	}
+	match, ok := create.Body["match"].(map[string]any)
+	if !ok || match["integrations"] == nil {
+		t.Errorf("create body lost `match`: %#v", create.Body)
+	}
+
+	// --- update ---
+	planAndApply(t, server, "orchestra_monitor", objType, created,
+		monitorValue(t, objType, "warehouse", "#b"), comp)
+	if calls.find(http.MethodPut, "/monitors/"+id) == nil {
+		t.Errorf("update did not PUT by ID; calls were %v", calls.paths())
+	}
+
+	// --- read ---
+	priorDV, err := tfprotov6.NewDynamicValue(objType, created)
+	if err != nil {
+		t.Fatalf("prior state: %v", err)
+	}
+	readResp, err := server.ReadResource(ctx, &tfprotov6.ReadResourceRequest{
+		TypeName: "orchestra_monitor", CurrentState: &priorDV,
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	failOnError(t, "read", readResp.Diagnostics)
+	if calls.find(http.MethodGet, "/monitors/"+id) == nil {
+		t.Errorf("read did not GET by ID; calls were %v", calls.paths())
+	}
+
+	// --- delete ---
+	nullDV, err := tfprotov6.NewDynamicValue(objType, tftypes.NewValue(objType, nil))
+	if err != nil {
+		t.Fatalf("null state: %v", err)
+	}
+	deleteResp, err := server.ApplyResourceChange(ctx, &tfprotov6.ApplyResourceChangeRequest{
+		TypeName: "orchestra_monitor", PriorState: &priorDV, PlannedState: &nullDV, Config: &nullDV,
+	})
+	if err != nil {
+		t.Fatalf("ApplyResourceChange (delete): %v", err)
+	}
+	failOnError(t, "delete", deleteResp.Diagnostics)
+	if calls.find(http.MethodDelete, "/monitors/"+id) == nil {
+		t.Errorf("delete did not DELETE by ID; calls were %v", calls.paths())
+	}
+}
+
+// TestMonitorRejectsEmptyMatch covers the rule the schema cannot express: a
+// monitor naming no dimension would claim every event on the account.
+func TestMonitorRejectsEmptyMatch(t *testing.T) {
+	_, baseURL := monitorStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	ctx := context.Background()
+
+	objType := schemaResp.ResourceSchemas["orchestra_monitor"].ValueType().(tftypes.Object)
+	config := buildValue(t, objType, map[string]any{
+		"name":     "catch everything",
+		"group_by": []any{"pipeline"},
+		"match":    map[string]any{},
+	})
+	configDV, err := tfprotov6.NewDynamicValue(objType, config)
+	if err != nil {
+		t.Fatalf("config: %v", err)
+	}
+
+	resp, err := server.ValidateResourceConfig(ctx, &tfprotov6.ValidateResourceConfigRequest{
+		TypeName: "orchestra_monitor", Config: &configDV,
+	})
+	if err != nil {
+		t.Fatalf("ValidateResourceConfig: %v", err)
+	}
+	var got string
+	for _, d := range resp.Diagnostics {
+		if d.Severity == tfprotov6.DiagnosticSeverityError {
+			got += d.Summary
+		}
+	}
+	if !strings.Contains(got, "matches everything") {
+		t.Errorf("an empty match was accepted; diagnostics were %q", got)
+	}
+}

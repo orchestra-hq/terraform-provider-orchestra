@@ -3,6 +3,7 @@ package pipeline
 import (
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/alerts"
 )
 
 // Terraform-side model of the pipeline definition. Mirrors definition_wire.go
@@ -138,42 +139,34 @@ type inputTF struct {
 }
 
 type alertTF struct {
-	Name          types.String         `tfsdk:"name"`
-	Statuses      []types.String       `tfsdk:"statuses"`
-	Destinations  []alertDestinationTF `tfsdk:"destinations"`
-	CustomMessage types.String         `tfsdk:"custom_message"`
+	Name          types.String           `tfsdk:"name"`
+	Statuses      []types.String         `tfsdk:"statuses"`
+	Destinations  []alerts.DestinationTF `tfsdk:"destinations"`
+	CustomMessage types.String           `tfsdk:"custom_message"`
 	// MaxLiveAlerts is ParameterizedIntStr; see concurrencyTF.MaxActive.
 	MaxLiveAlerts types.String `tfsdk:"max_live_alerts"`
-}
-
-type alertDestinationTF struct {
-	Integration  types.String         `tfsdk:"integration"`
-	Destination  types.String         `tfsdk:"destination"`
-	ConnectionID types.String         `tfsdk:"connection_id"`
-	Priority     types.Int64          `tfsdk:"priority"`
-	Body         jsontypes.Normalized `tfsdk:"body"`
 }
 
 // anomalyTF is the pipeline-level anomaly. The API's pipeline_duration_*
 // models have no operation scoping, so those attributes are absent from the
 // schema and must be absent from the struct too.
 type anomalyTF struct {
-	Type                    types.String         `tfsdk:"type"`
-	Destinations            []alertDestinationTF `tfsdk:"destinations"`
-	MinBaselineSeconds      types.Int64          `tfsdk:"min_baseline_seconds"`
-	PercentageAboveBaseline types.Int64          `tfsdk:"percentage_above_baseline"`
-	PercentageBelowBaseline types.Int64          `tfsdk:"percentage_below_baseline"`
+	Type                    types.String           `tfsdk:"type"`
+	Destinations            []alerts.DestinationTF `tfsdk:"destinations"`
+	MinBaselineSeconds      types.Int64            `tfsdk:"min_baseline_seconds"`
+	PercentageAboveBaseline types.Int64            `tfsdk:"percentage_above_baseline"`
+	PercentageBelowBaseline types.Int64            `tfsdk:"percentage_below_baseline"`
 }
 
 // taskAnomalyTF is the task-level anomaly, which additionally covers the
 // operation_duration_* models and their operation scoping.
 type taskAnomalyTF struct {
-	Type                    types.String         `tfsdk:"type"`
-	Destinations            []alertDestinationTF `tfsdk:"destinations"`
-	MinBaselineSeconds      types.Int64          `tfsdk:"min_baseline_seconds"`
-	PercentageAboveBaseline types.Int64          `tfsdk:"percentage_above_baseline"`
-	PercentageBelowBaseline types.Int64          `tfsdk:"percentage_below_baseline"`
-	OperationTypes          []types.String       `tfsdk:"operation_types"`
-	OperationNames          []types.String       `tfsdk:"operation_names"`
-	MaxAnomalies            types.Int64          `tfsdk:"max_anomalies"`
+	Type                    types.String           `tfsdk:"type"`
+	Destinations            []alerts.DestinationTF `tfsdk:"destinations"`
+	MinBaselineSeconds      types.Int64            `tfsdk:"min_baseline_seconds"`
+	PercentageAboveBaseline types.Int64            `tfsdk:"percentage_above_baseline"`
+	PercentageBelowBaseline types.Int64            `tfsdk:"percentage_below_baseline"`
+	OperationTypes          []types.String         `tfsdk:"operation_types"`
+	OperationNames          []types.String         `tfsdk:"operation_names"`
+	MaxAnomalies            types.Int64            `tfsdk:"max_anomalies"`
 }

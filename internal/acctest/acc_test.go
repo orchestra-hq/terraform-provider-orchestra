@@ -192,3 +192,51 @@ func skipIfEnvironmentLimitReached(t *testing.T) {
 		}
 	}
 }
+
+// TestAccMonitor_lifecycle covers the monitor resource against the real API.
+// Monitors carry server-assigned `order` and several defaulted booleans, which
+// is the shape that has broken applies before.
+func TestAccMonitor_lifecycle(t *testing.T) {
+	preCheck(t)
+	name := fmt.Sprintf("tf_acc_monitor_%d", os.Getpid())
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6,
+		Steps: []resource.TestStep{
+			{
+				Config: monitorConfig(name, "HIGH"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("orchestra_monitor.test", "id"),
+					resource.TestCheckResourceAttrSet("orchestra_monitor.test", "order"),
+					resource.TestCheckResourceAttr("orchestra_monitor.test", "name", name),
+					// Defaults the API fills in.
+					resource.TestCheckResourceAttr("orchestra_monitor.test", "enabled", "true"),
+					resource.TestCheckResourceAttr("orchestra_monitor.test", "action.mute", "false"),
+				),
+			},
+			{
+				Config: monitorConfig(name, "MEDIUM"),
+				Check:  resource.TestCheckResourceAttr("orchestra_monitor.test", "action.severity", "MEDIUM"),
+			},
+			{
+				ResourceName:      "orchestra_monitor.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+func monitorConfig(name, severity string) string {
+	return fmt.Sprintf(`
+resource "orchestra_monitor" "test" {
+  name     = %[1]q
+  match    = { integrations = ["SNOWFLAKE"] }
+  group_by = ["pipeline"]
+
+  action = {
+    severity = %[2]q
+  }
+}
+`, name, severity)
+}

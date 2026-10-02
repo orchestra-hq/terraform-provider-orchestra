@@ -7,8 +7,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -94,22 +97,40 @@ func matchAttribute() schema.Attribute {
 		Attributes: map[string]schema.Attribute{
 			"pipelines": schema.ListAttribute{
 				Optional:    true,
+				Computed:    true,
 				ElementType: types.StringType,
+				// The API returns every match dimension as a list even when it
+				// was not sent, so an Optional-only attribute would plan null
+				// and apply [] — which aborts the apply.
+				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
 				Description: "Pipeline IDs to claim events from.",
 			},
 			"assets": schema.ListAttribute{
 				Optional:    true,
+				Computed:    true,
 				ElementType: types.StringType,
+				// The API returns every match dimension as a list even when it
+				// was not sent, so an Optional-only attribute would plan null
+				// and apply [] — which aborts the apply.
+				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
 				Description: "Asset IDs to claim events from.",
 			},
 			"connections": schema.ListAttribute{
 				Optional:    true,
+				Computed:    true,
 				ElementType: types.StringType,
+				// The API returns every match dimension as a list even when it
+				// was not sent, so an Optional-only attribute would plan null
+				// and apply [] — which aborts the apply.
+				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
 				Description: "Connection IDs to claim events from.",
 			},
 			"integrations": schema.ListAttribute{
 				Optional:    true,
+				Computed:    true,
 				ElementType: types.StringType,
+				// See the note on `pipelines`.
+				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
 				Description: "Integrations to claim events from.",
 				Validators: []validator.List{
 					listvalidator.ValueStringsAre(stringvalidator.OneOf(enums.Integrations...)),
@@ -207,7 +228,18 @@ func actionAttribute() schema.Attribute {
 				Description: "User ID to assign the incident to.",
 			},
 			"alerts": schema.SingleNestedAttribute{
-				Optional:    true,
+				Optional: true,
+				Computed: true,
+				// The API materialises `alerts` on every response, so without a
+				// matching default an `action` block that omits it plans null
+				// and applies an object.
+				Default: objectdefault.StaticValue(types.ObjectValueMust(
+					alertsObjectType().AttrTypes,
+					map[string]attr.Value{
+						"destinations":                       types.ListNull(alerts.DestinationSchema().Type()),
+						"also_send_to_pipeline_destinations": types.BoolValue(false),
+					},
+				)),
 				Description: "Where to send the alert.",
 				Attributes: map[string]schema.Attribute{
 					"destinations": schema.ListNestedAttribute{
@@ -280,3 +312,12 @@ var (
 	labelKeyPattern = regexp.MustCompile(`^[a-zA-Z0-9_.:/-]{1,64}$`)
 	durationPattern = regexp.MustCompile(`^P(?:\d+Y)?(?:\d+M)?(?:\d+W)?(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?$`)
 )
+
+// alertsObjectType spells out the attribute types the alerts default needs,
+// derived from the schema above so the two cannot drift apart.
+func alertsObjectType() types.ObjectType {
+	return types.ObjectType{AttrTypes: map[string]attr.Type{
+		"destinations":                       types.ListType{ElemType: alerts.DestinationSchema().Type()},
+		"also_send_to_pipeline_destinations": types.BoolType,
+	}}
+}

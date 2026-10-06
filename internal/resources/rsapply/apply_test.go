@@ -1893,3 +1893,85 @@ func TestMonitorRejectsEmptyMatch(t *testing.T) {
 		t.Errorf("an empty match was accepted; diagnostics were %q", got)
 	}
 }
+
+// TestMonitorGroupByLabels drives the GroupByLabel half of the spec's
+// anyOf[MonitorGroupByEnum, GroupByLabel] through plan and apply. The two forms
+// are separate Terraform attributes merged onto one wire list, so this checks
+// the merge, the encoding, and that both come back in the right attribute.
+func TestMonitorGroupByLabels(t *testing.T) {
+	calls, baseURL := monitorStub(t)
+	server, schemaResp := newServer(t, baseURL)
+
+	objType := schemaResp.ResourceSchemas["orchestra_monitor"].ValueType().(tftypes.Object)
+	comp := computedAttrs(schemaResp.ResourceSchemas["orchestra_monitor"])
+
+	config := buildValue(t, objType, map[string]any{
+		"name":     "per customer",
+		"group_by": []any{"pipeline"},
+		"group_by_labels": []any{
+			map[string]any{"label": "customer", "path": "$.meta.customer"},
+		},
+		"match": map[string]any{"integrations": []any{"SNOWFLAKE"}},
+	})
+
+	state := planAndApply(t, server, "orchestra_monitor", objType,
+		tftypes.NewValue(objType, nil), config, comp)
+
+	create := calls.find(http.MethodPost, "/monitors")
+	if create == nil {
+		t.Fatalf("no POST /monitors; calls were %v", calls.paths())
+	}
+
+	// On the wire it is one list: a bare string for the dimension, an object
+	// for the label.
+	raw, ok := rawField(create.RawBody, "groupBy")
+	if !ok {
+		t.Fatalf("create body has no groupBy: %s", create.RawBody)
+	}
+	const want = `["pipeline",{"label":"customer","path":"$.meta.customer"}]`
+	if string(raw) != want {
+		t.Errorf("groupBy encoded as %s, want %s", raw, want)
+	}
+
+	// And it splits back into the two attributes rather than landing in one.
+	rendered := state.String()
+	for _, fragment := range []string{`"customer"`, `"$.meta.customer"`, `"pipeline"`} {
+		if !strings.Contains(rendered, fragment) {
+			t.Errorf("state lost %s", fragment)
+		}
+	}
+}
+
+// TestMonitorRejectsNoGrouping covers the combined bound: the spec requires at
+// least one groupBy entry, and here that is spread across two attributes.
+func TestMonitorRejectsNoGrouping(t *testing.T) {
+	_, baseURL := monitorStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	ctx := context.Background()
+
+	objType := schemaResp.ResourceSchemas["orchestra_monitor"].ValueType().(tftypes.Object)
+	config := buildValue(t, objType, map[string]any{
+		"name":  "no grouping",
+		"match": map[string]any{"integrations": []any{"SNOWFLAKE"}},
+	})
+	configDV, err := tfprotov6.NewDynamicValue(objType, config)
+	if err != nil {
+		t.Fatalf("config: %v", err)
+	}
+
+	resp, err := server.ValidateResourceConfig(ctx, &tfprotov6.ValidateResourceConfigRequest{
+		TypeName: "orchestra_monitor", Config: &configDV,
+	})
+	if err != nil {
+		t.Fatalf("ValidateResourceConfig: %v", err)
+	}
+	var got string
+	for _, d := range resp.Diagnostics {
+		if d.Severity == tfprotov6.DiagnosticSeverityError {
+			got += d.Summary
+		}
+	}
+	if !strings.Contains(got, "Nothing to group by") {
+		t.Errorf("a monitor with no grouping was accepted; diagnostics were %q", got)
+	}
+}

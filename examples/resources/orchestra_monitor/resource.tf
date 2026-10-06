@@ -45,3 +45,22 @@ resource "orchestra_monitor" "flaky_ingestion" {
     }
   }
 }
+
+# Group on a value in the event body rather than a built-in dimension: one
+# incident per customer, whatever pipeline the failure came from.
+resource "orchestra_monitor" "per_customer" {
+  name = "Per-customer failures"
+
+  match = {
+    integrations = ["SNOWFLAKE", "DBT"]
+  }
+
+  group_by_labels = [{
+    label = "customer"
+    path  = "$.meta.customer"
+  }]
+
+  action = {
+    severity = "HIGH"
+  }
+}

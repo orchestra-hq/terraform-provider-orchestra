@@ -14,7 +14,7 @@ func toWire(m monitorModel, diags *diag.Diagnostics) wireDefinition {
 		Name:        m.Name.ValueString(),
 		Description: tfconv.StringPtrOrNil(m.Description),
 		Enabled:     m.Enabled.ValueBool(),
-		GroupBy:     tfconv.GoStrings(m.GroupBy),
+		GroupBy:     groupByToWire(m),
 	}
 
 	if m.Match != nil {
@@ -80,7 +80,7 @@ func apply(m *monitorModel, api wireMonitorResponse) {
 	m.Description = tfconv.String(d.Description)
 	m.Enabled = types.BoolValue(d.Enabled)
 	m.Order = tfconv.Int64(d.Order)
-	m.GroupBy = tfconv.Strings(d.GroupBy)
+	groupByFromWire(m, d.GroupBy)
 
 	m.Match = &matchTF{
 		Pipelines:    tfconv.Strings(d.Match.Pipelines),
@@ -127,5 +127,43 @@ func apply(m *monitorModel, api wireMonitorResponse) {
 			}
 		}
 		m.Action = a
+	}
+}
+
+// groupByToWire merges the two Terraform attributes back into the API's single
+// list. Names go first, then labels; the API treats the list as a set of
+// dimensions, so the interleaving the user originally wrote is not meaningful.
+func groupByToWire(m monitorModel) []wireGroupBy {
+	out := make([]wireGroupBy, 0, len(m.GroupBy)+len(m.GroupByLabels))
+	for _, name := range m.GroupBy {
+		if name.IsNull() || name.IsUnknown() {
+			continue
+		}
+		out = append(out, wireGroupBy{Name: name.ValueString()})
+	}
+	for _, l := range m.GroupByLabels {
+		out = append(out, wireGroupBy{Label: &wireGroupByLabel{
+			Label: l.Label.ValueString(),
+			Path:  l.Path.ValueString(),
+		}})
+	}
+	return out
+}
+
+// groupByFromWire splits the API's single list back into the two attributes.
+// Each stays nil when the API sent nothing of that form, so an unset attribute
+// reads back as null rather than an empty list.
+func groupByFromWire(m *monitorModel, entries []wireGroupBy) {
+	m.GroupBy = nil
+	m.GroupByLabels = nil
+	for _, e := range entries {
+		if e.Label != nil {
+			m.GroupByLabels = append(m.GroupByLabels, groupByLabelTF{
+				Label: types.StringValue(e.Label.Label),
+				Path:  types.StringValue(e.Label.Path),
+			})
+			continue
+		}
+		m.GroupBy = append(m.GroupBy, types.StringValue(e.Name))
 	}
 }

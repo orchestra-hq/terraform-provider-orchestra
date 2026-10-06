@@ -879,7 +879,8 @@ paths:
         Filters apply to top-level incidents only - a child is always returned alongside
         its parent, so a filtered list still shows the full incident rather than part
         of one. Use `name` to filter incidents by a case-insensitive substring match
-        on the incident name.'
+        on the incident name. Use `sort_column` and `sort_direction` to sort top-level
+        incidents by a single column instead; merged children keep the default order.'
       parameters:
       - name: page_size
         in: query
@@ -935,6 +936,32 @@ paths:
           title: Name
         description: Filter by a case-insensitive substring match on the incident
           name.
+      - name: sort_column
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - severity
+            - name
+            - created_at
+            - updated_at
+            type: string
+          - type: 'null'
+          title: Sort Column
+        description: Column used to sort incidents. Defaults to open, most severe
+          first.
+      - name: sort_direction
+        in: query
+        required: false
+        schema:
+          enum:
+          - asc
+          - desc
+          type: string
+          default: desc
+          title: Sort Direction
+        description: Sort direction. Ignored unless `sort_column` is set.
       - name: X-Orchestra-Account-Id
         in: header
         required: false
@@ -1120,6 +1147,60 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedResponse_IncidentEventResponse_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - BearerAuthReadOnly: []
+  /incidents/{incident_id}/events/{incident_event_id}/external_event:
+    get:
+      tags:
+      - Incidents
+      summary: Get an external event's payload
+      description: Fetch the raw JSON an external system sent for one row of an incident's
+        timeline - a row whose hasExternalEvent is true. Returns 410 once the payload
+        has expired.
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Incident Id
+        description: Incident ID.
+      - name: incident_event_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Incident Event Id
+        description: Timeline row ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentExternalEventResponse'
         '422':
           description: Validation Error
           content:
@@ -1394,6 +1475,63 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
+      security:
+      - BearerAuth: []
+  /incidents/events:
+    post:
+      tags:
+      - Incidents
+      summary: Send an incident event
+      description: Send an event from an external system, as a JSON object of at most
+        128 KiB, to be matched against the workspace's monitors. Resending the same
+        body within five minutes returns the same `eventId`.
+      parameters:
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalEventResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              description: 'An event from an external system, as whatever JSON object
+                that system emits.
+
+
+                No field is required or interpreted: monitors pick out the values
+                they match and
+
+                group on with jsonpath. The body must be an object because those paths
+                are
+
+                resolved against one.'
+              properties: {}
+              title: ExternalEventRequest
+              type: object
       security:
       - BearerAuth: []
   /integrations/:
@@ -1797,11 +1935,13 @@ paths:
       summary: List operations
       description: "Retrieve a paginated list of task operations for the workspace\
         \ the credential resolves to.\n\n<Note>\n  `time_from` and `time_to` are optional.\
-        \ If neither is provided, the API returns the last 7 days of data. If both\
+        \ If neither is provided, the API returns the last 24 hours of data. If both\
         \ are provided, the maximum time range per request is 7 days. `time_from`\
-        \ cannot be earlier than 2023-01-01.\n</Note>\n\nUse operation filters to\
-        \ narrow results by operation type, integration, external ID, operation status,\
-        \ or task run ID."
+        \ cannot be earlier than 2023-01-01.\n\n  From 2026-10-01 the default changed\
+        \ from the last 7 days to the last 24 hours. Pass `time_from` and `time_to`\
+        \ explicitly to control the window.\n</Note>\n\nUse operation filters to narrow\
+        \ results by operation type, integration, external ID, operation status, or\
+        \ task run ID."
       parameters:
       - name: operation_type
         in: query
@@ -2361,11 +2501,13 @@ paths:
       description: "Retrieve a paginated list of [pipeline runs](/docs/core-concepts/pipelines/pipeline-runs)\
         \ for the workspace the credential resolves to.\n\n<Note>\n  `time_from` and\
         \ `time_to` are optional. If neither is provided, the API returns the last\
-        \ 7 days of data. If both are provided, the maximum time range per request\
-        \ is 7 days. `time_from` cannot be earlier than 2023-01-01.\n</Note>\n\nFilter\
-        \ by multiple statuses, pipeline IDs, or pipeline run IDs using comma-separated\
-        \ values. For example, `status=SUCCEEDED,FAILED` returns all pipeline runs\
-        \ with either status."
+        \ 24 hours of data. If both are provided, the maximum time range per request\
+        \ is 7 days. `time_from` cannot be earlier than 2023-01-01.\n\n  From 2026-10-01\
+        \ the default changed from the last 7 days to the last 24 hours. Pass `time_from`\
+        \ and `time_to` explicitly to control the window.\n</Note>\n\nFilter by multiple\
+        \ statuses, pipeline IDs, or pipeline run IDs using comma-separated values.\
+        \ For example, `status=SUCCEEDED,FAILED` returns all pipeline runs with either\
+        \ status."
       parameters:
       - name: status
         in: query
@@ -3399,10 +3541,12 @@ paths:
       description: "Retrieve a paginated list of [task runs](/docs/core-concepts/tasks/task-runs)\
         \ for the workspace the credential resolves to.\n\n<Note>\n  `time_from` and\
         \ `time_to` are optional. If neither is provided, the API returns the last\
-        \ 7 days of data. If both are provided, the maximum time range per request\
-        \ is 7 days. `time_from` cannot be earlier than 2023-01-01.\n</Note>\n\nFilter\
-        \ by multiple statuses, integrations, pipeline IDs, or task run IDs using\
-        \ comma-separated values. For example, `status=SUCCEEDED,FAILED&integration=HTTP,SNOWFLAKE`\
+        \ 24 hours of data. If both are provided, the maximum time range per request\
+        \ is 7 days. `time_from` cannot be earlier than 2023-01-01.\n\n  From 2026-10-01\
+        \ the default changed from the last 7 days to the last 24 hours. Pass `time_from`\
+        \ and `time_to` explicitly to control the window.\n</Note>\n\nFilter by multiple\
+        \ statuses, integrations, pipeline IDs, or task run IDs using comma-separated\
+        \ values. For example, `status=SUCCEEDED,FAILED&integration=HTTP,SNOWFLAKE`\
         \ returns task runs matching either status and either integration."
       parameters:
       - name: page
@@ -3604,14 +3748,14 @@ paths:
       summary: List workspaces
       tags:
       - Accounts
-      description: 'Lists the workspaces your credential can reach. An API key is
+      description: 'Lists the workspaces this credential can act on. An API key is
         issued to one workspace, so it lists that workspace alone. An OAuth token
-        lists every workspace its user is a member of, checked at the time of the
-        call.
+        lists the workspaces chosen when access was granted, limited to those its
+        user is still a member of.
 
 
-        Use the ids returned here as the `X-Orchestra-Account-Id` header on endpoints
-        that act within a workspace.'
+        Pass a returned id to select the workspace on calls that act within one (the
+        `X-Orchestra-Account-Id` header in the API).'
       x-orchestra-mcp: true
       responses:
         '200':
@@ -4460,6 +4604,8 @@ components:
       - GCP_BQ_RUN_TEST
       - GCP_CLOUD_RUN_EXECUTE_JOB
       - GCP_CLOUD_FUNCTIONS_EXECUTE_ASYNC_FUNCTION
+      - GCP_CLOUD_STORAGE_GET_FILE
+      - GCP_CLOUD_STORAGE_PUT_FILE
       - GCP_DATAFLOW_RUN_PIPELINE
       - GCP_DATAFORM_INVOKE_WORKFLOW
       - GCP_DATASTREAM_MONITOR
@@ -4534,6 +4680,7 @@ components:
       - THOUGHTSPOT_FETCH_LIVEBOARD_DATA
       - TOBIKO_CLOUD_EXECUTE
       - TRIGGER_PIPELINE
+      - TYPESAFE_JEV_EVALUATE
       - WAIT
       - WINDOWS_SSH_COMMAND
       title: IntegrationJobsEnum
@@ -4665,6 +4812,7 @@ components:
       - TALEND_CLOUD
       - THOUGHTSPOT
       - TOBIKO_CLOUD
+      - TYPESAFE
       - WEAVIATE
       - WEBHOOK
       - WELD
@@ -5848,6 +5996,7 @@ components:
       - DATABRICKS_QUERY
       - FABRIC_SYNAPSE_QUERY
       - GCP_BIG_QUERY_QUERY
+      - GCP_CLOUD_STORAGE_FILE
       - MARIADB_QUERY
       - MONGODB_QUERY
       - MYSQL_QUERY
@@ -7708,6 +7857,15 @@ components:
           - type: string
           - type: 'null'
           title: Mutedat
+        isMuted:
+          type: boolean
+          title: Ismuted
+          default: false
+        mutedUntil:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Muteduntil
         monitorId:
           anyOf:
           - type: string
@@ -7836,11 +7994,10 @@ components:
           - type: string
           - type: 'null'
           title: Groupby
-        externalEventPath:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Externaleventpath
+        hasExternalEvent:
+          type: boolean
+          title: Hasexternalevent
+          default: false
       additionalProperties: false
       type: object
       required:
@@ -7946,6 +8103,15 @@ components:
           - type: string
           - type: 'null'
           title: Mutedat
+        isMuted:
+          type: boolean
+          title: Ismuted
+          default: false
+        mutedUntil:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Muteduntil
         monitorId:
           anyOf:
           - type: string
@@ -8921,8 +9087,11 @@ components:
           $ref: '#/components/schemas/MonitorMatch'
         groupBy:
           items:
-            $ref: '#/components/schemas/MonitorGroupByEnum'
+            anyOf:
+            - $ref: '#/components/schemas/MonitorGroupByEnum'
+            - $ref: '#/components/schemas/GroupByLabel'
           type: array
+          maxItems: 32
           minItems: 1
           title: Groupby
         trigger:
@@ -9095,6 +9264,58 @@ components:
       - monitorIds
       title: ReorderMonitorsRequest
       description: Every monitor on the account, in the order they should be evaluated.
+    ExternalEventResponse:
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          title: Eventid
+      additionalProperties: false
+      type: object
+      required:
+      - eventId
+      title: ExternalEventResponse
+      description: 'The id of an accepted event.
+
+
+        There is no incident id: the event is only queued here, and it is matched
+        to a
+
+        monitor and grouped into an incident afterwards.'
+    IncidentExternalEventResponse:
+      properties:
+        incidentEventId:
+          type: string
+          format: uuid4
+          title: Incidenteventid
+        payload:
+          additionalProperties: true
+          type: object
+          title: Payload
+      additionalProperties: false
+      type: object
+      required:
+      - incidentEventId
+      - payload
+      title: IncidentExternalEventResponse
+      description: The body an external system sent for one timeline row, exactly
+        as it was received.
+    GroupByLabel:
+      properties:
+        label:
+          $ref: '#/components/schemas/LabelKey'
+        path:
+          $ref: '#/components/schemas/JsonPath'
+      additionalProperties: false
+      type: object
+      required:
+      - label
+      - path
+      title: GroupByLabel
+      description: 'A place on an event body to group on. ``label`` is what the incident''s
+        name and alert
+
+        call the value found at ``path``.'
   securitySchemes:
     BearerAuth:
       type: http

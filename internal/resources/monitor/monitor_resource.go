@@ -53,6 +53,24 @@ func (r *MonitorResource) ValidateConfig(ctx context.Context, req resource.Valid
 		// Unknown values cannot be decoded yet; Create/Update checks again.
 		return
 	}
+	// The spec puts minItems 1 / maxItems 32 on the single groupBy list; here it
+	// is two attributes, so the bound is on their total.
+	total := len(model.GroupBy) + len(model.GroupByLabels)
+	if total == 0 {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("group_by"),
+			"Nothing to group by",
+			"Set `group_by`, `group_by_labels`, or both. A monitor has to say what makes two claimed events the same incident.",
+		)
+	}
+	if total > 32 {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("group_by"),
+			"Too many group-by entries",
+			fmt.Sprintf("`group_by` and `group_by_labels` hold %d entries between them; the API allows at most 32.", total),
+		)
+	}
+
 	if model.Match == nil {
 		return
 	}

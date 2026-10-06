@@ -25,9 +25,9 @@ func MonitorResourceSchema() schema.Schema {
 	return schema.Schema{
 		Description: "A rule for which failures to group into one incident, and how that incident alerts.",
 		MarkdownDescription: "A rule for which failures to group into one incident, and how that incident alerts.\n\n" +
-			"`match` picks the events the monitor claims, `group_by` decides what makes two of them the same " +
-			"incident, and `action` says what happens when one opens. Where two monitors claim the same event, " +
-			"the one Orchestra evaluates first wins — see `order`.",
+			"`match` picks the events the monitor claims, `group_by` and `group_by_labels` decide what makes two " +
+			"of them the same incident, and `action` says what happens when one opens. Where two monitors claim " +
+			"the same event, the one Orchestra evaluates first wins — see `order`.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:      true,
@@ -59,10 +59,11 @@ func MonitorResourceSchema() schema.Schema {
 				MarkdownDescription: "Evaluation position within the workspace, assigned by Orchestra: where two monitors claim the same event, the lower `order` wins.\n\n" +
 					"Ordering is a workspace-wide operation (`POST /monitors/reorder` renumbers every monitor at once), so it is not settable here. Set it in the Orchestra UI.",
 			},
-			"match":    matchAttribute(),
-			"group_by": groupByAttribute(),
-			"trigger":  triggerAttribute(),
-			"action":   actionAttribute(),
+			"match":           matchAttribute(),
+			"group_by":        groupByAttribute(),
+			"group_by_labels": groupByLabelsAttribute(),
+			"trigger":         triggerAttribute(),
+			"action":          actionAttribute(),
 
 			// Server-owned.
 			"created_at": schema.StringAttribute{
@@ -169,17 +170,46 @@ func labelMatchSchema() schema.NestedAttributeObject {
 	}
 }
 
+// groupByAttribute and groupByLabelsAttribute are the two halves of the spec's
+// anyOf[MonitorGroupByEnum, GroupByLabel] list. Terraform has no union type, so
+// the forms are separate attributes, merged onto the wire and split on read.
+// ValidateConfig enforces the combined bounds the spec puts on the single list.
 func groupByAttribute() schema.Attribute {
 	return schema.ListAttribute{
-		Required:    true,
+		Optional:    true,
 		ElementType: types.StringType,
-		Description: "What makes two claimed events the same incident. At least one.",
-		MarkdownDescription: "What makes two claimed events the same incident — grouping by `pipeline` opens one " +
-			"incident per pipeline, by `monitor` one for the monitor as a whole. At least one.",
+		Description: "Built-in dimensions that make two claimed events the same incident.",
+		MarkdownDescription: "Built-in dimensions that make two claimed events the same incident — grouping by " +
+			"`pipeline` opens one incident per pipeline, by `monitor` one for the monitor as a whole.\n\n" +
+			"Set this, `group_by_labels`, or both; together they must name at least one thing and at most 32.",
 		Validators: []validator.List{
-			listvalidator.SizeAtLeast(1),
 			listvalidator.ValueStringsAre(stringvalidator.OneOf(enums.MonitorGroupBys...)),
 		},
+	}
+}
+
+func groupByLabelsAttribute() schema.Attribute {
+	return schema.ListNestedAttribute{
+		Optional: true,
+		NestedObject: schema.NestedAttributeObject{
+			Attributes: map[string]schema.Attribute{
+				"label": schema.StringAttribute{
+					Required:    true,
+					Description: "Name the incident and its alerts use for the value found at `path`.",
+					Validators: []validator.String{
+						stringvalidator.RegexMatches(labelKeyPattern,
+							"must be 1-64 characters of letters, numbers, or _.:/-"),
+					},
+				},
+				"path": schema.StringAttribute{
+					Required:    true,
+					Description: "JSON path to the value in the event body to group on.",
+				},
+			},
+		},
+		Description: "Places in the event body to group on, each named by a label.",
+		MarkdownDescription: "Places in the event body to group on. Two events whose value at `path` differs " +
+			"become different incidents, and `label` is what the incident name and its alerts call that value.",
 	}
 }
 
@@ -260,15 +290,16 @@ func actionAttribute() schema.Attribute {
 }
 
 type monitorModel struct {
-	Id          types.String   `tfsdk:"id"`
-	Name        types.String   `tfsdk:"name"`
-	Description types.String   `tfsdk:"description"`
-	Enabled     types.Bool     `tfsdk:"enabled"`
-	Order       types.Int64    `tfsdk:"order"`
-	Match       *matchTF       `tfsdk:"match"`
-	GroupBy     []types.String `tfsdk:"group_by"`
-	Trigger     *triggerTF     `tfsdk:"trigger"`
-	Action      *actionTF      `tfsdk:"action"`
+	Id            types.String     `tfsdk:"id"`
+	Name          types.String     `tfsdk:"name"`
+	Description   types.String     `tfsdk:"description"`
+	Enabled       types.Bool       `tfsdk:"enabled"`
+	Order         types.Int64      `tfsdk:"order"`
+	Match         *matchTF         `tfsdk:"match"`
+	GroupBy       []types.String   `tfsdk:"group_by"`
+	GroupByLabels []groupByLabelTF `tfsdk:"group_by_labels"`
+	Trigger       *triggerTF       `tfsdk:"trigger"`
+	Action        *actionTF        `tfsdk:"action"`
 
 	CreatedAt types.String `tfsdk:"created_at"`
 	CreatedBy types.String `tfsdk:"created_by"`
@@ -282,6 +313,11 @@ type matchTF struct {
 	Connections  []types.String          `tfsdk:"connections"`
 	Integrations []types.String          `tfsdk:"integrations"`
 	Labels       map[string]labelMatchTF `tfsdk:"labels"`
+}
+
+type groupByLabelTF struct {
+	Label types.String `tfsdk:"label"`
+	Path  types.String `tfsdk:"path"`
 }
 
 type labelMatchTF struct {

@@ -1,6 +1,11 @@
 package monitor
 
-import "github.com/orchestra-hq/terraform-provider-orchestra/internal/alerts"
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/alerts"
+)
 
 // Wire types mirror components.schemas.MonitorDefinition and MonitorResponse.
 // Keep them in sync with openapi.yaml.
@@ -15,14 +20,14 @@ type wireMonitorResponse struct {
 }
 
 type wireDefinition struct {
-	Name        string       `json:"name"`
-	Description *string      `json:"description,omitempty"`
-	Enabled     bool         `json:"enabled"`
-	Order       *int64       `json:"order,omitempty"`
-	Match       wireMatch    `json:"match"`
-	GroupBy     []string     `json:"groupBy"`
-	Trigger     *wireTrigger `json:"trigger,omitempty"`
-	Action      *wireAction  `json:"action,omitempty"`
+	Name        string        `json:"name"`
+	Description *string       `json:"description,omitempty"`
+	Enabled     bool          `json:"enabled"`
+	Order       *int64        `json:"order,omitempty"`
+	Match       wireMatch     `json:"match"`
+	GroupBy     []wireGroupBy `json:"groupBy"`
+	Trigger     *wireTrigger  `json:"trigger,omitempty"`
+	Action      *wireAction   `json:"action,omitempty"`
 }
 
 type wireMatch struct {
@@ -53,4 +58,40 @@ type wireAction struct {
 type wireAlerts struct {
 	Destinations                   []alerts.WireDestination `json:"destinations,omitempty"`
 	AlsoSendToPipelineDestinations bool                     `json:"alsoSendToPipelineDestinations"`
+}
+
+// wireGroupBy is one entry of MonitorDefinition.groupBy, which the spec
+// declares as anyOf[MonitorGroupByEnum, GroupByLabel]: either a bare dimension
+// name or a {label, path} object naming a place in the event body. Go has no
+// union either, so the two forms are carried side by side and discriminated on
+// the wire.
+type wireGroupBy struct {
+	Name  string
+	Label *wireGroupByLabel
+}
+
+type wireGroupByLabel struct {
+	Label string `json:"label"`
+	Path  string `json:"path"`
+}
+
+func (g *wireGroupBy) UnmarshalJSON(b []byte) error {
+	var name string
+	if err := json.Unmarshal(b, &name); err == nil {
+		g.Name, g.Label = name, nil
+		return nil
+	}
+	var label wireGroupByLabel
+	if err := json.Unmarshal(b, &label); err != nil {
+		return fmt.Errorf("groupBy entry is neither a dimension name nor a {label, path} object: %w", err)
+	}
+	g.Name, g.Label = "", &label
+	return nil
+}
+
+func (g wireGroupBy) MarshalJSON() ([]byte, error) {
+	if g.Label != nil {
+		return json.Marshal(g.Label)
+	}
+	return json.Marshal(g.Name)
 }

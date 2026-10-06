@@ -31,8 +31,12 @@ anyone building from source should expect to rewrite their configuration.
 
 - `orchestra_environment` and `orchestra_monitor` resources, and `orchestra_pipeline`, `orchestra_environment`,
   `orchestra_environments` and `orchestra_integration_connections` data sources.
+- `orchestra_monitor.group_by_labels` groups incidents on a value in the event body — one incident per customer,
+  say — alongside the built-in dimensions in `group_by`. The API carries both in one list; Terraform has no union
+  type, so they are separate attributes merged on the wire. A monitor using label grouping previously could not
+  be read at all.
 - `orchestra_monitor` manages incident grouping and alerting: `match` picks the events a monitor claims,
-  `group_by` decides what makes two of them one incident, `trigger` makes it a threshold monitor, and `action`
+  `group_by` and `group_by_labels` decide what makes two of them one incident, `trigger` makes it a threshold monitor, and `action`
   says what happens when one opens. `order` is reported but not settable — evaluation order is set across the
   whole workspace by `POST /monitors/reorder`, so a per-resource attribute would have monitors fighting each
   other on every apply.

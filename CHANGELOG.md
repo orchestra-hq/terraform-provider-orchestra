@@ -31,6 +31,9 @@ anyone building from source should expect to rewrite their configuration.
 
 - `orchestra_environment` and `orchestra_monitor` resources, and `orchestra_pipeline`, `orchestra_environment`,
   `orchestra_environments` and `orchestra_integration_connections` data sources.
+- Plan-time validation of two limits the API now enforces: `configuration.timeout` must be 0 to 259200 seconds
+  (72 hours) and a monitor's `name` at most 100 characters. Previously either surfaced as a 422 in the middle of
+  an apply.
 - `orchestra_monitor.group_by_labels` groups incidents on a value in the event body — one incident per customer,
   say — alongside the built-in dimensions in `group_by`. The API carries both in one list; Terraform has no union
   type, so they are separate attributes merged on the wire. A monitor using label grouping previously could not

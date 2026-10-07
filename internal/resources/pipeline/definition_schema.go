@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -505,8 +506,12 @@ func configurationAttributes() map[string]schema.Attribute {
 			Description: "Seconds to wait between retries.",
 		},
 		"timeout": schema.Int64Attribute{
-			Optional:    true,
-			Description: "Timeout in seconds.",
+			Optional:            true,
+			Description:         "Timeout in seconds, from 0 to 259200 (72 hours).",
+			MarkdownDescription: "Timeout in seconds, from 0 to 259200 (72 hours).",
+			// The API rejects anything outside this range; checking it here turns
+			// a 422 in the middle of an apply into an error at plan time.
+			Validators: []validator.Int64{int64validator.Between(0, 259200)},
 		},
 		"concurrency": schema.SingleNestedAttribute{
 			Optional: true,

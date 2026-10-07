@@ -1975,3 +1975,83 @@ func TestMonitorRejectsNoGrouping(t *testing.T) {
 		t.Errorf("a monitor with no grouping was accepted; diagnostics were %q", got)
 	}
 }
+
+// TestConstraintsTightenedByTheAPI covers two limits the API added after the
+// provider shipped: a pipeline's configuration.timeout is capped at 72 hours,
+// and a monitor's name at 100 characters. Without a plan-time validator the
+// first sign of either is a 422 in the middle of an apply; with one it is a
+// precise error at plan time. The boundaries are tested on both sides because
+// an off-by-one here either rejects a valid value or lets an invalid one through.
+func TestConstraintsTightenedByTheAPI(t *testing.T) {
+	_, baseURL := pipelineStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	ctx := context.Background()
+
+	validate := func(t *testing.T, typeName string, values map[string]any) string {
+		t.Helper()
+		objType := schemaResp.ResourceSchemas[typeName].ValueType().(tftypes.Object)
+		configDV, err := tfprotov6.NewDynamicValue(objType, buildValue(t, objType, values))
+		if err != nil {
+			t.Fatalf("config: %v", err)
+		}
+		resp, err := server.ValidateResourceConfig(ctx, &tfprotov6.ValidateResourceConfigRequest{
+			TypeName: typeName, Config: &configDV,
+		})
+		if err != nil {
+			t.Fatalf("ValidateResourceConfig: %v", err)
+		}
+		var errs string
+		for _, d := range resp.Diagnostics {
+			if d.Severity == tfprotov6.DiagnosticSeverityError {
+				errs += d.Summary + " " + d.Detail + " "
+			}
+		}
+		return errs
+	}
+
+	pipeline := func(timeout int) map[string]any {
+		return map[string]any{
+			"alias": "p", "published": true,
+			"data": map[string]any{
+				"name":          "p",
+				"configuration": map[string]any{"timeout": timeout},
+				"tasks": map[string]any{"t": map[string]any{
+					"integration": "FIVETRAN", "integration_job": "FIVETRAN_SYNC_ALL",
+					"parameters": `{"connector_id":"x"}`,
+				}},
+			},
+		}
+	}
+	monitor := func(name string) map[string]any {
+		return map[string]any{
+			"name":     name,
+			"group_by": []any{"pipeline"},
+			"match":    map[string]any{"integrations": []any{"SNOWFLAKE"}},
+		}
+	}
+
+	for _, tc := range []struct {
+		name     string
+		typeName string
+		values   map[string]any
+		wantErr  bool
+	}{
+		{"timeout at the 72h cap", "orchestra_pipeline", pipeline(259200), false},
+		{"timeout one second over", "orchestra_pipeline", pipeline(259201), true},
+		{"timeout of zero", "orchestra_pipeline", pipeline(0), false},
+		{"negative timeout", "orchestra_pipeline", pipeline(-1), true},
+		{"monitor name of 100 characters", "orchestra_monitor", monitor(strings.Repeat("a", 100)), false},
+		{"monitor name of 101 characters", "orchestra_monitor", monitor(strings.Repeat("a", 101)), true},
+		{"empty monitor name", "orchestra_monitor", monitor(""), true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := validate(t, tc.typeName, tc.values)
+			if tc.wantErr && got == "" {
+				t.Error("an out-of-range value was accepted at plan time; the API would reject it mid-apply")
+			}
+			if !tc.wantErr && got != "" {
+				t.Errorf("a valid value was rejected: %s", got)
+			}
+		})
+	}
+}

@@ -1,0 +1,185 @@
+# Operations the provider deliberately does not implement, and why.
+#
+# This lists exclusions only. What the provider does implement is read from its
+# own source by the contract tests, so the two cannot drift apart: an operation
+# in the spec that is neither called nor listed here fails
+# TestEverySpecOperationIsClassified until someone decides.
+#
+# The reason is the point of the file. Declarative configuration belongs in
+# Terraform; run history, incidents and one-shot actions do not. When you add an
+# entry, say which of those it is, and when the answer is "not yet", say what
+# would change it.
+#
+# Top-level keys name a spec:
+#   engine  openapi.yaml, the API the provider talks to
+#   agents  https://docs.getorchestra.io/api/agents.yaml
+#   admin   https://docs.getorchestra.io/api/admin.yaml
+# Only the engine spec is committed. The other two are fetched on each scheduled
+# run and checked against these lists, so a new endpoint in them is still noticed.
+
+engine:
+  run_history:
+    reason: >-
+      What ran and what it produced: run history, task runs, logs, artifacts,
+      audit events, and the engine's own incremental-sync state. It changes on
+      every run, so Terraform state would show a permanent diff. Export it with
+      dlt or the Snowflake app instead.
+    operations:
+      - "GET /pipeline_runs"
+      - "GET /pipeline_runs/{pipeline_run_id}/status"
+      - "GET /pipeline_runs/{pipeline_run_id}/task_runs"
+      - "GET /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/artifacts"
+      - "GET /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/artifacts/download"
+      - "GET /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/logs"
+      - "GET /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/logs/download"
+      - "GET /task_runs"
+      - "GET /operations"
+      - "GET /audit_events"
+      - "GET /state/{integration}"
+      - "PATCH /state/{integration}"
+
+  incidents:
+    reason: >-
+      Incidents are runtime records that people and the engine open, merge, mute
+      and comment on. The declarative side, which failures group into an
+      incident and how it alerts, is orchestra_monitor.
+    operations:
+      - "GET /incidents"
+      - "GET /incidents/{incident_id}"
+      - "PATCH /incidents/{incident_id}"
+      - "GET /incidents/{incident_id}/events"
+      - "GET /incidents/{incident_id}/events/{incident_event_id}/external_event"
+      - "POST /incidents/events"
+      - "POST /incidents/{incident_id}/comments"
+      - "POST /incidents/{incident_id}/merge"
+      - "POST /incidents/{incident_id}/unmerge"
+      - "POST /incidents/{incident_id}/mute"
+      - "POST /incidents/{incident_id}/unmute"
+
+  actions:
+    reason: >-
+      One-shot commands, not state. Applying one twice means something
+      different from applying it once, which no Terraform resource can express.
+    operations:
+      - "POST /pipelines/{pipeline_id_or_alias}/start"
+      - "POST /pipeline_runs/{pipeline_run_id}/cancel"
+      - "POST /task_runs/{task_run_id}/outputs"
+
+  catalogue:
+    reason: >-
+      Static reference data: the integrations, jobs and sensor checks Orchestra
+      supports. internal/enums generates the same values from the spec, so a
+      data source would only restate them over the network.
+    operations:
+      - "GET /integrations/"
+      - "GET /integrations/jobs"
+      - "GET /integrations/{integration}"
+      - "GET /sensor_checks/"
+
+  git_backed_pipelines:
+    reason: >-
+      A pipeline whose definition lives in a repository is owned by Orchestra's
+      git sync. Terraform would be a second writer to the same file. Removed
+      deliberately; see the README.
+    operations:
+      - "POST /pipelines/import"
+      - "PATCH /pipelines/storage-settings"
+
+  assets:
+    reason: >-
+      Assets are discovered from integrations rather than declared, and the API
+      cannot read or delete a lineage edge, so Terraform could create edges but
+      never detect drift on them or remove them. Listing assets is covered by
+      the orchestra_assets data source. Removed deliberately; see the README.
+    operations:
+      - "POST /assets"
+      - "GET /assets/{asset_id}"
+      - "PATCH /assets/{asset_id}"
+      - "DELETE /assets/{asset_id}"
+      - "POST /assets/dependencies"
+
+  # Not built yet. Each category says why, and what it would take.
+
+  candidate_incident_settings:
+    reason: >-
+      Recommended. Workspace-wide incident configuration with no create or
+      delete: a singleton resource. Declarative, and it completes
+      orchestra_monitor, whose rules fall through to these built-in grouping
+      settings.
+    operations:
+      - "GET /incident_settings"
+      - "PATCH /incident_settings"
+
+  candidate_pipeline_pause:
+    reason: >-
+      A persistent toggle rather than an action: PipelineResponse.paused reflects
+      it. Building it makes `paused` settable on orchestra_pipeline, which is
+      read-only today. Needs a follow-up call after create, since POST /pipelines
+      has no paused field.
+    operations:
+      - "PUT /pipelines/{pipeline_id_or_alias}/pause"
+
+  candidate_monitor_ordering:
+    reason: >-
+      Evaluation order is workspace-wide: this renumbers every monitor at once.
+      A per-monitor attribute would have monitors fighting on every apply, so it
+      needs one singleton resource that owns the whole list. orchestra_monitor
+      reports `order` but cannot set it.
+    operations:
+      - "POST /monitors/reorder"
+
+  candidate_monitor_list:
+    reason: >-
+      A list data source for discovering existing monitor IDs. No known need:
+      orchestra_monitor imports by ID. Build it if someone asks.
+    operations:
+      - "GET /monitors"
+
+agents:
+  agents_config:
+    reason: >-
+      Declarative CRUD that would suit Terraform, in a separate API with its own
+      base URL (https://app.getorchestra.io/api/ai/v1). It needs a decision
+      before any code: whether agents and skills are meant to be managed as
+      code, and whether a workspace API key authenticates there. The client also
+      has one base URL today.
+    operations:
+      - "POST /agents"
+      - "GET /agents"
+      - "GET /agents/{agent_id}"
+      - "PATCH /agents/{agent_id}"
+      - "DELETE /agents/{agent_id}"
+      - "GET /agents/{agent_id}/skills"
+      - "PUT /agents/{agent_id}/skills"
+      - "GET /agents/{agent_id}/integrations"
+      - "PUT /agents/{agent_id}/integrations"
+      - "GET /skills"
+      - "POST /skills"
+      - "GET /skills/{skill_id}"
+      - "PATCH /skills/{skill_id}"
+      - "DELETE /skills/{skill_id}"
+      - "POST /skills/import"
+
+  agents_runtime:
+    reason: >-
+      Conversations with an agent, its token usage and a catalogue of avatars:
+      runtime records and reference data, not configuration.
+    operations:
+      - "GET /sessions"
+      - "POST /sessions"
+      - "GET /sessions/{session_id}"
+      - "POST /sessions/{session_id}"
+      - "GET /sessions/{session_id}/history/messages"
+      - "GET /sessions/{session_id}/history"
+      - "POST /sessions/{session_id}/cancel"
+      - "GET /usage"
+      - "GET /agents/avatar-catalog"
+
+admin:
+  accounts:
+    reason: >-
+      Lists workspaces, from the Platform API at a different base URL. Choosing
+      an account is provider configuration (`account_id`), not data a
+      configuration could read before the provider exists.
+    operations:
+      - "GET /accounts"

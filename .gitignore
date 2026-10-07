@@ -28,3 +28,6 @@ scripts/**/__pycache__/
 
 # Local credentials for acceptance tests. Never committed.
 .env.local
+
+# make spec-drift
+.tmp-spec/

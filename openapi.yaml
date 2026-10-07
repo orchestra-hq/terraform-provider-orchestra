@@ -5,7 +5,8 @@ info:
     assets, and retrieving logs and artifacts.
 
 
-    Only data from the workspace linked to the API key is returned.
+    Requests act on the workspace linked to the API key, or on a workspace that an
+    OAuth access token covers.
 
 
     **Note:** Some endpoints are available only to enterprise customers with the Metadata
@@ -21,6 +22,140 @@ info:
     name: Orchestra
     url: https://getorchestra.io
 paths:
+  /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/artifacts:
+    get:
+      tags:
+      - Artifacts
+      summary: List task run artifacts
+      description: List artifacts linked to a task run, such as dbt `manifest.json`,
+        `run_results.json`, `catalog.json`, and `sources.json` files.
+      parameters:
+      - name: pipeline_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Pipeline Run Id
+        description: Pipeline run ID.
+      - name: task_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Task Run Id
+        description: Task run ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskRunArtifactsResponse'
+              example:
+                filenames:
+                - manifest.json
+                - run_results.json
+                - catalog.json
+        '422':
+          description: Validation failed. Check path parameters, query parameters,
+            and JSON request bodies.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-orchestra-mcp: true
+  /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/artifacts/download:
+    get:
+      tags:
+      - Artifacts
+      summary: Download a task run artifact
+      description: 'Stream the contents of a task run artifact file.
+
+
+        Use the `Range` HTTP header for partial downloads. For example, `Range: bytes=0-262143`
+        downloads only the first 256kB of a large artifact such as a dbt manifest.json.'
+      parameters:
+      - name: pipeline_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Pipeline Run Id
+        description: Pipeline run ID.
+      - name: task_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Task Run Id
+        description: Task run ID.
+      - name: filename
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 945
+          title: Filename
+        description: Filename returned by the corresponding list endpoint.
+      - name: range
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Range
+        description: HTTP Range header for partial downloads, for example `bytes=0-262143`.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '422':
+          description: Validation failed. Check path parameters, query parameters,
+            and JSON request bodies.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-orchestra-mcp: true
   /assets/dependencies:
     post:
       tags:
@@ -69,7 +204,9 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /assets:
     get:
       tags:
@@ -277,8 +414,6 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
     post:
       tags:
       - Assets
@@ -328,7 +463,9 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /assets/{asset_id}:
     get:
       tags:
@@ -376,8 +513,6 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
     delete:
       tags:
       - Assets
@@ -421,7 +556,9 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
     patch:
       tags:
       - Assets
@@ -475,7 +612,9 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /audit_events:
     get:
       tags:
@@ -606,8 +745,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
   /compute_resources/azure/federated_credentials:
     get:
       tags:
@@ -653,8 +790,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-      security:
-      - BearerAuthReadOnly: []
   /environments:
     get:
       tags:
@@ -688,8 +823,6 @@ paths:
                 type: array
                 title: Response Get Environments Public Environments Get
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
     post:
       tags:
       - Environments
@@ -732,7 +865,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /environments/{environment_id}:
     get:
       tags:
@@ -774,8 +909,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
     patch:
       tags:
       - Environments
@@ -827,7 +960,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
     delete:
       tags:
       - Environments
@@ -866,7 +1001,90 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+  /incident_settings:
+    get:
+      tags:
+      - Incident settings
+      summary: Get incident settings
+      description: 'Get the workspace''s incident settings: whether incidents are
+        on, which failures can raise one, the grouping rules in evaluation order,
+        and how incidents alert. A workspace that has never saved its settings gets
+        the defaults.'
+      parameters:
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentSettingsResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+    patch:
+      tags:
+      - Incident settings
+      summary: Update incident settings
+      description: Change the workspace's incident settings and return all of them.
+        Settings left out of the body keep their current value.
+      parameters:
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchIncidentSettingsRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentSettingsResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /incidents:
     get:
       tags:
@@ -989,8 +1207,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
   /incidents/{incident_id}:
     get:
       tags:
@@ -1034,8 +1250,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
     patch:
       tags:
       - Incidents
@@ -1090,7 +1304,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /incidents/{incident_id}/events:
     get:
       tags:
@@ -1154,8 +1370,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
   /incidents/{incident_id}/events/{incident_event_id}/external_event:
     get:
       tags:
@@ -1208,8 +1422,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
   /incidents/{incident_id}/merge:
     post:
       tags:
@@ -1262,7 +1474,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /incidents/{incident_id}/unmerge:
     post:
       tags:
@@ -1314,7 +1528,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /incidents/{incident_id}/mute:
     post:
       tags:
@@ -1359,7 +1575,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /incidents/{incident_id}/unmute:
     post:
       tags:
@@ -1404,7 +1622,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /incidents/{incident_id}/comments:
     post:
       tags:
@@ -1476,7 +1696,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /incidents/events:
     post:
       tags:
@@ -1533,7 +1755,9 @@ paths:
               title: ExternalEventRequest
               type: object
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /integrations/:
     get:
       tags:
@@ -1551,8 +1775,7 @@ paths:
                   $ref: '#/components/schemas/IntegrationResponse'
                 type: array
                 title: Response Get Integrations Public Integrations  Get
-      security:
-      - BearerAuthReadOnly: []
+      security: []
   /integrations/jobs:
     get:
       tags:
@@ -1570,8 +1793,7 @@ paths:
                   $ref: '#/components/schemas/IntegrationJobResponse'
                 type: array
                 title: Response Get Integration Jobs Public Integrations Jobs Get
-      security:
-      - BearerAuthReadOnly: []
+      security: []
   /integrations/connections:
     get:
       tags:
@@ -1629,8 +1851,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
   /integrations/{integration}:
     get:
       tags:
@@ -1657,8 +1877,148 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-      security:
-      - BearerAuthReadOnly: []
+      security: []
+  /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/logs:
+    get:
+      tags:
+      - Logs
+      summary: List task run logs
+      description: List log files linked to a task run. Use the returned filenames
+        with the download endpoint.
+      parameters:
+      - name: pipeline_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Pipeline Run Id
+        description: Pipeline run ID.
+      - name: task_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Task Run Id
+        description: Task run ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskRunFilesResponse'
+              example:
+                filenames:
+                - debug_task
+                - dbt build
+        '422':
+          description: Validation failed. Check path parameters, query parameters,
+            and JSON request bodies.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-orchestra-mcp: true
+  /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/logs/download:
+    get:
+      tags:
+      - Logs
+      summary: Download a task run log
+      description: 'Stream the contents of a task run log file.
+
+
+        Use the `Range` HTTP header for partial downloads. For example, `Range: bytes=-262144`
+        downloads only the last 256kB of a large log file.'
+      parameters:
+      - name: pipeline_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Pipeline Run Id
+        description: Pipeline run ID.
+      - name: task_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Task Run Id
+        description: Task run ID.
+      - name: filename
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 945
+          title: Filename
+        description: Filename returned by the corresponding list endpoint.
+      - name: range
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Range
+        description: HTTP Range header for partial downloads, for example `bytes=-262144`.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Partial file contents streamed when a valid `Range` header
+            is supplied.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '422':
+          description: Validation failed. Check path parameters, query parameters,
+            and JSON request bodies.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-orchestra-mcp: true
   /monitors:
     get:
       tags:
@@ -1697,8 +2057,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
     post:
       tags:
       - Monitors
@@ -1744,7 +2102,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /monitors/reorder:
     post:
       tags:
@@ -1791,7 +2151,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /monitors/{monitor_id}:
     get:
       tags:
@@ -1834,8 +2196,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
     put:
       tags:
       - Monitors
@@ -1886,7 +2246,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
     delete:
       tags:
       - Monitors
@@ -1927,7 +2289,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /operations:
     get:
       tags:
@@ -2081,366 +2445,6 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
-  /pipeline_runs/{pipeline_run_id}/task_runs:
-    get:
-      tags:
-      - Task Runs
-      summary: List task runs for a pipeline run
-      description: Retrieve task runs belonging to a single pipeline run. This endpoint
-        uses `page_size` default `10` and maximum `50`.
-      parameters:
-      - name: pipeline_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid4
-          title: Pipeline Run Id
-        description: Pipeline run ID.
-      - name: page_size
-        in: query
-        required: false
-        schema:
-          type: integer
-          maximum: 50
-          minimum: 1
-          default: 10
-          title: Page Size
-        description: Number of items per page. Defaults to 10; maximum 50.
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 1
-          default: 1
-          title: Page
-        description: Page number. Must be greater than or equal to 1.
-      - name: include_superseded
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: true
-          title: Include Superseded
-        description: Include superseded task runs, which are the earlier attempts
-          of a task that was retried. Set to false to return only the latest attempt
-          of each task.
-      - name: X-Orchestra-Account-Id
-        in: header
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid4
-          - type: 'null'
-          title: X-Orchestra-Account-Id
-        description: Act on this account rather than the one the credential resolves
-          to. Omit it to use the credential's own account. An API key is issued to
-          a single account, so it may only name that account; an OAuth token may name
-          any account its grant covers.
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedResponse_TaskRunResponse_'
-        '422':
-          description: Validation failed. Check path parameters, query parameters,
-            and JSON request bodies.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-      x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
-  /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/artifacts:
-    get:
-      tags:
-      - Artifacts
-      summary: List task run artifacts
-      description: List artifacts linked to a task run, such as dbt `manifest.json`,
-        `run_results.json`, `catalog.json`, and `sources.json` files.
-      parameters:
-      - name: pipeline_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid4
-          title: Pipeline Run Id
-        description: Pipeline run ID.
-      - name: task_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid4
-          title: Task Run Id
-        description: Task run ID.
-      - name: X-Orchestra-Account-Id
-        in: header
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid4
-          - type: 'null'
-          title: X-Orchestra-Account-Id
-        description: Act on this account rather than the one the credential resolves
-          to. Omit it to use the credential's own account. An API key is issued to
-          a single account, so it may only name that account; an OAuth token may name
-          any account its grant covers.
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskRunArtifactsResponse'
-              example:
-                filenames:
-                - manifest.json
-                - run_results.json
-                - catalog.json
-        '422':
-          description: Validation failed. Check path parameters, query parameters,
-            and JSON request bodies.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-      x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
-  /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/artifacts/download:
-    get:
-      tags:
-      - Artifacts
-      summary: Download a task run artifact
-      description: 'Stream the contents of a task run artifact file.
-
-
-        Use the `Range` HTTP header for partial downloads. For example, `Range: bytes=0-262143`
-        downloads only the first 256kB of a large artifact such as a dbt manifest.json.'
-      parameters:
-      - name: pipeline_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid4
-          title: Pipeline Run Id
-        description: Pipeline run ID.
-      - name: task_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid4
-          title: Task Run Id
-        description: Task run ID.
-      - name: filename
-        in: query
-        required: true
-        schema:
-          type: string
-          maxLength: 945
-          title: Filename
-        description: Filename returned by the corresponding list endpoint.
-      - name: range
-        in: header
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Range
-        description: HTTP Range header for partial downloads, for example `bytes=0-262143`.
-      - name: X-Orchestra-Account-Id
-        in: header
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid4
-          - type: 'null'
-          title: X-Orchestra-Account-Id
-        description: Act on this account rather than the one the credential resolves
-          to. Omit it to use the credential's own account. An API key is issued to
-          a single account, so it may only name that account; an OAuth token may name
-          any account its grant covers.
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
-        '422':
-          description: Validation failed. Check path parameters, query parameters,
-            and JSON request bodies.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-      x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
-  /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/logs:
-    get:
-      tags:
-      - Logs
-      summary: List task run logs
-      description: List log files linked to a task run. Use the returned filenames
-        with the download endpoint.
-      parameters:
-      - name: pipeline_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid4
-          title: Pipeline Run Id
-        description: Pipeline run ID.
-      - name: task_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid4
-          title: Task Run Id
-        description: Task run ID.
-      - name: X-Orchestra-Account-Id
-        in: header
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid4
-          - type: 'null'
-          title: X-Orchestra-Account-Id
-        description: Act on this account rather than the one the credential resolves
-          to. Omit it to use the credential's own account. An API key is issued to
-          a single account, so it may only name that account; an OAuth token may name
-          any account its grant covers.
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskRunFilesResponse'
-              example:
-                filenames:
-                - debug_task
-                - dbt build
-        '422':
-          description: Validation failed. Check path parameters, query parameters,
-            and JSON request bodies.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-      x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
-  /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/logs/download:
-    get:
-      tags:
-      - Logs
-      summary: Download a task run log
-      description: 'Stream the contents of a task run log file.
-
-
-        Use the `Range` HTTP header for partial downloads. For example, `Range: bytes=-262144`
-        downloads only the last 256kB of a large log file.'
-      parameters:
-      - name: pipeline_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid4
-          title: Pipeline Run Id
-        description: Pipeline run ID.
-      - name: task_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid4
-          title: Task Run Id
-        description: Task run ID.
-      - name: filename
-        in: query
-        required: true
-        schema:
-          type: string
-          maxLength: 945
-          title: Filename
-        description: Filename returned by the corresponding list endpoint.
-      - name: range
-        in: header
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Range
-        description: HTTP Range header for partial downloads, for example `bytes=-262144`.
-      - name: X-Orchestra-Account-Id
-        in: header
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid4
-          - type: 'null'
-          title: X-Orchestra-Account-Id
-        description: Act on this account rather than the one the credential resolves
-          to. Omit it to use the credential's own account. An API key is issued to
-          a single account, so it may only name that account; an OAuth token may name
-          any account its grant covers.
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
-        '206':
-          description: Partial file contents streamed when a valid `Range` header
-            is supplied.
-          content:
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
-        '422':
-          description: Validation failed. Check path parameters, query parameters,
-            and JSON request bodies.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-      x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
   /pipeline_runs/{pipeline_run_id}/status:
     get:
       tags:
@@ -2491,8 +2495,6 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
   /pipeline_runs:
     get:
       tags:
@@ -2639,8 +2641,6 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
   /pipeline_runs/{pipeline_run_id}/cancel:
     post:
       tags:
@@ -2692,7 +2692,9 @@ paths:
           $ref: '#/components/responses/Forbidden'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /pipeline:
     get:
       tags:
@@ -2794,8 +2796,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
   /pipelines:
     get:
       tags:
@@ -2884,8 +2884,6 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
     post:
       tags:
       - Pipelines
@@ -2932,7 +2930,9 @@ paths:
           $ref: '#/components/responses/Forbidden'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
     put:
       tags:
       - Pipelines
@@ -2975,7 +2975,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
     delete:
       tags:
       - Pipelines
@@ -3042,7 +3044,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /pipelines/data:
     get:
       tags:
@@ -3143,8 +3147,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
   /pipelines/{pipeline_id_or_alias}/start:
     post:
       tags:
@@ -3157,7 +3159,16 @@ paths:
         All request body fields are optional. Use `branch` and `commit` for Git-backed
         pipelines, `versionNumber` for Orchestra-backed published versions, and `runInputs`
         for values required by pipeline inputs. The response includes a `pipelineRunId`
-        you can use to poll run status.'
+        you can use to poll run status.
+
+
+        Any other JSON body, such as a webhook sent by another tool, still starts
+        the run, with default options; `requestBodyMessage` and `requestBodyErrors`
+        in the response say which happened. Either way the whole body is available
+        to the pipeline''s `webhook.runInputs` as `${{ outputs.payload }}`, for example
+        `${{ outputs.payload.connection_id }}`, or `${{ outputs.payload[''connectionId'']
+        }}` for a key with capitals, so task conditions can act on it through `${{
+        inputs.<name> }}`. Bodies over 64 KiB are not kept.'
       parameters:
       - name: pipeline_id_or_alias
         in: path
@@ -3182,14 +3193,6 @@ paths:
           to. Omit it to use the credential's own account. An API key is issued to
           a single account, so it may only name that account; an OAuth token may name
           any account its grant covers.
-      requestBody:
-        content:
-          application/json:
-            schema:
-              anyOf:
-              - $ref: '#/components/schemas/WebhookRequestData'
-              - type: 'null'
-              title: Body
       responses:
         '200':
           description: Successful response.
@@ -3215,8 +3218,18 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
       x-orchestra-mcp: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/WebhookRequestData'
+              - type: 'null'
+              title: Body
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /pipelines/{pipeline_id_or_alias}/pause:
     put:
       tags:
@@ -3270,7 +3283,9 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /pipelines/schema:
     post:
       tags:
@@ -3311,7 +3326,9 @@ paths:
       x-orchestra-mcp: true
       security:
       - {}
-      - BearerAuthReadOnly: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:read
       requestBody:
         required: true
         content:
@@ -3382,7 +3399,9 @@ paths:
           $ref: '#/components/responses/Forbidden'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /pipelines/import:
     post:
       tags:
@@ -3426,7 +3445,9 @@ paths:
           $ref: '#/components/responses/Forbidden'
       x-orchestra-mcp: true
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /sensor_checks/:
     get:
       tags:
@@ -3444,8 +3465,7 @@ paths:
                   $ref: '#/components/schemas/SensorCheckSchemaResponse'
                 type: array
                 title: Response Get Sensor Checks Public Sensor Checks  Get
-      security:
-      - BearerAuthReadOnly: []
+      security: []
   /state/{integration}:
     get:
       tags:
@@ -3486,8 +3506,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
     patch:
       tags:
       - State
@@ -3532,7 +3550,82 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
-      - BearerAuth: []
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+  /pipeline_runs/{pipeline_run_id}/task_runs:
+    get:
+      tags:
+      - Task Runs
+      summary: List task runs for a pipeline run
+      description: Retrieve task runs belonging to a single pipeline run. This endpoint
+        uses `page_size` default `10` and maximum `50`.
+      parameters:
+      - name: pipeline_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Pipeline Run Id
+        description: Pipeline run ID.
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 50
+          minimum: 1
+          default: 10
+          title: Page Size
+        description: Number of items per page. Defaults to 10; maximum 50.
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+        description: Page number. Must be greater than or equal to 1.
+      - name: include_superseded
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Include Superseded
+        description: Include superseded task runs, which are the earlier attempts
+          of a task that was retried. Set to false to return only the latest attempt
+          of each task.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_TaskRunResponse_'
+        '422':
+          description: Validation failed. Check path parameters, query parameters,
+            and JSON request bodies.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-orchestra-mcp: true
   /task_runs:
     get:
       tags:
@@ -3693,8 +3786,6 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
       x-orchestra-mcp: true
-      security:
-      - BearerAuthReadOnly: []
   /task_runs/{task_run_id}/outputs:
     post:
       tags:
@@ -3742,55 +3833,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
-      - BearerAuth: []
-  /accounts:
-    get:
-      summary: List workspaces
-      tags:
-      - Accounts
-      description: 'Lists the workspaces this credential can act on. An API key is
-        issued to one workspace, so it lists that workspace alone. An OAuth token
-        lists the workspaces chosen when access was granted, limited to those its
-        user is still a member of.
-
-
-        Pass a returned id to select the workspace on calls that act within one (the
-        `X-Orchestra-Account-Id` header in the API).'
-      x-orchestra-mcp: true
-      responses:
-        '200':
-          description: The workspaces the credential can reach.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
-                      description: The workspace id. Pass it as the `X-Orchestra-Account-Id`
-                        header on endpoints that act within a workspace.
-                    name:
-                      type: string
-                      description: The workspace name as shown in Orchestra.
-                  required:
-                  - id
-                  - name
-                  additionalProperties: false
-        '401':
-          description: The credential is missing, malformed, expired or revoked.
-        '403':
-          description: The request came from outside the organisation's allowed IP
-            ranges. Applies to API keys only.
-      security:
       - ApiKey: []
       - OAuth:
-        - orchestra:read
-    servers:
-    - url: https://app.getorchestra.io/public/v1
+        - orchestra:write
 components:
   schemas:
     AirflowWebhookRequest:
@@ -4176,6 +4221,8 @@ components:
         timeout:
           anyOf:
           - type: integer
+            maximum: 259200.0
+            minimum: 0.0
           - type: 'null'
           title: Timeout
         concurrency:
@@ -6562,6 +6609,9 @@ components:
             type: object
           - type: 'null'
           title: Runinputs
+          description: Pipeline input values for runs triggered by webhook. Values
+            can read the JSON body the webhook was sent with as ${{ outputs.payload
+            }}.
       additionalProperties: false
       type: object
       title: WebhookModel
@@ -8243,6 +8293,8 @@ components:
         name:
           anyOf:
           - type: string
+            maxLength: 100
+            minLength: 1
           - type: 'null'
           title: Name
         description:
@@ -9067,6 +9119,7 @@ components:
       properties:
         name:
           type: string
+          maxLength: 100
           minLength: 1
           title: Name
         description:
@@ -9316,23 +9369,245 @@ components:
         name and alert
 
         call the value found at ``path``.'
+    AlertBudgetRefillCadenceEnum:
+      type: string
+      enum:
+      - never
+      - daily
+      - weekly
+      title: AlertBudgetRefillCadenceEnum
+      description: 'How often the per-incident alert budget comes back. Three named
+        choices only - a
+
+        free-form interval asks a first-time user for an opinion they do not have
+        yet.'
+    IncidentGroupingRuleResponse:
+      properties:
+        settingsField:
+          type: string
+          title: Settingsfield
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        priority:
+          type: integer
+          title: Priority
+        tags:
+          items:
+            $ref: '#/components/schemas/IncidentGroupingRuleTagEnum'
+          type: array
+          title: Tags
+        beta:
+          type: boolean
+          title: Beta
+      additionalProperties: false
+      type: object
+      required:
+      - settingsField
+      - name
+      - description
+      - priority
+      - tags
+      - beta
+      title: IncidentGroupingRuleResponse
+      description: A grouping rule, and the settings field that switches it on and
+        off.
+    IncidentGroupingRuleTagEnum:
+      type: string
+      enum:
+      - assets
+      - task_runs
+      - pipeline_runs
+      - matrix
+      - tasks
+      - pipelines
+      title: IncidentGroupingRuleTagEnum
+      description: What a grouping rule keys off.
+    IncidentSettingsResponse:
+      properties:
+        incidentsEnabled:
+          type: boolean
+          title: Incidentsenabled
+          default: false
+        requireAlertConfigured:
+          type: boolean
+          title: Requirealertconfigured
+          default: true
+        environmentIds:
+          items:
+            type: string
+            format: uuid4
+          type: array
+          title: Environments
+          description: Only failures from these environments open or join an incident;
+            leave it empty for every environment.
+          default: []
+        groupingRuleSameTaskRunEnabled:
+          type: boolean
+          title: Groupingrulesametaskrunenabled
+          default: true
+        groupingRuleSamePipelineRunEnabled:
+          type: boolean
+          title: Groupingrulesamepipelinerunenabled
+          default: true
+        groupingRuleSameAssetEnabled:
+          type: boolean
+          title: Groupingrulesameassetenabled
+          default: true
+        groupingRuleSameMatrixParentEnabled:
+          type: boolean
+          title: Groupingrulesamematrixparentenabled
+          default: true
+        groupingRuleSameTaskEnabled:
+          type: boolean
+          title: Groupingrulesametaskenabled
+          default: true
+        groupingRuleSamePipelineEnabled:
+          type: boolean
+          title: Groupingrulesamepipelineenabled
+          default: false
+        warningsEnabled:
+          type: boolean
+          title: Warningsenabled
+          default: false
+        groupWarningWithFailed:
+          type: boolean
+          title: Groupwarningwithfailed
+          default: false
+        autoResolveOnSuccess:
+          type: boolean
+          title: Auto-resolve on success
+          description: Resolve an open incident once every resource it covers has
+            succeeded again.
+          default: false
+        maxAlertsPerIncident:
+          type: integer
+          maximum: 50.0
+          exclusiveMinimum: 0.0
+          title: Max alerts per incident
+          description: Cap on the number of live alerts sent for a single incident
+            before further updates are rolled into a single rollup notice instead
+            of sent individually. This budget applies to each alert destination.
+          default: 3
+        alertBudgetRefillCadence:
+          $ref: '#/components/schemas/AlertBudgetRefillCadenceEnum'
+          title: Alert budget refill cadence
+          description: How often the budget above comes back. Never means it is spent
+            once per incident and does not return until the incident is resolved.
+          default: daily
+        autoDiagnoseIncidents:
+          type: boolean
+          title: Auto-diagnose incidents
+          description: Have Orchestra's diagnoser investigate incidents as they open
+            and grow.
+          default: false
+        updatedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Updatedat
+        groupingRules:
+          items:
+            $ref: '#/components/schemas/IncidentGroupingRuleResponse'
+          type: array
+          title: Groupingrules
+          description: The rules behind the toggles above, in the order they are evaluated.
+          readOnly: true
+      additionalProperties: false
+      type: object
+      required:
+      - groupingRules
+      title: IncidentSettingsResponse
+      description: An account's current incident settings.
+    PatchIncidentSettingsRequest:
+      properties:
+        incidentsEnabled:
+          type: boolean
+          title: Incidentsenabled
+          default: false
+        requireAlertConfigured:
+          type: boolean
+          title: Requirealertconfigured
+          default: true
+        environmentIds:
+          items:
+            type: string
+            format: uuid4
+          type: array
+          title: Environments
+          description: Only failures from these environments open or join an incident;
+            leave it empty for every environment.
+          default: []
+        groupingRuleSameTaskRunEnabled:
+          type: boolean
+          title: Groupingrulesametaskrunenabled
+          default: true
+        groupingRuleSamePipelineRunEnabled:
+          type: boolean
+          title: Groupingrulesamepipelinerunenabled
+          default: true
+        groupingRuleSameAssetEnabled:
+          type: boolean
+          title: Groupingrulesameassetenabled
+          default: true
+        groupingRuleSameMatrixParentEnabled:
+          type: boolean
+          title: Groupingrulesamematrixparentenabled
+          default: true
+        groupingRuleSameTaskEnabled:
+          type: boolean
+          title: Groupingrulesametaskenabled
+          default: true
+        groupingRuleSamePipelineEnabled:
+          type: boolean
+          title: Groupingrulesamepipelineenabled
+          default: false
+        warningsEnabled:
+          type: boolean
+          title: Warningsenabled
+          default: false
+        groupWarningWithFailed:
+          type: boolean
+          title: Groupwarningwithfailed
+          default: false
+        autoResolveOnSuccess:
+          type: boolean
+          title: Auto-resolve on success
+          description: Resolve an open incident once every resource it covers has
+            succeeded again.
+          default: false
+        maxAlertsPerIncident:
+          type: integer
+          maximum: 50.0
+          exclusiveMinimum: 0.0
+          title: Max alerts per incident
+          description: Cap on the number of live alerts sent for a single incident
+            before further updates are rolled into a single rollup notice instead
+            of sent individually. This budget applies to each alert destination.
+          default: 3
+        alertBudgetRefillCadence:
+          $ref: '#/components/schemas/AlertBudgetRefillCadenceEnum'
+          title: Alert budget refill cadence
+          description: How often the budget above comes back. Never means it is spent
+            once per incident and does not return until the incident is resolved.
+          default: daily
+        autoDiagnoseIncidents:
+          type: boolean
+          title: Auto-diagnose incidents
+          description: Have Orchestra's diagnoser investigate incidents as they open
+            and grow.
+          default: false
+      additionalProperties: false
+      type: object
+      title: PatchIncidentSettingsRequest
+      description: 'Request to change an account''s incident settings. Omitted toggles
+        keep
+
+        their stored value; an unknown rule key is rejected.'
   securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      description: 'API key from your Orchestra workspace settings. Pass as `Authorization:
-        Bearer <API_KEY>`.
-
-
-        This endpoint writes data, so it requires a standard API key.'
-    BearerAuthReadOnly:
-      type: http
-      scheme: bearer
-      description: 'API key from your Orchestra workspace settings. Pass as `Authorization:
-        Bearer <API_KEY>`.
-
-
-        This endpoint only reads data, so a standard or read-only API key works.'
     ApiKey:
       type: http
       scheme: bearer
@@ -9368,6 +9643,10 @@ components:
       description: Too many requests. Wait before sending more requests.
     GatewayTimeout:
       description: The pipeline start request timed out. Try again.
+security:
+- ApiKey: []
+- OAuth:
+  - orchestra:read
 servers:
 - url: https://app.getorchestra.io/api/engine/public
   description: Production
@@ -9400,7 +9679,3 @@ tags:
     Orchestra, and the metadata for your connected integrations
 - name: Environments
   description: Endpoints for managing environments
-- name: Accounts
-  description: Workspaces in your organisation.
-security:
-- BearerAuth: []

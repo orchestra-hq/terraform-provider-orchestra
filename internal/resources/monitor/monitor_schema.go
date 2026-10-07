@@ -36,8 +36,8 @@ func MonitorResourceSchema() schema.Schema {
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
-				Description: "Monitor name, shown on the incidents it opens.",
-				Validators:  []validator.String{stringvalidator.LengthAtLeast(1)},
+				Description: "Monitor name, shown on the incidents it opens. 1 to 100 characters.",
+				Validators:  []validator.String{stringvalidator.LengthBetween(1, 100)},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,

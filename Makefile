@@ -27,16 +27,22 @@ TFPLUGINDOCS_TEMP_DIR ?= .tmp-tfplugindocs
 # the tree instead. gofmt skips directories beginning with a dot.
 GOFMT_PATHS ?= .
 
-OPENAPI_URL ?= https://docs.getorchestra.io/api/openapi.yaml
+# The docs site split its one openapi.yaml into engine.yaml, agents.yaml and admin.yaml.
+# The provider talks to the Engine API, committed as openapi.yaml; the other two
+# are fetched only to check for new endpoints.
+SPEC_BASE ?= https://docs.getorchestra.io/api
+OPENAPI_URL ?= $(SPEC_BASE)/engine.yaml
+SPEC_TMP ?= .tmp-spec
 OPENAPI_PATH ?= openapi.yaml
 
-.PHONY: help docs docs-clean tfplugindocs build compile test vet clean provider-bin format format-check openapi enums
+.PHONY: help docs docs-clean tfplugindocs build compile test vet clean provider-bin format format-check openapi enums spec-drift
 
 help:
 	@echo "Usage:"
 	@echo "  make build         Compile Go packages"
 	@echo "  make compile       Compile Go packages & tests (no test run)"
 	@echo "  make test          Run unit tests"
+	@echo "  make spec-drift    Compare openapi.yaml with the live API specs (read-only)"
 	@echo "  make vet           Run go vet"
 	@echo "  make provider-bin Build Terraform provider executable (if cmd entrypoint exists)"
 	@echo "  make clean         Remove temp artifacts"
@@ -92,6 +98,16 @@ openapi:
 	@echo "Fetching $(OPENAPI_URL)"
 	@curl --fail --silent --show-error --location --output "$(OPENAPI_PATH)" "$(OPENAPI_URL)"
 	@$(MAKE) enums
+
+# Read-only: fetches the live specs and reports what changed since openapi.yaml,
+# without touching anything. A non-zero exit means something needs attention.
+spec-drift:
+	@mkdir -p "$(SPEC_TMP)"
+	@for s in engine agents admin; do \
+		curl --fail --silent --show-error --location --output "$(SPEC_TMP)/$$s.yaml" "$(SPEC_BASE)/$$s.yaml" || exit 1; \
+	done
+	@$(GO) run ./tools/specdrift -old "$(OPENAPI_PATH)" -new "$(SPEC_TMP)/engine.yaml" \
+		-also agents="$(SPEC_TMP)/agents.yaml" -also admin="$(SPEC_TMP)/admin.yaml"
 
 enums:
 	@python3 scripts/generate_enums.py --openapi "$(OPENAPI_PATH)" --out internal/enums/enums_gen.go

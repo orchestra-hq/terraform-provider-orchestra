@@ -111,7 +111,7 @@ func loadSpec(t *testing.T) openAPI {
 	specPath := filepath.Join("..", "..", "openapi.yaml")
 	raw, err := os.ReadFile(specPath)
 	if err != nil {
-		t.Fatalf("read %s: %v (fetch it with: curl -sLo openapi.yaml https://docs.getorchestra.io/api/openapi.yaml)", specPath, err)
+		t.Fatalf("read %s: %v (fetch it with: make openapi)", specPath, err)
 	}
 
 	var spec openAPI

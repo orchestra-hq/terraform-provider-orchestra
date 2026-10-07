@@ -92,7 +92,7 @@ resource "orchestra_monitor" "per_customer" {
 - `match` (Attributes) Which events the monitor claims: AND across dimensions, OR within a list — `pipelines` plus `integrations` means events from those pipelines *and* those integrations.
 
 At least one dimension is required. A monitor that named none would claim every event on the account. (see [below for nested schema](#nestedatt--match))
-- `name` (String) Monitor name, shown on the incidents it opens.
+- `name` (String) Monitor name, shown on the incidents it opens. 1 to 100 characters.
 
 ### Optional
 

@@ -194,7 +194,7 @@ Optional:
 - `concurrency` (Attributes) Concurrency limits. (see [below for nested schema](#nestedatt--data--configuration--concurrency))
 - `retries` (Number) Number of times to retry on failure.
 - `retry_delay` (Number) Seconds to wait between retries.
-- `timeout` (Number) Timeout in seconds.
+- `timeout` (Number) Timeout in seconds, from 0 to 259200 (72 hours).
 
 <a id="nestedatt--data--configuration--concurrency"></a>
 ### Nested Schema for `data.configuration.concurrency`
@@ -412,7 +412,7 @@ Optional:
 - `concurrency` (Attributes) Concurrency limits. (see [below for nested schema](#nestedatt--data--task_groups--tasks--configuration--concurrency))
 - `retries` (Number) Number of times to retry on failure.
 - `retry_delay` (Number) Seconds to wait between retries.
-- `timeout` (Number) Timeout in seconds.
+- `timeout` (Number) Timeout in seconds, from 0 to 259200 (72 hours).
 
 <a id="nestedatt--data--task_groups--tasks--configuration--concurrency"></a>
 ### Nested Schema for `data.task_groups.tasks.configuration.concurrency`
@@ -549,7 +549,7 @@ Optional:
 - `concurrency` (Attributes) Concurrency limits. (see [below for nested schema](#nestedatt--data--tasks--configuration--concurrency))
 - `retries` (Number) Number of times to retry on failure.
 - `retry_delay` (Number) Seconds to wait between retries.
-- `timeout` (Number) Timeout in seconds.
+- `timeout` (Number) Timeout in seconds, from 0 to 259200 (72 hours).
 
 <a id="nestedatt--data--tasks--configuration--concurrency"></a>
 ### Nested Schema for `data.tasks.configuration.concurrency`

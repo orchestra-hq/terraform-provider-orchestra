@@ -26,6 +26,8 @@ anyone building from source should expect to rewrite their configuration.
 - `orchestra_environment` overwrote the planned `default_env` and `values` with the API's response, so an
   environment the server promoted to default, or an integer written as `007`, aborted the apply.
 - A paginated read could loop without bound against a server reporting a `total` it never delivered.
+- An `orchestra_monitor` declared without an `action` block aborted the apply: the API returns a default action
+  for every monitor, so the plan's null never matched.
 
 ### Added
 

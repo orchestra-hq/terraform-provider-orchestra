@@ -239,9 +239,31 @@ func triggerAttribute() schema.Attribute {
 	}
 }
 
+// alertsDefault is the `action.alerts` the API returns when none was sent.
+func alertsDefault() types.Object {
+	return types.ObjectValueMust(alertsObjectType().AttrTypes, map[string]attr.Value{
+		"destinations":                       types.ListNull(alerts.DestinationSchema().Type()),
+		"also_send_to_pipeline_destinations": types.BoolValue(false),
+	})
+}
+
 func actionAttribute() schema.Attribute {
 	return schema.SingleNestedAttribute{
-		Optional:    true,
+		Optional: true,
+		Computed: true,
+		// The API materialises `action` on every response, even for a monitor
+		// created without one, so a monitor that omits it would plan null and
+		// apply an object.
+		Default: objectdefault.StaticValue(types.ObjectValueMust(
+			map[string]attr.Type{
+				"mute": types.BoolType, "severity": types.StringType, "assignee": types.StringType,
+				"alerts": alertsObjectType(),
+			},
+			map[string]attr.Value{
+				"mute": types.BoolValue(false), "severity": types.StringNull(), "assignee": types.StringNull(),
+				"alerts": alertsDefault(),
+			},
+		)),
 		Description: "What happens when an incident opens.",
 		Attributes: map[string]schema.Attribute{
 			"mute": schema.BoolAttribute{
@@ -265,13 +287,7 @@ func actionAttribute() schema.Attribute {
 				// The API materialises `alerts` on every response, so without a
 				// matching default an `action` block that omits it plans null
 				// and applies an object.
-				Default: objectdefault.StaticValue(types.ObjectValueMust(
-					alertsObjectType().AttrTypes,
-					map[string]attr.Value{
-						"destinations":                       types.ListNull(alerts.DestinationSchema().Type()),
-						"also_send_to_pipeline_destinations": types.BoolValue(false),
-					},
-				)),
+				Default:     objectdefault.StaticValue(alertsDefault()),
 				Description: "Where to send the alert.",
 				Attributes: map[string]schema.Attribute{
 					"destinations": schema.ListNestedAttribute{

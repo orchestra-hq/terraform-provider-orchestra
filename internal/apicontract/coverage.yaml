@@ -100,29 +100,14 @@ engine:
       - "POST /assets/dependencies"
 
 agents:
-  agents_config:
+  agents_listing:
     reason: >-
-      Declarative CRUD that would suit Terraform, in a separate API with its own
-      base URL (https://app.getorchestra.io/api/ai/v1). It needs a decision
-      before any code: whether agents and skills are meant to be managed as
-      code, and whether a workspace API key authenticates there. The client also
-      has one base URL today.
+      Listing agents only finds IDs, and orchestra_agent imports by ID.
+      orchestra_skills exists because an agent can use the skills Orchestra
+      publishes, which Terraform cannot create; there is no equivalent for
+      agents. Build it if someone needs it.
     operations:
-      - "POST /agents"
       - "GET /agents"
-      - "GET /agents/{agent_id}"
-      - "PATCH /agents/{agent_id}"
-      - "DELETE /agents/{agent_id}"
-      - "GET /agents/{agent_id}/skills"
-      - "PUT /agents/{agent_id}/skills"
-      - "GET /agents/{agent_id}/integrations"
-      - "PUT /agents/{agent_id}/integrations"
-      - "GET /skills"
-      - "POST /skills"
-      - "GET /skills/{skill_id}"
-      - "PATCH /skills/{skill_id}"
-      - "DELETE /skills/{skill_id}"
-      - "POST /skills/import"
 
   agents_runtime:
     reason: >-

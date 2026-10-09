@@ -1,6 +1,5 @@
 // Hand-maintained: provider-level configuration (auth, endpoint, account
-// targeting) is not derivable from the OpenAPI spec, so this file is not
-// generated. See scripts/generate_generator_config.py for what is.
+// targeting) is not derivable from the OpenAPI spec.
 
 package provider
 
@@ -25,7 +24,7 @@ func OrchestraProviderSchema(ctx context.Context) schema.Schema {
 			"base_url": schema.StringAttribute{
 				Optional:            true,
 				Description:         "Base URL for the Orchestra API server. Falls back to the ORCHESTRA_BASE_URL environment variable, then the public endpoint.",
-				MarkdownDescription: "Base URL for the Orchestra API server. Falls back to the `ORCHESTRA_BASE_URL` environment variable, then `https://app.getorchestra.io/api/engine/public`.",
+				MarkdownDescription: "Base URL for the Orchestra API server. Falls back to the `ORCHESTRA_BASE_URL` environment variable, then `https://app.getorchestra.io/api/engine/public`. Agents and skills use the Agents API beside it, at `/api/ai/v1` on the same host.",
 			},
 			"account_id": schema.StringAttribute{
 				Optional:            true,

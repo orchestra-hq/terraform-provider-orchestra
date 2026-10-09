@@ -16,7 +16,7 @@ import (
 // turns those back into the spec's templated form.
 var (
 	doJSONRE = regexp.MustCompile(`DoJSON\(\s*ctx,\s*http\.Method(\w+),\s*"([^"]+)"(?:\s*\+[^,"]+\+\s*"([^"]+)")?`)
-	listRE   = regexp.MustCompile(`ListAll\(\s*ctx,\s*"([^"]+)"`)
+	listRE   = regexp.MustCompile(`ListAll\(\s*ctx,\s*"([^"]+)"(?:\s*\+[^,"]+\+\s*"([^"]+)")?`)
 	setRE    = regexp.MustCompile(`\.Set\("([^"]+)"`)
 )
 
@@ -81,7 +81,7 @@ func discoverCalls(t *testing.T, spec openAPI, s apiSpec) []callSite {
 			found = append(found, callSite{strings.ToUpper(m[1]), pathToSpec(spec, m[2], m[3]), file})
 		}
 		for _, m := range listRE.FindAllStringSubmatch(src, -1) {
-			found = append(found, callSite{"GET", pathToSpec(spec, m[1], ""), file})
+			found = append(found, callSite{"GET", pathToSpec(spec, m[1], m[2]), file})
 		}
 	}
 	return found
@@ -91,18 +91,20 @@ func discoverCalls(t *testing.T, spec openAPI, s apiSpec) []callSite {
 // provide on its own: it fails when the provider starts calling something the
 // list does not mention, which is the direction the original bugs travelled.
 func TestEveryCallSiteIsListed(t *testing.T) {
-	spec := loadSpec(t, engineAPI)
-	listed := map[string]bool{}
-	for _, c := range calls {
-		listed[c.method+" "+c.path] = true
-	}
-	found := discoverCalls(t, spec, engineAPI)
-	if len(found) == 0 {
-		t.Fatal("found no API call sites in internal/ — the patterns in this file have gone stale")
-	}
-	for _, c := range found {
-		if !listed[c.method+" "+c.path] {
-			t.Errorf("%s calls %s %s, which is not in the calls list in this file", c.file, c.method, c.path)
+	for _, s := range apiSpecs {
+		spec := loadSpec(t, s)
+		listed := map[string]bool{}
+		for _, c := range callsFor(s) {
+			listed[c.method+" "+c.path] = true
+		}
+		found := discoverCalls(t, spec, s)
+		if len(found) == 0 {
+			t.Fatalf("found no %s API call sites in internal/ — the patterns in this file have gone stale", s.name)
+		}
+		for _, c := range found {
+			if !listed[c.method+" "+c.path] {
+				t.Errorf("%s calls %s %s, which is not in the %s calls list in contract_test.go", c.file, c.method, c.path, s.name)
+			}
 		}
 	}
 }
@@ -111,9 +113,15 @@ func TestEveryCallSiteIsListed(t *testing.T) {
 // parameter. The API ignores an undeclared parameter rather than rejecting it,
 // so nothing else in the suite would notice.
 func TestEverySetQueryParameterIsDeclaredInSource(t *testing.T) {
-	spec := loadSpec(t, engineAPI)
+	for _, s := range apiSpecs {
+		checkSetParams(t, s)
+	}
+}
+
+func checkSetParams(t *testing.T, s apiSpec) {
+	spec := loadSpec(t, s)
 	byFile := map[string][]callSite{}
-	for _, c := range discoverCalls(t, spec, engineAPI) {
+	for _, c := range discoverCalls(t, spec, s) {
 		byFile[c.file] = append(byFile[c.file], c)
 	}
 

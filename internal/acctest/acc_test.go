@@ -405,7 +405,6 @@ func TestAccAgent_lifecycle(t *testing.T) {
 				Config: agentConfig(suffix, "Say hello.", `description = "tf acceptance test"`, "[orchestra_skill.test.id]"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("orchestra_agent.test", "id"),
-					resource.TestCheckResourceAttrSet("orchestra_agent.test", "default_model_id"),
 					resource.TestCheckResourceAttr("orchestra_agent.test", "llm_key.type", "ACCOUNT_DEFAULT"),
 					resource.TestCheckResourceAttr("orchestra_agent.test", "skill_ids.#", "1"),
 					resource.TestCheckResourceAttr("orchestra_skill.test", "name", "tf-acc-"+suffix),

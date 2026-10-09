@@ -45,15 +45,17 @@ func preCheck(t *testing.T) {
 func TestAccPipeline_lifecycle(t *testing.T) {
 	preCheck(t)
 	alias := fmt.Sprintf("tf_acc_%d", os.Getpid())
+	var versionBeforePause string
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6,
 		Steps: []resource.TestStep{
 			{
-				Config: pipelineConfig(alias, "abc"),
+				Config: pipelineConfig(alias, "abc", ""),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("orchestra_pipeline.test", "id"),
 					resource.TestCheckResourceAttr("orchestra_pipeline.test", "alias", alias),
+					resource.TestCheckResourceAttr("orchestra_pipeline.test", "paused", "false"),
 					// The API defaults these and echoes them back.
 					resource.TestCheckResourceAttr("orchestra_pipeline.test", "data.webhook.enabled", "false"),
 					resource.TestCheckResourceAttr("orchestra_pipeline.test", "data.tasks.ingest.depends_on.#", "0"),
@@ -62,9 +64,28 @@ func TestAccPipeline_lifecycle(t *testing.T) {
 			{
 				// An in-place edit. If anything plans a replacement, or the
 				// applied state differs from the plan, this step fails.
-				Config: pipelineConfig(alias, "def"),
-				Check: resource.TestCheckResourceAttr("orchestra_pipeline.test", "data.tasks.ingest.parameters",
-					`{"connector_id":"def"}`),
+				Config: pipelineConfig(alias, "def", ""),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("orchestra_pipeline.test", "data.tasks.ingest.parameters",
+						`{"connector_id":"def"}`),
+					resource.TestCheckResourceAttrWith("orchestra_pipeline.test", "latest_version_number",
+						func(v string) error { versionBeforePause = v; return nil }),
+				),
+			},
+			{
+				// Pausing alone goes through its own endpoint, not a new
+				// version of the definition.
+				Config: pipelineConfig(alias, "def", "paused = true"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("orchestra_pipeline.test", "paused", "true"),
+					resource.TestCheckResourceAttrWith("orchestra_pipeline.test", "latest_version_number",
+						func(v string) error {
+							if v != versionBeforePause {
+								return fmt.Errorf("pausing saved a new definition version: %s, was %s", v, versionBeforePause)
+							}
+							return nil
+						}),
+				),
 			},
 			{
 				ResourceName:      "orchestra_pipeline.test",
@@ -76,11 +97,12 @@ func TestAccPipeline_lifecycle(t *testing.T) {
 	})
 }
 
-func pipelineConfig(alias, connector string) string {
+func pipelineConfig(alias, connector, extra string) string {
 	return fmt.Sprintf(`
 resource "orchestra_pipeline" "test" {
   alias     = %[1]q
   published = false
+  %[3]s
 
   data = {
     name = "tf acceptance test"
@@ -93,7 +115,7 @@ resource "orchestra_pipeline" "test" {
     }
   }
 }
-`, alias, connector)
+`, alias, connector, extra)
 }
 
 // TestAccPipelinesDataSource_envelope pins the pagination behaviour the spec

@@ -18,11 +18,9 @@ import (
 // This exists because the provider once called PUT /pipelines/{alias},
 // DELETE /pipelines/{alias} and GET /pipelines?alias=... — none of which the
 // API has. Two failed loudly; the third silently returned the wrong pipeline.
-var calls = []struct {
-	method string
-	path   string
-	who    string
-}{
+type call struct{ method, path, who string }
+
+var calls = []call{
 	{"GET", "/pipeline", "pipeline resource: read"},
 	{"GET", "/pipelines/data", "pipeline resource: read definition"},
 	{"POST", "/pipelines", "pipeline resource: create"},
@@ -49,6 +47,32 @@ var calls = []struct {
 	{"POST", "/monitors/reorder", "monitor order resource: create and update"},
 }
 
+// agentsCalls is the same list for the Agents API, which code under
+// internal/agents/ calls.
+var agentsCalls = []call{
+	{"POST", "/agents", "agent resource: create"},
+	{"GET", "/agents/{agent_id}", "agent resource: read"},
+	{"PATCH", "/agents/{agent_id}", "agent resource: update"},
+	{"DELETE", "/agents/{agent_id}", "agent resource: delete"},
+	{"GET", "/agents/{agent_id}/skills", "agent resource: read skills"},
+	{"PUT", "/agents/{agent_id}/skills", "agent resource: set skills"},
+	{"GET", "/agents/{agent_id}/integrations", "agent resource: read integrations"},
+	{"PUT", "/agents/{agent_id}/integrations", "agent resource: set integrations"},
+	{"POST", "/skills", "skill resource: create"},
+	{"POST", "/skills/import", "skill resource: create from git"},
+	{"GET", "/skills/{skill_id}", "skill resource: read"},
+	{"PATCH", "/skills/{skill_id}", "skill resource: update"},
+	{"DELETE", "/skills/{skill_id}", "skill resource: delete"},
+	{"GET", "/skills", "skills data source"},
+}
+
+func callsFor(s apiSpec) []call {
+	if s == agentsAPI {
+		return agentsCalls
+	}
+	return calls
+}
+
 // Query parameters the provider sends, by endpoint. A parameter the endpoint
 // does not declare is silently ignored by the API, which is how the bad
 // GET /pipelines?alias=... read went unnoticed.
@@ -63,6 +87,21 @@ var queryParams = map[string][]string{
 		"database_name", "schema_name", "status", "asset_ids",
 		"sort_column", "sort_direction", "page", "page_size",
 	},
+}
+
+// agentsQueryParams is the same for the Agents API. ListAll adds page and
+// page_size to every list call.
+var agentsQueryParams = map[string][]string{
+	"GET /skills":                         {"search", "orchestra_managed", "page", "page_size"},
+	"GET /agents/{agent_id}/skills":       {"page", "page_size"},
+	"GET /agents/{agent_id}/integrations": {"page", "page_size"},
+}
+
+func queryParamsFor(s apiSpec) map[string][]string {
+	if s == agentsAPI {
+		return agentsQueryParams
+	}
+	return queryParams
 }
 
 type operation struct {
@@ -147,10 +186,17 @@ func loadSpec(t *testing.T, s apiSpec) openAPI {
 }
 
 func TestEveryCalledEndpointExists(t *testing.T) {
-	spec := loadSpec(t, engineAPI)
+	for _, s := range apiSpecs {
+		spec := loadSpec(t, s)
+		for _, call := range callsFor(s) {
+			checkCallExists(t, s, spec, call)
+		}
+	}
+}
 
-	for _, call := range calls {
-		t.Run(call.method+" "+call.path, func(t *testing.T) {
+func checkCallExists(t *testing.T, s apiSpec, spec openAPI, call call) {
+	{
+		t.Run(s.name+": "+call.method+" "+call.path, func(t *testing.T) {
 			methods, ok := spec.Paths[call.path]
 			if !ok {
 				t.Fatalf("%s calls %s %s, but the spec has no such path", call.who, call.method, call.path)
@@ -169,10 +215,17 @@ func TestEveryCalledEndpointExists(t *testing.T) {
 }
 
 func TestEverySentQueryParameterIsDeclared(t *testing.T) {
-	spec := loadSpec(t, engineAPI)
+	for _, s := range apiSpecs {
+		spec := loadSpec(t, s)
+		for endpoint, sent := range queryParamsFor(s) {
+			checkParamsDeclared(t, s, spec, endpoint, sent)
+		}
+	}
+}
 
-	for endpoint, sent := range queryParams {
-		t.Run(endpoint, func(t *testing.T) {
+func checkParamsDeclared(t *testing.T, s apiSpec, spec openAPI, endpoint string, sent []string) {
+	{
+		t.Run(s.name+": "+endpoint, func(t *testing.T) {
 			method, p, ok := strings.Cut(endpoint, " ")
 			if !ok {
 				t.Fatalf("malformed endpoint key %q", endpoint)

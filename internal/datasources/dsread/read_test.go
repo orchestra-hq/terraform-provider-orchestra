@@ -123,6 +123,14 @@ func stubAPI(t *testing.T) *httptest.Server {
 			map[string]any{"monitorId": "first", "definition": map[string]any{"name": "Warehouse failures", "description": "dbt and Snowflake", "enabled": false, "order": 0}},
 		})
 	})
+	// The Agents API, served from the same stub: base_url is not the Engine
+	// API's path, so the provider sends both here.
+	mux.HandleFunc("/skills", func(w http.ResponseWriter, r *http.Request) {
+		write(w, paginated([]any{map[string]any{
+			"skillId": "55555555-5555-5555-5555-555555555555", "name": "identify-long-running-dbt-tasks",
+			"description": "Find the slowest dbt tasks", "orchestraManaged": true,
+		}}))
+	})
 	mux.HandleFunc("/compute_resources/azure/federated_credentials", func(w http.ResponseWriter, r *http.Request) {
 		write(w, map[string]any{"subjectId": "orchestra:workspace:abc", "audience": "api://AzureADTokenExchange"})
 	})
@@ -219,6 +227,7 @@ func assertPopulated(t *testing.T, typeName string, state tftypes.Value) {
 		"orchestra_integration_jobs":            {"DBT_CORE_EXECUTE"},
 		"orchestra_integration_connections":     {"name_ABCD"},
 		"orchestra_monitors":                    {`"id":tftypes.String<"first">`, "Warehouse failures", "dbt and Snowflake"},
+		"orchestra_skills":                      {"identify-long-running-dbt-tasks", `"orchestra_managed":tftypes.Bool<"true">`},
 		"orchestra_sensor_checks":               {"SNOWFLAKE_QUERY"},
 		"orchestra_azure_federated_credentials": {"orchestra:workspace:abc", "api://AzureADTokenExchange"},
 	}

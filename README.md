@@ -71,12 +71,14 @@ The provider fails at configure time when no key resolves, rather than on the fi
 | `orchestra_monitor` | `POST /monitors`, `GET/PUT/DELETE /monitors/{id}` |
 | `orchestra_incident_settings` | `GET/PATCH /incident_settings`. One per workspace; destroy leaves the settings as they are. |
 | `orchestra_monitor_order` | `GET /monitors`, `POST /monitors/reorder`. One per workspace; destroy leaves the order as it is. |
+| `orchestra_agent` | Agents API: `POST /agents`, `GET/PATCH/DELETE /agents/{id}`, `GET/PUT /agents/{id}/skills` and `/integrations` |
+| `orchestra_skill` | Agents API: `POST /skills`, `POST /skills/import`, `GET/PATCH/DELETE /skills/{id}` |
 
 ### Data sources
 
 `orchestra_pipeline`, `orchestra_pipelines`, `orchestra_assets`, `orchestra_environment`,
 `orchestra_environments`, `orchestra_integration_connections`, `orchestra_monitors`,
-`orchestra_azure_federated_credentials`.
+`orchestra_azure_federated_credentials`, `orchestra_skills`.
 
 Run telemetry — pipeline runs, task runs, operations, incidents, logs and artifacts — is deliberately not exposed.
 It changes on every run, so putting it in Terraform state would produce permanent diffs. Export it with

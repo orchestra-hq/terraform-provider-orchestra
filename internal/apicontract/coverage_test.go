@@ -24,10 +24,6 @@ type coverageCategory struct {
 	Operations []string `yaml:"operations"`
 }
 
-// engineSpec is the key for openapi.yaml, the API the provider talks to. Any
-// other key names a spec that is only inventoried for drift.
-const engineSpec = "engine"
-
 func loadCoverage(t *testing.T) map[string]map[string]coverageCategory {
 	t.Helper()
 	raw, err := os.ReadFile("coverage.yaml")
@@ -41,12 +37,20 @@ func loadCoverage(t *testing.T) map[string]map[string]coverageCategory {
 	return out
 }
 
+// TestEverySpecOperationIsClassified checks each committed spec. A spec that is
+// only inventoried, like admin, is checked by the weekly drift report instead.
 func TestEverySpecOperationIsClassified(t *testing.T) {
-	spec := loadSpec(t)
-	ledger := loadCoverage(t)[engineSpec]
+	coverage := loadCoverage(t)
+	for _, s := range apiSpecs {
+		t.Run(s.name, func(t *testing.T) { checkClassified(t, s, coverage[s.name]) })
+	}
+}
+
+func checkClassified(t *testing.T, s apiSpec, ledger map[string]coverageCategory) {
+	spec := loadSpec(t, s)
 
 	called := map[string]bool{}
-	for _, c := range discoverCalls(t, spec) {
+	for _, c := range discoverCalls(t, spec, s) {
 		called[c.method+" "+c.path] = true
 	}
 

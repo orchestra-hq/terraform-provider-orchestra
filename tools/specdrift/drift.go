@@ -332,8 +332,13 @@ func (r *Report) Markdown() string {
 
 // Inputs are the specs and the ledger Compare works from.
 type Inputs struct {
+	// Old and New are the Engine spec, as committed and as published.
 	Old, New specDoc
 	Ledger   ledger
+	// Compared holds the other specs the provider talks to, by name, as
+	// {committed, published} pairs. They get the same comparison as the
+	// Engine spec.
+	Compared map[string][2]specDoc
 	// Also holds current copies of the specs that are only inventoried, by
 	// name. The provider does not talk to them, but a new endpoint in one is
 	// still a decision someone should make.
@@ -347,13 +352,28 @@ type Inputs struct {
 // provider implements.
 func Compare(in Inputs) *Report {
 	r := &Report{}
-	oldOps, newOps := in.Old.operations(), in.New.operations()
-	excluded := in.Ledger.excluded(engineSpec)
+	r.compare(engineSpec, in.Old, in.New, in.Ledger)
+	for _, name := range sortedKeys(in.Compared, in.Compared) {
+		// Findings name the API they came from, as inventory findings do.
+		first := len(r.findings)
+		r.compare(name, in.Compared[name][0], in.Compared[name][1], in.Ledger)
+		for i := first; i < len(r.findings); i++ {
+			r.findings[i].subject += fmt.Sprintf(" (%s API)", name)
+		}
+	}
+	r.inventories(in)
+	return r
+}
+
+// compare adds what the move from oldDoc to newDoc means for one spec.
+func (r *Report) compare(spec string, oldDoc, newDoc specDoc, l ledger) {
+	oldOps, newOps := oldDoc.operations(), newDoc.operations()
+	excluded := l.excluded(spec)
 
 	// The docs site has split this spec before, moving endpoints out. An
 	// operation that left it for a spec the ledger classifies is not something
 	// the provider ever called.
-	elsewhere := in.Ledger.excludedElsewhere(engineSpec)
+	elsewhere := l.excludedElsewhere(spec)
 	moved := map[string]string{}
 	for op := range oldOps {
 		if _, inNew := newOps[op]; inNew {
@@ -381,9 +401,7 @@ func Compare(in Inputs) *Report {
 			r.operation(op, o, n)
 		}
 	}
-	r.schemas(in, covered, oldOps, newOps)
-	r.inventories(in)
-	return r
+	r.schemas(oldDoc.schemas(), newDoc.schemas(), covered, oldOps, newOps)
 }
 
 func (r *Report) endpoints(oldOps, newOps map[string]map[string]any, excluded, moved map[string]string) {
@@ -469,8 +487,7 @@ func successResponses(op map[string]any) map[string]any {
 	return out
 }
 
-func (r *Report) schemas(in Inputs, covered map[string]bool, oldOps, newOps map[string]map[string]any) {
-	oldS, newS := in.Old.schemas(), in.New.schemas()
+func (r *Report) schemas(oldS, newS map[string]any, covered map[string]bool, oldOps, newOps map[string]map[string]any) {
 
 	writes, reads := map[string][]string{}, map[string][]string{}
 	for _, op := range sorted(covered) {

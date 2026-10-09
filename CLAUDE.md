@@ -17,9 +17,11 @@ reference docs with `make docs`, and refresh the spec with `make openapi`. `make
 
 ## Source of Truth: the OpenAPI spec
 
-Everything the provider talks to is described by the Orchestra OpenAPI spec:
+Everything the provider talks to is described by two Orchestra OpenAPI specs, each with its own base URL:
 
-**`https://docs.getorchestra.io/api/engine.yaml`** (committed to this repo as `openapi.yaml`)
+- **`https://docs.getorchestra.io/api/engine.yaml`**, the Engine API (committed as `openapi.yaml`)
+- **`https://docs.getorchestra.io/api/agents.yaml`**, the Agents API (committed as `openapi-agents.yaml`). Code
+  that calls it lives under `internal/agents/`; the contract tests check calls from there against this spec.
 
 Before adding or changing anything that calls the API, read the spec. Do not infer endpoints, parameter names or
 response shapes from the existing Go code — it has been wrong before. Three of the provider's five pipeline calls
@@ -30,8 +32,8 @@ once targeted endpoints that did not exist, and one of those failed silently.
 1. **Refresh and read the spec.**
 
    ```bash
-   make spec-drift   # read-only: what changed in the live specs since openapi.yaml
-   make openapi      # fetches openapi.yaml and regenerates internal/enums
+   make spec-drift   # read-only: what changed in the live specs since the committed ones
+   make openapi      # fetches openapi.yaml and openapi-agents.yaml, regenerates internal/enums
    ```
 
    A weekly workflow opens a **Spec sync** PR with that report. Decide each item with the

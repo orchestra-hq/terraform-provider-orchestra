@@ -1,0 +1,2851 @@
+openapi: 3.1.0
+info:
+  title: Orchestra Agents API
+  description: 'Endpoints for Orchestra''s AI agents: the agents, their skills and
+    sessions.'
+  version: 1.0.0
+servers:
+- url: https://app.getorchestra.io/api/ai/v1
+paths:
+  /sessions:
+    get:
+      tags:
+      - Agent Sessions
+      summary: List agent sessions
+      description: List the agent sessions in the workspace the credential resolves
+        to that the caller can see, most recently updated first. A session started
+        by a user in the Orchestra UI is visible to that user alone, so an API key
+        never sees one. Sessions started for a task run or an incident are visible
+        to everyone in the workspace who can view the agent.
+      parameters:
+      - name: agent_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Only return sessions of this agent.
+          title: Agent Id
+        description: Only return sessions of this agent.
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              $ref: '#/components/schemas/AgentSessionStatusEnum'
+          - type: 'null'
+          description: Only return sessions in these statuses. Repeat the parameter
+            to match any of several, e.g. `?status=BUSY&status=IDLE`. One of `BUSY`,
+            `EXPIRED`, `FAILED`, `IDLE`, `INITIALISING`, `PENDING`, `STARTUP_ERROR`.
+          title: Status
+        description: Only return sessions in these statuses. Repeat the parameter
+          to match any of several, e.g. `?status=BUSY&status=IDLE`. One of `BUSY`,
+          `EXPIRED`, `FAILED`, `IDLE`, `INITIALISING`, `PENDING`, `STARTUP_ERROR`.
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: Number of items per page. Defaults to 50; maximum 100.
+          default: 50
+          title: Page Size
+        description: Number of items per page. Defaults to 50; maximum 100.
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          description: Page number. Must be greater than or equal to 1.
+          default: 1
+          title: Page
+        description: Page number. Must be greater than or equal to 1.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_AgentSessionResponse_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+    post:
+      tags:
+      - Agent Sessions
+      summary: Start an agent session
+      description: 'Start a session with an agent and send it a first prompt. The
+        agent replies asynchronously: this returns once the prompt is queued, and
+        the reply is read from `GET /sessions/{session_id}/history/messages`. Without
+        `incidentId` the session is the caller''s own, so it needs an OAuth token
+        and an API key gets 400. With `incidentId` it is the incident''s, visible
+        across the workspace, and an incident''s open session takes the prompt instead
+        of a new one starting. Needs a grant to run the agent, and to view the incident
+        when `incidentId` is set.'
+      parameters:
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSessionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+  /sessions/{session_id}:
+    get:
+      tags:
+      - Agent Sessions
+      summary: Get an agent session
+      description: Get an agent session by ID. Returns 404 for a session the caller
+        cannot see, and 403 for one whose agent the caller cannot view. A session
+        started by a user in the Orchestra UI is visible to that user alone, so an
+        API key never sees one. Sessions started for a task run or an incident are
+        visible to everyone in the workspace who can view the agent.
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: Agent session ID.
+          title: Session Id
+        description: Agent session ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSessionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+    post:
+      tags:
+      - Agent Sessions
+      summary: Send a message to an agent session
+      description: 'Send a further prompt to an agent session. The agent replies asynchronously:
+        this returns once the prompt is queued, and the reply is read from `GET /sessions/{session_id}/history/messages`.
+        Needs a grant to run the session''s agent. Returns 404 for a session the caller
+        cannot see, and 403 for one whose agent the caller cannot run. A session started
+        by a user in the Orchestra UI is visible to that user alone, so an API key
+        never sees one. Sessions started for a task run or an incident are visible
+        to everyone in the workspace who can view the agent.'
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: Agent session ID.
+          title: Session Id
+        description: Agent session ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendSessionMessageRequest'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+  /sessions/{session_id}/history/messages:
+    get:
+      tags:
+      - Agent Sessions
+      summary: Read an agent session's messages
+      description: Read a page of an agent session's messages, a whole number of complete
+        turns at a time, oldest first. Pass exactly one of `before_sequence_id` or
+        `after_sequence_id`. Every message carries a `sequenceId` of the form `<unix-milliseconds>-<counter>`,
+        and sequence IDs order as strings. So `before_sequence_id` set to the current
+        time in milliseconds reads the latest turns, and `after_sequence_id=0` reads
+        from the start of the session. Page back with `nextBeforeSequenceId` while
+        `hasPreviousPage` is true, and forward with `nextAfterSequenceId` while `hasNextPage`
+        is true. A turn still in progress is left out until it completes. Returns
+        404 for a session the caller cannot see, and 403 for one whose agent the caller
+        cannot view. A session started by a user in the Orchestra UI is visible to
+        that user alone, so an API key never sees one. Sessions started for a task
+        run or an incident are visible to everyone in the workspace who can view the
+        agent.
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: Agent session ID.
+          title: Session Id
+        description: Agent session ID.
+      - name: before_sequence_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Return the turns that end before this sequence ID, i.e. page
+            back in time. Cannot be combined with `after_sequence_id`.
+          title: Before Sequence Id
+        description: Return the turns that end before this sequence ID, i.e. page
+          back in time. Cannot be combined with `after_sequence_id`.
+      - name: after_sequence_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Return the turns that start after this sequence ID, i.e. page
+            forward in time. Cannot be combined with `before_sequence_id`.
+          title: After Sequence Id
+        description: Return the turns that start after this sequence ID, i.e. page
+          forward in time. Cannot be combined with `before_sequence_id`.
+      - name: turn_limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 10
+          minimum: 1
+          description: Number of turns per page. Defaults to 3; maximum 10.
+          default: 3
+          title: Turn Limit
+        description: Number of turns per page. Defaults to 3; maximum 10.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionHistoryMessagesResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+  /sessions/{session_id}/history:
+    get:
+      tags:
+      - Agent Sessions
+      summary: Stream an agent session's history
+      description: 'Stream an agent session as Server-Sent Events: the last three
+        turns are replayed, including any turn still in progress, then new messages
+        are sent as the session produces them. The stream closes after ten minutes
+        without a new message. Every message carries a `sequenceId` of the form `<unix-milliseconds>-<counter>`,
+        and sequence IDs order as strings. To read a session''s replies without holding
+        a connection open, use `GET /sessions/{session_id}/history/messages`. Returns
+        404 for a session the caller cannot see, and 403 for one whose agent the caller
+        cannot view. A session started by a user in the Orchestra UI is visible to
+        that user alone, so an API key never sees one. Sessions started for a task
+        run or an incident are visible to everyone in the workspace who can view the
+        agent.'
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: Agent session ID.
+          title: Session Id
+        description: Agent session ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: 'A `text/event-stream` of `data:` events, each one session
+            message as JSON, interleaved with `: keep-alive` comments.'
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /sessions/{session_id}/cancel:
+    post:
+      tags:
+      - Agent Sessions
+      summary: Cancel an agent session prompt
+      description: Ask an agent session to stop working on a prompt, named by the
+        `promptAcceptedSequenceId` its history records for it. This returns once the
+        cancel is queued, and the history records when the prompt stops. Needs a grant
+        to run the session's agent. Returns 404 for a session the caller cannot see,
+        and 403 for one whose agent the caller cannot run. A session started by a
+        user in the Orchestra UI is visible to that user alone, so an API key never
+        sees one. Sessions started for a task run or an incident are visible to everyone
+        in the workspace who can view the agent.
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: Agent session ID.
+          title: Session Id
+        description: Agent session ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelSessionMessageRequest'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+  /agents/avatar-catalog:
+    get:
+      tags:
+      - Agents
+      summary: List agent avatars
+      description: 'List the avatars an agent can use: Orchestra''s stock avatars
+        and those uploaded to the workspace the credential resolves to. Pass an entry''s
+        `path` as `avatar_path` when creating or updating an agent. `url` is a short-lived
+        link to the image, and is omitted for an uploaded avatar that is still being
+        scanned for malware.'
+      parameters:
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentAvatarCatalogResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+  /agents:
+    post:
+      tags:
+      - Agents
+      summary: Create an agent
+      description: Create an agent in the workspace the credential resolves to. Prompts
+        are Markdown, `avatarPath` is a `path` from the avatar catalog, `gitEnabled`
+        needs the workspace's git connection, and `llmKeyType` picks whose LLM key
+        its sessions use. Secrets are returned masked.
+      parameters:
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAgentRequest'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+    get:
+      tags:
+      - Agents
+      summary: List agents
+      description: List the agents in the workspace the credential resolves to, including
+        those managed by Orchestra, filtered to the agents the caller may view. Prompts
+        and secrets are not included; get an agent by id for those.
+      parameters:
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Only return agents whose name or description contains this
+            text, ignoring case.
+          title: Search
+        description: Only return agents whose name or description contains this text,
+          ignoring case.
+      - name: orchestra_managed
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: '`true` returns only agents managed by Orchestra, `false` only
+            the workspace''s own. Omit it to return both.'
+          title: Orchestra Managed
+        description: '`true` returns only agents managed by Orchestra, `false` only
+          the workspace''s own. Omit it to return both.'
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: Results per page, from 1 to 100.
+          default: 50
+          title: Page Size
+        description: Results per page, from 1 to 100.
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          description: The page to return, starting at 1.
+          default: 1
+          title: Page
+        description: The page to return, starting at 1.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_AgentListResponse_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+  /agents/{agent_id}:
+    get:
+      tags:
+      - Agents
+      summary: Get an agent
+      description: Get an agent with its prompts and settings. Secrets are returned
+        masked. Returns 404 if the agent does not exist in the workspace the credential
+        resolves to.
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: The id of the agent.
+          title: Agent Id
+        description: The id of the agent.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+    patch:
+      tags:
+      - Agents
+      summary: Update an agent
+      description: Update the fields given and leave the rest unchanged; send `null`
+        to clear an optional field. A masked secret value keeps the stored secret.
+        An agent managed by Orchestra accepts only `gitEnabled`, `secrets` and `llmKeyType`,
+        which apply to this workspace alone, and refuses any other field with 403.
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: The id of the agent.
+          title: Agent Id
+        description: The id of the agent.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchAgentRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+    delete:
+      tags:
+      - Agents
+      summary: Delete an agent
+      description: Delete an agent from the workspace the credential resolves to.
+        Agents managed by Orchestra cannot be deleted, and are refused with 403.
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: The id of the agent.
+          title: Agent Id
+        description: The id of the agent.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+  /agents/{agent_id}/skills:
+    get:
+      tags:
+      - Agents
+      summary: List an agent's skills
+      description: List the skills attached to an agent, with each skill's name and
+        description. Returns 404 if the agent does not exist in the workspace the
+        credential resolves to.
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: The id of the agent.
+          title: Agent Id
+        description: The id of the agent.
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: Results per page, from 1 to 100.
+          default: 50
+          title: Page Size
+        description: Results per page, from 1 to 100.
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          description: The page to return, starting at 1.
+          default: 1
+          title: Page
+        description: The page to return, starting at 1.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_AgentSkillMappingResponse_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+    put:
+      tags:
+      - Agents
+      summary: Set an agent's skills
+      description: 'Replace the skills attached to an agent with the given list: skills
+        not in the list are detached, and an empty list detaches them all. Each `skillId`
+        must be a skill in the same workspace or one managed by Orchestra, and the
+        request is refused with 404 if any is not; duplicates are ignored. Agents
+        managed by Orchestra cannot have their skills changed.'
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: The id of the agent.
+          title: Agent Id
+        description: The id of the agent.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/AttachSkillToAgentRequest'
+              title: Body
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+  /agents/{agent_id}/integrations:
+    get:
+      tags:
+      - Agents
+      summary: List an agent's integrations
+      description: List the integration connections an agent can use. Each `integration`
+        is a connection key of the form `<INTEGRATION>_<connection id>`, e.g. `SNOWFLAKE_my_connection`.
+        Returns 404 if the agent does not exist in the workspace the credential resolves
+        to.
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: The id of the agent.
+          title: Agent Id
+        description: The id of the agent.
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: Results per page, from 1 to 100.
+          default: 50
+          title: Page Size
+        description: Results per page, from 1 to 100.
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          description: The page to return, starting at 1.
+          default: 1
+          title: Page
+        description: The page to return, starting at 1.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_AgentIntegrationMappingResponse_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+    put:
+      tags:
+      - Agents
+      summary: Set an agent's integrations
+      description: Replace the integration connections an agent can use with the given
+        list, and return the agent's integrations afterwards. An empty list removes
+        them all. Each `integration` is a connection key of the form `<INTEGRATION>_<connection
+        id>`, e.g. `SNOWFLAKE_my_connection`, and must be a connection in the same
+        workspace; the request is refused with 404 if any is not.
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: The id of the agent.
+          title: Agent Id
+        description: The id of the agent.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/AttachIntegrationToAgentRequest'
+              title: Body
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgentIntegrationMappingResponse'
+                title: Response Set Agent Integrations
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+  /usage:
+    get:
+      tags:
+      - Agents
+      summary: Get agent token usage
+      description: "Retrieve the input and output tokens spent by agent sessions in\
+        \ the account, summed across every agent and LLM connection, as totals for\
+        \ the period and in consecutive time buckets. A session counts towards the\
+        \ bucket it was created in.\n\n<Note>\n  `time_from` and `time_to` are optional.\
+        \ If neither is provided, the API returns the last 30 days. If only one is\
+        \ provided, the period is the 30 days after `time_from` or before `time_to`.\
+        \ The maximum period per request is 366 days, and `time_from` cannot be earlier\
+        \ than 2023-01-01.\n</Note>\n\nRequires permission to view account settings."
+      parameters:
+      - name: time_from
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Start of the period as an ISO 8601 datetime with a UTC offset,
+            for example `2026-09-01T00:00:00Z`.
+          format: date-time
+          title: Time From
+        description: Start of the period as an ISO 8601 datetime with a UTC offset,
+          for example `2026-09-01T00:00:00Z`.
+      - name: time_to
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: End of the period as an ISO 8601 datetime with a UTC offset,
+            for example `2026-10-01T00:00:00Z`.
+          format: date-time
+          title: Time To
+        description: End of the period as an ISO 8601 datetime with a UTC offset,
+          for example `2026-10-01T00:00:00Z`.
+      - name: bucket_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 527040
+          minimum: 15
+          description: Length of each time bucket in minutes. Defaults to 1440 (one
+            day); minimum 15, maximum 527040 (366 days).
+          default: 1440
+          title: Bucket Size
+        description: Length of each time bucket in minutes. Defaults to 1440 (one
+          day); minimum 15, maximum 527040 (366 days).
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSessionUsageBucketsResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+  /skills:
+    get:
+      tags:
+      - Skills
+      summary: List skills
+      description: List the skills available in the workspace the credential resolves
+        to, including those managed by Orchestra. Each skill's `markdown` is omitted;
+        fetch a single skill to read it.
+      parameters:
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Only return skills whose name or description contains this
+            text.
+          title: Search
+        description: Only return skills whose name or description contains this text.
+      - name: orchestra_managed
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Only return skills managed by Orchestra (`true`) or not (`false`).
+          title: Orchestra Managed
+        description: Only return skills managed by Orchestra (`true`) or not (`false`).
+      - name: sync_status
+        in: query
+        required: false
+        schema:
+          type: string
+          description: Only return git-backed skills in these sync states, as a comma-separated
+            list of OK, ERROR, DISCONNECTED.
+          default: ''
+          title: Sync Status
+        description: Only return git-backed skills in these sync states, as a comma-separated
+          list of OK, ERROR, DISCONNECTED.
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: Results per page, from 1 to 100.
+          default: 50
+          title: Page Size
+        description: Results per page, from 1 to 100.
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          description: The page to return, starting at 1.
+          default: 1
+          title: Page
+        description: The page to return, starting at 1.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_SkillResponse_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+    post:
+      tags:
+      - Skills
+      summary: Create a skill
+      description: Create a skill from a markdown document. The markdown must open
+        with YAML frontmatter holding the skill's `name` and `description`. Returns
+        409 if the workspace already has a skill with that name.
+      parameters:
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSkillRequest'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+  /skills/{skill_id}:
+    get:
+      tags:
+      - Skills
+      summary: Get a skill
+      description: Fetch a single skill, including its full `markdown`.
+      parameters:
+      - name: skill_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: The id of the skill.
+          title: Skill Id
+        description: The id of the skill.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+    patch:
+      tags:
+      - Skills
+      summary: Update a skill
+      description: 'Replace a skill''s markdown. Its `name` and `description` are
+        re-read from the new frontmatter. Skills imported from git are read-only:
+        edit the file in the connected repository instead. Skills managed by Orchestra
+        cannot be changed.'
+      parameters:
+      - name: skill_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: The id of the skill.
+          title: Skill Id
+        description: The id of the skill.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchSkillRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+    delete:
+      tags:
+      - Skills
+      summary: Delete a skill
+      description: Delete a skill. Skills managed by Orchestra cannot be deleted.
+        Deleting a skill imported from git removes it from Orchestra only; the file
+        in the repository is left as it is.
+      parameters:
+      - name: skill_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          description: The id of the skill.
+          title: Skill Id
+        description: The id of the skill.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+  /skills/import:
+    post:
+      tags:
+      - Skills
+      summary: Import a skill from git
+      description: 'Import a skill from a markdown file in the workspace''s connected
+        git repository, with the same frontmatter as a created skill. Skills imported
+        from git are read-only: edit the file in the connected repository instead.
+        Returns 422 if no git provider is connected, 404 if the file is not on the
+        branch.'
+      parameters:
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Act on this account rather than the one the credential resolves
+            to. Omit it to use the credential's own account. An API key is issued
+            to a single account, so it may only name that account; an OAuth token
+            may name any account its grant covers.
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportSkillRequest'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+components:
+  schemas:
+    AccountDefaultLLMKey:
+      properties:
+        type:
+          type: string
+          const: ACCOUNT_DEFAULT
+          title: Type
+      additionalProperties: false
+      type: object
+      required:
+      - type
+      title: AccountDefaultLLMKey
+      description: Whichever key the workspace has chosen, followed rather than overridden.
+    AgentAvatarCatalogEntryResponse:
+      properties:
+        path:
+          type: string
+          title: Path
+        url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url
+        custom:
+          type: boolean
+          title: Custom
+      additionalProperties: false
+      type: object
+      required:
+      - path
+      - url
+      - custom
+      title: AgentAvatarCatalogEntryResponse
+    AgentAvatarCatalogResponse:
+      properties:
+        results:
+          items:
+            $ref: '#/components/schemas/AgentAvatarCatalogEntryResponse'
+          type: array
+          title: Results
+      additionalProperties: false
+      type: object
+      required:
+      - results
+      title: AgentAvatarCatalogResponse
+    AgentIntegrationMappingResponse:
+      properties:
+        agentId:
+          type: string
+          format: uuid4
+          title: Agentid
+        integration:
+          type: string
+          title: Integration
+        createdAt:
+          type: string
+          title: Createdat
+        createdBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Createdby
+        updatedAt:
+          type: string
+          title: Updatedat
+        updatedBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Updatedby
+      additionalProperties: false
+      type: object
+      required:
+      - agentId
+      - integration
+      - createdAt
+      - createdBy
+      - updatedAt
+      - updatedBy
+      title: AgentIntegrationMappingResponse
+    AgentListResponse:
+      properties:
+        agentId:
+          type: string
+          format: uuid4
+          title: Agentid
+        organisationId:
+          type: string
+          format: uuid
+          title: Organisationid
+        accountId:
+          type: string
+          format: uuid
+          title: Accountid
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        avatarPath:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatarpath
+        avatarUrl:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatarurl
+        samplePrompts:
+          items:
+            type: string
+          type: array
+          title: Sampleprompts
+          default: []
+        gitEnabled:
+          type: boolean
+          title: Gitenabled
+        defaultModelId:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionModelEnum'
+          - type: 'null'
+        defaultEffort:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionEffortEnum'
+          - type: 'null'
+        llmKeyType:
+          oneOf:
+          - $ref: '#/components/schemas/AccountDefaultLLMKey'
+          - $ref: '#/components/schemas/OrchestraLLMKey'
+          - $ref: '#/components/schemas/ConnectionLLMKey'
+          title: Llmkeytype
+          discriminator:
+            propertyName: type
+            mapping:
+              ACCOUNT_DEFAULT: '#/components/schemas/AccountDefaultLLMKey'
+              CONNECTION: '#/components/schemas/ConnectionLLMKey'
+              ORCHESTRA: '#/components/schemas/OrchestraLLMKey'
+        orchestraManaged:
+          type: boolean
+          title: Orchestramanaged
+          default: false
+        createdAt:
+          type: string
+          title: Createdat
+        createdBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Createdby
+        updatedAt:
+          type: string
+          title: Updatedat
+        updatedBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Updatedby
+      additionalProperties: false
+      type: object
+      required:
+      - agentId
+      - organisationId
+      - accountId
+      - name
+      - description
+      - gitEnabled
+      - llmKeyType
+      - createdAt
+      - createdBy
+      - updatedAt
+      - updatedBy
+      title: AgentListResponse
+    AgentResponse:
+      properties:
+        agentId:
+          type: string
+          format: uuid4
+          title: Agentid
+        organisationId:
+          type: string
+          format: uuid
+          title: Organisationid
+        accountId:
+          type: string
+          format: uuid
+          title: Accountid
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        avatarPath:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatarpath
+        avatarUrl:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatarurl
+        samplePrompts:
+          items:
+            type: string
+          type: array
+          title: Sampleprompts
+          default: []
+        systemPrompt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Systemprompt
+        responsePrompt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Responseprompt
+        secrets:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Secrets
+        gitEnabled:
+          type: boolean
+          title: Gitenabled
+        defaultModelId:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionModelEnum'
+          - type: 'null'
+        defaultEffort:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionEffortEnum'
+          - type: 'null'
+        llmKeyType:
+          oneOf:
+          - $ref: '#/components/schemas/AccountDefaultLLMKey'
+          - $ref: '#/components/schemas/OrchestraLLMKey'
+          - $ref: '#/components/schemas/ConnectionLLMKey'
+          title: Llmkeytype
+          discriminator:
+            propertyName: type
+            mapping:
+              ACCOUNT_DEFAULT: '#/components/schemas/AccountDefaultLLMKey'
+              CONNECTION: '#/components/schemas/ConnectionLLMKey'
+              ORCHESTRA: '#/components/schemas/OrchestraLLMKey'
+        orchestraManaged:
+          type: boolean
+          title: Orchestramanaged
+          default: false
+        createdAt:
+          type: string
+          title: Createdat
+        createdBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Createdby
+        updatedAt:
+          type: string
+          title: Updatedat
+        updatedBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Updatedby
+      additionalProperties: false
+      type: object
+      required:
+      - agentId
+      - organisationId
+      - accountId
+      - name
+      - description
+      - gitEnabled
+      - llmKeyType
+      - createdAt
+      - createdBy
+      - updatedAt
+      - updatedBy
+      title: AgentResponse
+    AgentRuntimeStreamTypeEnum:
+      type: string
+      enum:
+      - dispatch.error
+      - pipeline.update.rejected
+      - pipeline.update.started
+      - pipeline.update.validated
+      - provider.message
+      - runtime.error
+      - session.model.substituted
+      - session.name.updated
+      - turn.cancelled
+      - turn.completed
+      - turn.heartbeat
+      - turn.started
+      title: AgentRuntimeStreamTypeEnum
+    AgentRuntimeWebsocketKind:
+      type: string
+      enum:
+      - assign.session
+      - prompt.cancel
+      - prompt.dispatched
+      - runtime.ready
+      - runtime.register
+      - shutdown.approved
+      - shutdown.requested
+      title: AgentRuntimeWebsocketKind
+    AgentSessionClientEventTypeEnum:
+      type: string
+      enum:
+      - prompt.accepted
+      - prompt.cancel_requested
+      title: AgentSessionClientEventTypeEnum
+    AgentSessionEffortEnum:
+      type: string
+      enum:
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      title: AgentSessionEffortEnum
+    AgentSessionFundedByEnum:
+      type: string
+      enum:
+      - ORCHESTRA
+      - CUSTOMER
+      title: AgentSessionFundedByEnum
+      description: Who pays for a session's tokens.
+    AgentSessionModeEnum:
+      type: string
+      enum:
+      - USER
+      - TASK_RUN
+      - INCIDENT
+      title: AgentSessionModeEnum
+    AgentSessionModelEnum:
+      type: string
+      enum:
+      - claude-opus-4-6
+      - claude-sonnet-4-6
+      - claude-opus-4-8
+      - claude-opus-5
+      - claude-sonnet-5
+      - claude-opus-5-5
+      title: AgentSessionModelEnum
+    AgentSessionResponse:
+      properties:
+        sessionId:
+          type: string
+          format: uuid4
+          title: Sessionid
+        organisationId:
+          type: string
+          format: uuid4
+          title: Organisationid
+        accountId:
+          type: string
+          format: uuid4
+          title: Accountid
+        agentId:
+          type: string
+          format: uuid4
+          title: Agentid
+        sessionMode:
+          $ref: '#/components/schemas/AgentSessionModeEnum'
+        ownerId:
+          type: string
+          title: Ownerid
+        pipelineRunId:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Pipelinerunid
+        status:
+          $ref: '#/components/schemas/AgentSessionStatusEnum'
+        modelId:
+          $ref: '#/components/schemas/AgentSessionModelEnum'
+        effort:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionEffortEnum'
+          - type: 'null'
+        fundedBy:
+          $ref: '#/components/schemas/AgentSessionFundedByEnum'
+        llmIntegration:
+          anyOf:
+          - $ref: '#/components/schemas/IntegrationsEnum'
+          - type: 'null'
+        llmConnectionId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Llmconnectionid
+        createdAt:
+          type: string
+          title: Createdat
+        updatedAt:
+          type: string
+          title: Updatedat
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+      additionalProperties: false
+      type: object
+      required:
+      - sessionId
+      - organisationId
+      - accountId
+      - agentId
+      - sessionMode
+      - ownerId
+      - status
+      - modelId
+      - fundedBy
+      - createdAt
+      - updatedAt
+      title: AgentSessionResponse
+    AgentSessionStatusEnum:
+      type: string
+      enum:
+      - BUSY
+      - EXPIRED
+      - FAILED
+      - IDLE
+      - INITIALISING
+      - PENDING
+      - STARTUP_ERROR
+      title: AgentSessionStatusEnum
+    AgentSessionUsageBucket:
+      properties:
+        timeFrom:
+          type: string
+          title: Timefrom
+        timeTo:
+          type: string
+          title: Timeto
+        values:
+          $ref: '#/components/schemas/AgentSessionUsageBucketValues'
+      additionalProperties: false
+      type: object
+      required:
+      - timeFrom
+      - timeTo
+      - values
+      title: AgentSessionUsageBucket
+    AgentSessionUsageBucketValues:
+      properties:
+        totalInputTokens:
+          type: integer
+          title: Totalinputtokens
+        totalOutputTokens:
+          type: integer
+          title: Totaloutputtokens
+      additionalProperties: false
+      type: object
+      required:
+      - totalInputTokens
+      - totalOutputTokens
+      title: AgentSessionUsageBucketValues
+    AgentSessionUsageBucketsResponse:
+      properties:
+        buckets:
+          items:
+            $ref: '#/components/schemas/AgentSessionUsageBucket'
+          type: array
+          title: Buckets
+        timeFrom:
+          type: string
+          title: Timefrom
+        timeTo:
+          type: string
+          title: Timeto
+        values:
+          $ref: '#/components/schemas/AgentSessionUsageBucketValues'
+      additionalProperties: false
+      type: object
+      required:
+      - buckets
+      - timeFrom
+      - timeTo
+      - values
+      title: AgentSessionUsageBucketsResponse
+      description: Agent session tokens for the account over a period, in time buckets
+        with totals.
+    AgentSkillMappingResponse:
+      properties:
+        agentId:
+          type: string
+          format: uuid4
+          title: Agentid
+        skillId:
+          type: string
+          format: uuid4
+          title: Skillid
+        skillName:
+          type: string
+          title: Skillname
+        skillDescription:
+          type: string
+          title: Skilldescription
+        orchestraManaged:
+          type: boolean
+          title: Orchestramanaged
+          default: false
+        createdAt:
+          type: string
+          title: Createdat
+        createdBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Createdby
+        updatedAt:
+          type: string
+          title: Updatedat
+        updatedBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Updatedby
+      additionalProperties: false
+      type: object
+      required:
+      - agentId
+      - skillId
+      - skillName
+      - skillDescription
+      - createdAt
+      - createdBy
+      - updatedAt
+      - updatedBy
+      title: AgentSkillMappingResponse
+    AttachIntegrationToAgentRequest:
+      properties:
+        integration:
+          type: string
+          title: Integration
+      additionalProperties: false
+      type: object
+      required:
+      - integration
+      title: AttachIntegrationToAgentRequest
+    AttachSkillToAgentRequest:
+      properties:
+        skillId:
+          type: string
+          format: uuid4
+          title: Skillid
+      additionalProperties: false
+      type: object
+      required:
+      - skillId
+      title: AttachSkillToAgentRequest
+    CancelSessionMessageRequest:
+      properties:
+        promptAcceptedSequenceId:
+          type: string
+          title: Promptacceptedsequenceid
+      additionalProperties: false
+      type: object
+      required:
+      - promptAcceptedSequenceId
+      title: CancelSessionMessageRequest
+    ConnectionID:
+      type: string
+    ConnectionLLMKey:
+      properties:
+        integration:
+          $ref: '#/components/schemas/IntegrationsEnum'
+        connectionId:
+          $ref: '#/components/schemas/ConnectionID'
+        type:
+          type: string
+          const: CONNECTION
+          title: Type
+      additionalProperties: false
+      type: object
+      required:
+      - integration
+      - connectionId
+      - type
+      title: ConnectionLLMKey
+      description: One of the account's own connections, named as the key the agent's
+        runs are made with.
+    CreateAgentRequest:
+      properties:
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        systemPrompt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Systemprompt
+        responsePrompt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Responseprompt
+        avatarPath:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatarpath
+        samplePrompts:
+          items:
+            type: string
+            maxLength: 500
+            minLength: 1
+          type: array
+          maxItems: 5
+          title: Sampleprompts
+          default: []
+        defaultModelId:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionModelEnum'
+          - type: 'null'
+        defaultEffort:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionEffortEnum'
+          - type: 'null'
+        gitEnabled:
+          type: boolean
+          title: Gitenabled
+          default: false
+        secrets:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Secrets
+        llmKeyType:
+          oneOf:
+          - $ref: '#/components/schemas/AccountDefaultLLMKey'
+          - $ref: '#/components/schemas/OrchestraLLMKey'
+          - $ref: '#/components/schemas/ConnectionLLMKey'
+          title: Llmkeytype
+          default:
+            type: ACCOUNT_DEFAULT
+          discriminator:
+            propertyName: type
+            mapping:
+              ACCOUNT_DEFAULT: '#/components/schemas/AccountDefaultLLMKey'
+              CONNECTION: '#/components/schemas/ConnectionLLMKey'
+              ORCHESTRA: '#/components/schemas/OrchestraLLMKey'
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      title: CreateAgentRequest
+    CreateSessionRequest:
+      properties:
+        agentId:
+          type: string
+          format: uuid4
+          title: Agentid
+        prompt:
+          type: string
+          title: Prompt
+        pipelineEditorContext:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Pipelineeditorcontext
+        incidentId:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Incidentid
+        modelId:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionModelEnum'
+          - type: 'null'
+        effort:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionEffortEnum'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - agentId
+      - prompt
+      title: CreateSessionRequest
+    CreateSkillRequest:
+      properties:
+        markdown:
+          type: string
+          minLength: 1
+          title: Markdown
+      additionalProperties: false
+      type: object
+      required:
+      - markdown
+      title: CreateSkillRequest
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ImportSkillRequest:
+      properties:
+        repository:
+          type: string
+          minLength: 1
+          title: Repository
+        defaultBranch:
+          type: string
+          minLength: 1
+          title: Defaultbranch
+        path:
+          type: string
+          minLength: 1
+          title: Path
+      additionalProperties: false
+      type: object
+      required:
+      - repository
+      - defaultBranch
+      - path
+      title: ImportSkillRequest
+      description: Request body for importing a git-backed skill from a connected
+        repository.
+    IntegrationsEnum:
+      type: string
+      enum:
+      - AIRBYTE_CLOUD
+      - AIRBYTE_SERVER
+      - AIRFLOW
+      - ARCH
+      - ALTERYX_SERVER
+      - ANTHROPIC
+      - AWS_EC2
+      - AWS_ECS
+      - AWS_EMR
+      - AWS_EKS
+      - AWS_FIREHOSE
+      - AWS_GLUE
+      - AWS_LAMBDA
+      - AWS_RDS
+      - AWS_REDSHIFT
+      - AWS_S3
+      - AWS_BEDROCK
+      - AWS_SAGEMAKER
+      - AWS_SECRETS_MANAGER
+      - AWS_SES
+      - AWS_STEP_FUNCTIONS
+      - AZURE
+      - AZURE_CONTAINER_APPS
+      - AZURE_DATA_FACTORY
+      - AZURE_DATA_LAKE_STORAGE
+      - AZURE_KEY_VAULT
+      - AZURE_KUBERNETES_SERVICE
+      - AZURE_LOGIC_APPS
+      - AZURE_SYNAPSE_ANALYTICS
+      - AZURE_VM
+      - BAUPLAN
+      - BOOMI
+      - CDATA
+      - CENSUS
+      - CLICKHOUSE
+      - COALESCE
+      - COUNT
+      - DATADOG
+      - DATABRICKS
+      - DATAPROC
+      - DATAZEN
+      - DBT
+      - DBT_CORE
+      - DLT
+      - DOMO
+      - DREMIO
+      - DUCKDB
+      - EMAIL
+      - ESTUARY
+      - ETLEAP
+      - FABRIC
+      - FABRIC_SYNAPSE
+      - FIVETRAN
+      - FORTRA
+      - GCP_BIG_QUERY
+      - GCP_CLOUD_RUN
+      - GCP_CLOUD_FUNCTIONS
+      - GCP_CLOUD_STORAGE
+      - GCP_DATAFLOW
+      - GCP_DATAFORM
+      - GCP_DATASTREAM
+      - GCP_LOOKER
+      - GKE
+      - GITHUB_ACTIONS
+      - GOOGLE_CLOUD
+      - HEVO
+      - HEX
+      - HIGHTOUCH
+      - HTTP
+      - HUBSPOT
+      - INFORMATICA_IICS
+      - INFORMATICA_POWERCENTER
+      - KAFKA
+      - KEBOOLA
+      - KLEENE
+      - LIGHTDASH
+      - LINUX_SSH
+      - MARIADB
+      - MATILLION
+      - MATILLION_ETL
+      - METAPLANE
+      - MICROSOFT_TEAMS
+      - MICROSTRATEGY
+      - MONGODB
+      - MOTHERDUCK
+      - MYSQL
+      - N8N
+      - NIMBLE
+      - NOTION
+      - OMNI
+      - OPEN_AI
+      - ORCHESTRA
+      - PARADIME
+      - PAGER_DUTY
+      - PINECONE
+      - PORTABLE
+      - POSTGRES
+      - POWER_AUTOMATE
+      - POWER_BI
+      - PREFECT_CLOUD
+      - PYTHON
+      - QLIK
+      - QLIK_REPLICATE
+      - QUICKBOOKS
+      - RENDER
+      - RIVERY
+      - RUDDERSTACK
+      - SALESFORCE
+      - SAP
+      - SFTP
+      - SHAREPOINT
+      - SIGMA
+      - SISENSE
+      - SLACK
+      - SNOWFLAKE
+      - SNOWPLOW
+      - SODA
+      - SQL_MESH
+      - SQL_SERVER
+      - STITCH
+      - STREAMKAP
+      - TABLEAU_CLOUD
+      - TALEND_CLOUD
+      - THOUGHTSPOT
+      - TOBIKO_CLOUD
+      - TYPESAFE
+      - WEAVIATE
+      - WEBHOOK
+      - WELD
+      - WINDOWS_SSH
+      title: IntegrationsEnum
+    OrchestraLLMKey:
+      properties:
+        type:
+          type: string
+          const: ORCHESTRA
+          title: Type
+      additionalProperties: false
+      type: object
+      required:
+      - type
+      title: OrchestraLLMKey
+      description: Orchestra's own key, named rather than followed to.
+    PaginatedResponse_AgentIntegrationMappingResponse_:
+      properties:
+        page:
+          type: integer
+          title: Page
+        pageSize:
+          type: integer
+          title: Pagesize
+        total:
+          type: integer
+          title: Total
+        results:
+          items:
+            $ref: '#/components/schemas/AgentIntegrationMappingResponse'
+          type: array
+          title: Results
+      additionalProperties: false
+      type: object
+      required:
+      - page
+      - pageSize
+      - total
+      - results
+      title: PaginatedResponse[AgentIntegrationMappingResponse]
+    PaginatedResponse_AgentListResponse_:
+      properties:
+        page:
+          type: integer
+          title: Page
+        pageSize:
+          type: integer
+          title: Pagesize
+        total:
+          type: integer
+          title: Total
+        results:
+          items:
+            $ref: '#/components/schemas/AgentListResponse'
+          type: array
+          title: Results
+      additionalProperties: false
+      type: object
+      required:
+      - page
+      - pageSize
+      - total
+      - results
+      title: PaginatedResponse[AgentListResponse]
+    PaginatedResponse_AgentSessionResponse_:
+      properties:
+        page:
+          type: integer
+          title: Page
+        pageSize:
+          type: integer
+          title: Pagesize
+        total:
+          type: integer
+          title: Total
+        results:
+          items:
+            $ref: '#/components/schemas/AgentSessionResponse'
+          type: array
+          title: Results
+      additionalProperties: false
+      type: object
+      required:
+      - page
+      - pageSize
+      - total
+      - results
+      title: PaginatedResponse[AgentSessionResponse]
+    PaginatedResponse_AgentSkillMappingResponse_:
+      properties:
+        page:
+          type: integer
+          title: Page
+        pageSize:
+          type: integer
+          title: Pagesize
+        total:
+          type: integer
+          title: Total
+        results:
+          items:
+            $ref: '#/components/schemas/AgentSkillMappingResponse'
+          type: array
+          title: Results
+      additionalProperties: false
+      type: object
+      required:
+      - page
+      - pageSize
+      - total
+      - results
+      title: PaginatedResponse[AgentSkillMappingResponse]
+    PaginatedResponse_SkillResponse_:
+      properties:
+        page:
+          type: integer
+          title: Page
+        pageSize:
+          type: integer
+          title: Pagesize
+        total:
+          type: integer
+          title: Total
+        results:
+          items:
+            $ref: '#/components/schemas/SkillResponse'
+          type: array
+          title: Results
+      additionalProperties: false
+      type: object
+      required:
+      - page
+      - pageSize
+      - total
+      - results
+      title: PaginatedResponse[SkillResponse]
+    PatchAgentRequest:
+      properties:
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        systemPrompt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Systemprompt
+        responsePrompt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Responseprompt
+        secrets:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Secrets
+        avatarPath:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatarpath
+        samplePrompts:
+          anyOf:
+          - items:
+              type: string
+              maxLength: 500
+              minLength: 1
+            type: array
+            maxItems: 5
+          - type: 'null'
+          title: Sampleprompts
+        gitEnabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Gitenabled
+        defaultModelId:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionModelEnum'
+          - type: 'null'
+        defaultEffort:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionEffortEnum'
+          - type: 'null'
+        llmKeyType:
+          anyOf:
+          - oneOf:
+            - $ref: '#/components/schemas/AccountDefaultLLMKey'
+            - $ref: '#/components/schemas/OrchestraLLMKey'
+            - $ref: '#/components/schemas/ConnectionLLMKey'
+            discriminator:
+              propertyName: type
+              mapping:
+                ACCOUNT_DEFAULT: '#/components/schemas/AccountDefaultLLMKey'
+                CONNECTION: '#/components/schemas/ConnectionLLMKey'
+                ORCHESTRA: '#/components/schemas/OrchestraLLMKey'
+          - type: 'null'
+          title: Llmkeytype
+      additionalProperties: false
+      type: object
+      title: PatchAgentRequest
+    PatchSkillRequest:
+      properties:
+        markdown:
+          type: string
+          minLength: 1
+          title: Markdown
+      additionalProperties: false
+      type: object
+      required:
+      - markdown
+      title: PatchSkillRequest
+      description: Request payload for replacing a skill markdown document.
+    SendSessionMessageRequest:
+      properties:
+        message:
+          type: string
+          title: Message
+        pipelineEditorContext:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Pipelineeditorcontext
+      additionalProperties: false
+      type: object
+      required:
+      - message
+      title: SendSessionMessageRequest
+    SessionHistoryItemResponse:
+      properties:
+        sequenceId:
+          type: string
+          title: Sequenceid
+        messageType:
+          anyOf:
+          - $ref: '#/components/schemas/AgentRuntimeStreamTypeEnum'
+          - $ref: '#/components/schemas/AgentRuntimeWebsocketKind'
+          - $ref: '#/components/schemas/AgentSessionClientEventTypeEnum'
+          title: Messagetype
+        messagePayload:
+          additionalProperties: true
+          type: object
+          title: Messagepayload
+      additionalProperties: false
+      type: object
+      required:
+      - sequenceId
+      - messageType
+      - messagePayload
+      title: SessionHistoryItemResponse
+    SessionHistoryMessagesResponse:
+      properties:
+        results:
+          items:
+            $ref: '#/components/schemas/SessionHistoryItemResponse'
+          type: array
+          title: Results
+        hasPreviousPage:
+          type: boolean
+          title: Haspreviouspage
+          description: True when older messages exist before this page (going back
+            in time); use next_before_sequence_id with before_sequence_id to load
+            them.
+        hasNextPage:
+          type: boolean
+          title: Hasnextpage
+          description: True when newer messages exist after this page; use next_after_sequence_id
+            with after_sequence_id to load them.
+        nextBeforeSequenceId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Nextbeforesequenceid
+        nextAfterSequenceId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Nextaftersequenceid
+        turnCount:
+          type: integer
+          title: Turncount
+      additionalProperties: false
+      type: object
+      required:
+      - results
+      - hasPreviousPage
+      - hasNextPage
+      - turnCount
+      title: SessionHistoryMessagesResponse
+    SkillResponse:
+      properties:
+        skillId:
+          type: string
+          format: uuid4
+          title: Skillid
+        organisationId:
+          type: string
+          format: uuid
+          title: Organisationid
+        accountId:
+          type: string
+          format: uuid
+          title: Accountid
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        markdown:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Markdown
+        orchestraManaged:
+          type: boolean
+          title: Orchestramanaged
+          default: false
+        createdAt:
+          type: string
+          title: Createdat
+        createdBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Createdby
+        updatedAt:
+          type: string
+          title: Updatedat
+        updatedBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Updatedby
+        storageProvider:
+          $ref: '#/components/schemas/StorageProvider'
+          default: ORCHESTRA
+        gitPath:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Gitpath
+        repository:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Repository
+        defaultBranch:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Defaultbranch
+        syncStatus:
+          anyOf:
+          - $ref: '#/components/schemas/SkillSyncStatus'
+          - type: 'null'
+        syncError:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Syncerror
+      additionalProperties: false
+      type: object
+      required:
+      - skillId
+      - organisationId
+      - accountId
+      - name
+      - description
+      - createdAt
+      - createdBy
+      - updatedAt
+      title: SkillResponse
+    SkillSyncStatus:
+      type: string
+      enum:
+      - OK
+      - ERROR
+      - DISCONNECTED
+      title: SkillSyncStatus
+    StorageProvider:
+      type: string
+      enum:
+      - ORCHESTRA
+      - AZURE_DEVOPS
+      - GITHUB
+      - GITLAB
+      - BITBUCKET
+      title: StorageProvider
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+  securitySchemes:
+    ApiKey:
+      type: http
+      scheme: bearer
+      description: 'An API key from your workspace settings, passed as `Authorization:
+        Bearer <API_KEY>`. A read-only key works on endpoints that only read.'
+    OAuth:
+      type: oauth2
+      description: 'An access token issued to a user by Orchestra, passed as `Authorization:
+        Bearer <ACCESS_TOKEN>`. Clients register themselves at the authorization server;
+        there is no client secret.'
+      flows:
+        authorizationCode:
+          authorizationUrl: https://app.getorchestra.io/oauth/authorize
+          tokenUrl: https://app.getorchestra.io/oauth/token
+          refreshUrl: https://app.getorchestra.io/oauth/token
+          scopes:
+            orchestra:read: Read data in the workspaces you can access.
+            orchestra:write: Read and change data in the workspaces you can access.
+tags:
+- name: Agents
+  description: Agents in your workspace and the tokens they spend.
+- name: Skills
+  description: Instructions that agents load when a task calls for them.
+- name: Agent Sessions
+  description: Conversations with an agent, and their messages.
+security:
+- ApiKey: []
+- OAuth:
+  - orchestra:read

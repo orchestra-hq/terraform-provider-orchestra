@@ -110,10 +110,27 @@ type openAPI struct {
 	} `yaml:"components"`
 }
 
-func loadSpec(t *testing.T) openAPI {
+// apiSpec is one OpenAPI spec the provider calls. name is its key in
+// coverage.yaml; file is its committed copy, from the repository root.
+type apiSpec struct{ name, file string }
+
+var (
+	engineAPI = apiSpec{"engine", "openapi.yaml"}
+	agentsAPI = apiSpec{"agents", "openapi-agents.yaml"}
+	apiSpecs  = []apiSpec{engineAPI, agentsAPI}
+)
+
+// owns reports whether a provider source file calls this spec. The Agents API
+// has its own base URL, so its code lives apart, under internal/agents/;
+// everything else calls the Engine API.
+func (s apiSpec) owns(file string) bool {
+	return strings.Contains(filepath.ToSlash(file), "internal/agents/") == (s == agentsAPI)
+}
+
+func loadSpec(t *testing.T, s apiSpec) openAPI {
 	t.Helper()
 
-	specPath := filepath.Join("..", "..", "openapi.yaml")
+	specPath := filepath.Join("..", "..", s.file)
 	raw, err := os.ReadFile(specPath)
 	if err != nil {
 		t.Fatalf("read %s: %v (fetch it with: make openapi)", specPath, err)
@@ -130,7 +147,7 @@ func loadSpec(t *testing.T) openAPI {
 }
 
 func TestEveryCalledEndpointExists(t *testing.T) {
-	spec := loadSpec(t)
+	spec := loadSpec(t, engineAPI)
 
 	for _, call := range calls {
 		t.Run(call.method+" "+call.path, func(t *testing.T) {
@@ -152,7 +169,7 @@ func TestEveryCalledEndpointExists(t *testing.T) {
 }
 
 func TestEverySentQueryParameterIsDeclared(t *testing.T) {
-	spec := loadSpec(t)
+	spec := loadSpec(t, engineAPI)
 
 	for endpoint, sent := range queryParams {
 		t.Run(endpoint, func(t *testing.T) {
@@ -186,7 +203,7 @@ func TestEverySentQueryParameterIsDeclared(t *testing.T) {
 // drift. The assets `integration` validator was once 13 values behind, which
 // rejected valid configuration at plan time.
 func TestGeneratedEnumsMatchSpec(t *testing.T) {
-	spec := loadSpec(t)
+	spec := loadSpec(t, engineAPI)
 
 	raw, err := os.ReadFile(filepath.Join("..", "enums", "enums_gen.go"))
 	if err != nil {

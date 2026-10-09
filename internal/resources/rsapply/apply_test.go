@@ -2237,11 +2237,15 @@ func TestIncidentSettingsLifecycle(t *testing.T) {
 }
 
 // monitorOrderStub holds three monitors and enforces what the real
-// POST /monitors/reorder does: the list must name every monitor exactly once.
-func monitorOrderStub(t *testing.T) (*stub, string, func(ids ...string)) {
+// POST /monitors/reorder does: the list must name every monitor exactly once,
+// or it answers 400. race makes a monitor appear just before the next reorder
+// is checked, as one created elsewhere between the provider's read and its
+// reorder would.
+func monitorOrderStub(t *testing.T) (s *stub, url string, reorderInUI func(ids ...string), race func(id string)) {
 	t.Helper()
-	s := &stub{}
+	s = &stub{}
 	order := []string{"m1", "m2", "m3"}
+	appearing := ""
 	list := func() []any {
 		out := []any{}
 		for i, id := range order {
@@ -2268,12 +2272,15 @@ func monitorOrderStub(t *testing.T) (*stub, string, func(ids ...string)) {
 	})
 	mux.HandleFunc("POST /monitors/reorder", func(w http.ResponseWriter, r *http.Request) {
 		body := s.record(r)
+		if appearing != "" {
+			order, appearing = append(order, appearing), ""
+		}
 		var ids []string
 		for _, id := range body["monitorIds"].([]any) {
 			ids = append(ids, id.(string))
 		}
 		if len(ids) != len(order) || !sameMembers(ids, order) {
-			write(w, http.StatusUnprocessableEntity, map[string]any{"detail": "monitorIds must name every monitor exactly once"})
+			write(w, http.StatusBadRequest, map[string]any{"detail": "monitor_ids must name every monitor on the account exactly once."})
 			return
 		}
 		order = ids
@@ -2286,7 +2293,7 @@ func monitorOrderStub(t *testing.T) (*stub, string, func(ids ...string)) {
 	})
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
-	return s, srv.URL, func(ids ...string) { order = ids }
+	return s, srv.URL, func(ids ...string) { order = ids }, func(id string) { appearing = id }
 }
 
 func sameMembers(a, b []string) bool {
@@ -2309,7 +2316,7 @@ func sameMembers(a, b []string) bool {
 // first and the rest follow, a monitor moved in front of them shows as drift,
 // and destroy changes nothing.
 func TestMonitorOrder(t *testing.T) {
-	calls, baseURL, reorderInUI := monitorOrderStub(t)
+	calls, baseURL, reorderInUI, _ := monitorOrderStub(t)
 	server, schemaResp := newServer(t, baseURL)
 	ctx := context.Background()
 	const name = "orchestra_monitor_order"
@@ -2368,4 +2375,30 @@ func TestMonitorWithoutAction(t *testing.T) {
 			"match":    map[string]any{"integrations": []any{"SNOWFLAKE"}},
 			"group_by": []any{"pipeline"},
 		}), computedAttrs(schemaResp.ResourceSchemas["orchestra_monitor"]))
+}
+
+// TestMonitorOrderSurvivesANewMonitor covers the race between reading the
+// monitors and reordering them. Terraform creates monitors the order does not
+// depend on in parallel with it, so within one apply a monitor can appear in
+// between, and the API rejects a reorder that does not name it.
+func TestMonitorOrderSurvivesANewMonitor(t *testing.T) {
+	calls, baseURL, _, race := monitorOrderStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	const name = "orchestra_monitor_order"
+	objType := schemaResp.ResourceSchemas[name].ValueType().(tftypes.Object)
+
+	race("m4")
+	planAndApply(t, server, name, objType, tftypes.NewValue(objType, nil),
+		buildValue(t, objType, map[string]any{"monitor_ids": []any{"m3", "m1"}}),
+		computedAttrs(schemaResp.ResourceSchemas[name]))
+
+	var reorders []string
+	for _, p := range calls.paths() {
+		if p == "POST /monitors/reorder" {
+			reorders = append(reorders, p)
+		}
+	}
+	if len(reorders) != 2 {
+		t.Errorf("want one rejected reorder and one retry, got %d: %v", len(reorders), calls.paths())
+	}
 }

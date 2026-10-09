@@ -2143,3 +2143,91 @@ func TestPipelinePauseOnlySkipsDefinitionUpdate(t *testing.T) {
 		t.Errorf("no pause call; calls were %v", calls.paths())
 	}
 }
+
+// incidentSettingsStub is a workspace that already has incident settings, some
+// of them away from the spec's defaults. PATCH merges, as the spec says: an
+// omitted setting keeps its stored value.
+func incidentSettingsStub(t *testing.T) (*stub, string) {
+	t.Helper()
+	s := &stub{}
+	// The shape the live API returns, which is not quite the spec's: no
+	// groupingRule* toggles or groupingRules, and a setting the spec lacks.
+	stored := map[string]any{
+		"incidentsEnabled": true, "requireAlertConfigured": true, "environmentIds": []any{},
+		"requireDefaultBranchOrPublishedVersion": true,
+		"warningsEnabled":                        false, "groupWarningWithFailed": false, "autoResolveOnSuccess": false,
+		"maxAlertsPerIncident": 3, "alertBudgetRefillCadence": "weekly", "autoDiagnoseIncidents": false,
+		"updatedAt": "2026-01-01T00:00:00Z",
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/incident_settings", func(w http.ResponseWriter, r *http.Request) {
+		body := s.record(r)
+		switch r.Method {
+		case http.MethodPatch:
+			for k, v := range body {
+				stored[k] = v
+			}
+		case http.MethodGet:
+		default:
+			t.Errorf("unexpected %s /incident_settings", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(stored)
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		s.record(r)
+		t.Errorf("unexpected request to %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return s, srv.URL
+}
+
+// TestIncidentSettingsLifecycle pins the singleton's contract: only configured
+// settings are sent, the rest keep what the workspace already had, and destroy
+// touches nothing.
+func TestIncidentSettingsLifecycle(t *testing.T) {
+	calls, baseURL := incidentSettingsStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	ctx := context.Background()
+	const name = "orchestra_incident_settings"
+	objType := schemaResp.ResourceSchemas[name].ValueType().(tftypes.Object)
+	comp := computedAttrs(schemaResp.ResourceSchemas[name])
+
+	created := planAndApply(t, server, name, objType, tftypes.NewValue(objType, nil),
+		buildValue(t, objType, map[string]any{"max_alerts_per_incident": 5}), comp)
+
+	patch := calls.find(http.MethodPatch, "/incident_settings")
+	if patch == nil {
+		t.Fatalf("no PATCH /incident_settings; calls were %v", calls.paths())
+	}
+	if len(patch.Body) != 1 || patch.Body["maxAlertsPerIncident"] != float64(5) {
+		t.Errorf("create sent %v; want only the configured maxAlertsPerIncident, so the rest keep their values", patch.Body)
+	}
+	for _, want := range []string{`"incidents_enabled":tftypes.Bool<"true">`, `"alert_budget_refill_cadence":tftypes.String<"weekly">`, `"id":tftypes.String<"incident_settings">`} {
+		if !strings.Contains(created.String(), want) {
+			t.Errorf("state is missing %s, which the workspace already had: %s", want, created)
+		}
+	}
+
+	planAndApply(t, server, name, objType, created, buildValue(t, objType, map[string]any{
+		"max_alerts_per_incident": 6,
+		"auto_resolve_on_success": true,
+		"environment_ids":         []any{"44444444-4444-4444-4444-444444444444"},
+	}), comp)
+
+	priorDV, _ := tfprotov6.NewDynamicValue(objType, created)
+	nullDV, _ := tfprotov6.NewDynamicValue(objType, tftypes.NewValue(objType, nil))
+	before := len(calls.paths())
+	resp, err := server.ApplyResourceChange(ctx, &tfprotov6.ApplyResourceChangeRequest{
+		TypeName: name, PriorState: &priorDV, PlannedState: &nullDV, Config: &nullDV,
+	})
+	if err != nil {
+		t.Fatalf("ApplyResourceChange (delete): %v", err)
+	}
+	failOnError(t, "delete", resp.Diagnostics)
+	if got := calls.paths()[before:]; len(got) != 0 {
+		t.Errorf("destroy called %v; it should only forget the settings", got)
+	}
+}

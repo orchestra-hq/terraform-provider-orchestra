@@ -100,16 +100,6 @@ engine:
 
   # Not built yet. Each category says why, and what it would take.
 
-  candidate_incident_settings:
-    reason: >-
-      Recommended. Workspace-wide incident configuration with no create or
-      delete: a singleton resource. Declarative, and it completes
-      orchestra_monitor, whose rules fall through to these built-in grouping
-      settings.
-    operations:
-      - "GET /incident_settings"
-      - "PATCH /incident_settings"
-
   candidate_monitor_ordering:
     reason: >-
       Evaluation order is workspace-wide: this renumbers every monitor at once.

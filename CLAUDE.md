@@ -85,6 +85,7 @@ for k,v in d['properties'].items(): print(f'  {k:24}', json.dumps(v)[:140])
 | `internal/orchestra/` | HTTP client (package `client`): auth, headers, retries, 404 detection, pagination |
 | `internal/provider/` | Provider schema, configuration, resource and data source registration |
 | `internal/resources/<name>/` | One package per resource |
+| `internal/agents/` | Agent and skill resources and the skills data source: everything that calls the Agents API |
 | `internal/datasources/<name>/` | One package per data source |
 | `internal/enums/` | Generated from the spec — never edit by hand |
 | `internal/tfconv/` | Shared API-JSON ↔ Terraform value conversion |

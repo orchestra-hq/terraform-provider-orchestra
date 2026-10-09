@@ -424,3 +424,30 @@ func TestListAllStopsOnShortPage(t *testing.T) {
 		t.Errorf("made %d requests; a short page should end the read", n)
 	}
 }
+
+// TestAgentsClient pins where Agents API calls go: beside the Engine API on
+// the same host, or straight to a base URL that is not the Engine API's, as a
+// test stub's is.
+func TestAgentsClient(t *testing.T) {
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.URL.Path)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	for _, base := range []string{srv.URL + "/api/engine/public", srv.URL} {
+		c := client.New("key", base)
+		if err := c.Agents().DoJSON(context.Background(), http.MethodGet, "/agents", nil, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+		// The original client is untouched.
+		if err := c.DoJSON(context.Background(), http.MethodGet, "/pipelines", nil, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := []string{"/api/ai/v1/agents", "/api/engine/public/pipelines", "/agents", "/pipelines"}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("requested %v, want %v", got, want)
+	}
+}

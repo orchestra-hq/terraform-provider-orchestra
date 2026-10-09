@@ -12,6 +12,7 @@ package acctest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -386,4 +387,87 @@ resource "orchestra_monitor_order" "test" {
 data "orchestra_monitors" "all" {
   depends_on = [orchestra_monitor_order.test]
 }`
+}
+
+// TestAccAgent_lifecycle covers an agent and the skill it uses against the
+// Agents API, which has its own base URL. Clearing the description checks that
+// an explicit null clears a field rather than being ignored, and refreshing a
+// skill checks that the API hands its document back unchanged.
+func TestAccAgent_lifecycle(t *testing.T) {
+	preCheck(t)
+	skipWithoutAgents(t)
+	suffix := fmt.Sprintf("%d", os.Getpid())
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6,
+		Steps: []resource.TestStep{
+			{
+				Config: agentConfig(suffix, "Say hello.", `description = "tf acceptance test"`, "[orchestra_skill.test.id]"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("orchestra_agent.test", "id"),
+					resource.TestCheckResourceAttrSet("orchestra_agent.test", "default_model_id"),
+					resource.TestCheckResourceAttr("orchestra_agent.test", "llm_key.type", "ACCOUNT_DEFAULT"),
+					resource.TestCheckResourceAttr("orchestra_agent.test", "skill_ids.#", "1"),
+					resource.TestCheckResourceAttr("orchestra_skill.test", "name", "tf-acc-"+suffix),
+				),
+			},
+			{
+				Config: agentConfig(suffix, "Say goodbye.", "", "[]"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckNoResourceAttr("orchestra_agent.test", "description"),
+					resource.TestCheckResourceAttr("orchestra_agent.test", "skill_ids.#", "0"),
+				),
+			},
+			{
+				ResourceName:            "orchestra_agent.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"secrets"}, // never read back
+			},
+			{
+				ResourceName:      "orchestra_skill.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+func agentConfig(suffix, instructions, description, skills string) string {
+	return fmt.Sprintf(`
+resource "orchestra_skill" "test" {
+  markdown = <<-EOT
+    ---
+    name: tf-acc-%[1]s
+    description: Terraform acceptance test skill
+    ---
+
+    %[2]s
+  EOT
+}
+
+resource "orchestra_agent" "test" {
+  name           = "tf_acc_agent_%[1]s"
+  %[3]s
+  sample_prompts = ["What failed last night?"]
+  skill_ids      = %[4]s
+  secrets        = { TF_ACC = "not-a-real-secret" }
+}
+`, suffix, instructions, description, skills)
+}
+
+// skipWithoutAgents skips on a workspace that has no access to the Agents API.
+// Only a 403 counts: a 404 means the provider has the wrong base URL, which is
+// exactly what this test is for.
+func skipWithoutAgents(t *testing.T) {
+	t.Helper()
+	c := client.New(os.Getenv("ORCHESTRA_API_KEY"), os.Getenv("ORCHESTRA_BASE_URL")).Agents()
+	err := c.DoJSON(context.Background(), http.MethodGet, "/skills", nil, nil, nil)
+	var apiErr *client.APIError
+	if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusForbidden {
+		t.Skipf("the Agents API is not available to this workspace: %v", err)
+	}
+	if err != nil {
+		t.Fatalf("probing the Agents API: %v", err)
+	}
 }

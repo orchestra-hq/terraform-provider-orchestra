@@ -18,6 +18,13 @@ import (
 
 const defaultBaseURL = "https://app.getorchestra.io/api/engine/public"
 
+// The Agents API is a sibling of the Engine API on the same host, with its own
+// spec (openapi-agents.yaml) and base path.
+const (
+	enginePath = "/api/engine/public"
+	agentsPath = "/api/ai/v1"
+)
+
 // accountHeader lets a caller act on an account other than the one the
 // credential resolves to. Every Orchestra endpoint accepts it.
 const accountHeader = "X-Orchestra-Account-Id"
@@ -150,6 +157,17 @@ func New(apiKey, baseURL string, opts ...Option) *Client {
 	}
 
 	return c
+}
+
+// Agents returns a client for the Agents API. Credentials and settings are
+// shared; only the base URL differs. A base URL that does not end in the
+// Engine API's path, such as a test stub's, is assumed to serve both APIs.
+func (c *Client) Agents() *Client {
+	cp := *c
+	if base := c.base(); strings.HasSuffix(base, enginePath) {
+		cp.baseURL = strings.TrimSuffix(base, enginePath) + agentsPath
+	}
+	return &cp
 }
 
 // base returns the configured base URL, falling back to the production API.

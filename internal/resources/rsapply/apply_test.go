@@ -2231,3 +2231,121 @@ func TestIncidentSettingsLifecycle(t *testing.T) {
 		t.Errorf("destroy called %v; it should only forget the settings", got)
 	}
 }
+
+// monitorOrderStub holds three monitors and enforces what the real
+// POST /monitors/reorder does: the list must name every monitor exactly once.
+func monitorOrderStub(t *testing.T) (*stub, string, func(ids ...string)) {
+	t.Helper()
+	s := &stub{}
+	order := []string{"m1", "m2", "m3"}
+	list := func() []any {
+		out := []any{}
+		for i, id := range order {
+			out = append(out, map[string]any{
+				"monitorId": id, "createdAt": "2026-01-01T00:00:00Z", "createdBy": "u",
+				"updatedAt": "2026-01-01T00:00:00Z", "updatedBy": "u",
+				"definition": map[string]any{
+					"name": id, "enabled": true, "order": i,
+					"match": map[string]any{"integrations": []any{"SNOWFLAKE"}}, "groupBy": []any{"pipeline"},
+				},
+			})
+		}
+		return out
+	}
+	write := func(w http.ResponseWriter, code int, body any) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(code)
+		_ = json.NewEncoder(w).Encode(body)
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /monitors", func(w http.ResponseWriter, r *http.Request) {
+		s.record(r)
+		write(w, http.StatusOK, list())
+	})
+	mux.HandleFunc("POST /monitors/reorder", func(w http.ResponseWriter, r *http.Request) {
+		body := s.record(r)
+		var ids []string
+		for _, id := range body["monitorIds"].([]any) {
+			ids = append(ids, id.(string))
+		}
+		if len(ids) != len(order) || !sameMembers(ids, order) {
+			write(w, http.StatusUnprocessableEntity, map[string]any{"detail": "monitorIds must name every monitor exactly once"})
+			return
+		}
+		order = ids
+		write(w, http.StatusOK, list())
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		s.record(r)
+		t.Errorf("unexpected request to %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return s, srv.URL, func(ids ...string) { order = ids }
+}
+
+func sameMembers(a, b []string) bool {
+	seen := map[string]int{}
+	for _, v := range a {
+		seen[v]++
+	}
+	for _, v := range b {
+		seen[v]--
+	}
+	for _, n := range seen {
+		if n != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// TestMonitorOrder covers the resource's contract: the configured monitors go
+// first and the rest follow, a monitor moved in front of them shows as drift,
+// and destroy changes nothing.
+func TestMonitorOrder(t *testing.T) {
+	calls, baseURL, reorderInUI := monitorOrderStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	ctx := context.Background()
+	const name = "orchestra_monitor_order"
+	objType := schemaResp.ResourceSchemas[name].ValueType().(tftypes.Object)
+
+	created := planAndApply(t, server, name, objType, tftypes.NewValue(objType, nil),
+		buildValue(t, objType, map[string]any{"monitor_ids": []any{"m3", "m1"}}),
+		computedAttrs(schemaResp.ResourceSchemas[name]))
+
+	reorder := calls.find(http.MethodPost, "/monitors/reorder")
+	if reorder == nil {
+		t.Fatalf("no POST /monitors/reorder; calls were %v", calls.paths())
+	}
+	if got := reorder.RawBody; got != `{"monitorIds":["m3","m1","m2"]}` {
+		t.Errorf("reorder sent %s; want the configured monitors first and m2 after them", got)
+	}
+
+	// Someone moves m2 to the top in the UI.
+	reorderInUI("m2", "m3", "m1")
+	current, _ := tfprotov6.NewDynamicValue(objType, created)
+	read, err := server.ReadResource(ctx, &tfprotov6.ReadResourceRequest{TypeName: name, CurrentState: &current})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	failOnError(t, "read", read.Diagnostics)
+	refreshed, _ := read.NewState.Unmarshal(objType)
+	if want := `"monitor_ids":tftypes.List[tftypes.String]<tftypes.String<"m2">, tftypes.String<"m3">, tftypes.String<"m1">>`; !strings.Contains(refreshed.String(), want) {
+		t.Errorf("a monitor moved in front should show as drift; state is %s", refreshed)
+	}
+
+	before := len(calls.paths())
+	nullDV, _ := tfprotov6.NewDynamicValue(objType, tftypes.NewValue(objType, nil))
+	resp, err := server.ApplyResourceChange(ctx, &tfprotov6.ApplyResourceChangeRequest{
+		TypeName: name, PriorState: &current, PlannedState: &nullDV, Config: &nullDV,
+	})
+	if err != nil {
+		t.Fatalf("ApplyResourceChange (delete): %v", err)
+	}
+	failOnError(t, "delete", resp.Diagnostics)
+	if got := calls.paths()[before:]; len(got) != 0 {
+		t.Errorf("destroy called %v; it should leave the order as it is", got)
+	}
+}

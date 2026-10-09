@@ -116,6 +116,13 @@ func stubAPI(t *testing.T) *httptest.Server {
 			"outputKeys": []string{"rows"},
 		}})
 	})
+	mux.HandleFunc("/monitors", func(w http.ResponseWriter, r *http.Request) {
+		// Out of order on purpose: the data source sorts by `order`.
+		write(w, []any{
+			map[string]any{"monitorId": "second", "definition": map[string]any{"name": "Late", "enabled": true, "order": 1}},
+			map[string]any{"monitorId": "first", "definition": map[string]any{"name": "Warehouse failures", "description": "dbt and Snowflake", "enabled": false, "order": 0}},
+		})
+	})
 	mux.HandleFunc("/compute_resources/azure/federated_credentials", func(w http.ResponseWriter, r *http.Request) {
 		write(w, map[string]any{"subjectId": "orchestra:workspace:abc", "audience": "api://AzureADTokenExchange"})
 	})
@@ -211,6 +218,7 @@ func assertPopulated(t *testing.T, typeName string, state tftypes.Value) {
 		"orchestra_integrations":                {"Snowflake"},
 		"orchestra_integration_jobs":            {"DBT_CORE_EXECUTE"},
 		"orchestra_integration_connections":     {"name_ABCD"},
+		"orchestra_monitors":                    {`"id":tftypes.String<"first">`, "Warehouse failures", "dbt and Snowflake"},
 		"orchestra_sensor_checks":               {"SNOWFLAKE_QUERY"},
 		"orchestra_azure_federated_credentials": {"orchestra:workspace:abc", "api://AzureADTokenExchange"},
 	}

@@ -54,10 +54,12 @@ func MonitorResourceSchema() schema.Schema {
 				// Evaluation order is a property of the whole workspace, set by
 				// POST /monitors/reorder across every monitor at once. A
 				// per-resource attribute cannot express that without each
-				// monitor fighting its neighbours, so it is reported, not set.
-				Description: "Evaluation position within the workspace. Assigned by Orchestra; lower wins when two monitors claim the same event.",
-				MarkdownDescription: "Evaluation position within the workspace, assigned by Orchestra: where two monitors claim the same event, the lower `order` wins.\n\n" +
-					"Ordering is a workspace-wide operation (`POST /monitors/reorder` renumbers every monitor at once), so it is not settable here. Set it in the Orchestra UI.",
+				// monitor fighting its neighbours, so it is reported here and
+				// set by orchestra_monitor_order. Updates never send it; the
+				// API keeps it across a PUT.
+				Description: "Evaluation position within the workspace; lower wins when two monitors claim the same event. Set it with orchestra_monitor_order.",
+				MarkdownDescription: "Evaluation position within the workspace: where two monitors claim the same event, the lower `order` wins.\n\n" +
+					"Ordering is a workspace-wide operation, so it is not settable here. Set it with `orchestra_monitor_order`. A new monitor is placed last.",
 			},
 			"match":           matchAttribute(),
 			"group_by":        groupByAttribute(),

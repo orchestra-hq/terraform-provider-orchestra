@@ -110,9 +110,9 @@ Set this, `group_by_labels`, or both; together they must name at least one thing
 - `created_at` (String) When the monitor was created.
 - `created_by` (String) User who created the monitor.
 - `id` (String) The monitor ID.
-- `order` (Number) Evaluation position within the workspace, assigned by Orchestra: where two monitors claim the same event, the lower `order` wins.
+- `order` (Number) Evaluation position within the workspace: where two monitors claim the same event, the lower `order` wins.
 
-Ordering is a workspace-wide operation (`POST /monitors/reorder` renumbers every monitor at once), so it is not settable here. Set it in the Orchestra UI.
+Ordering is a workspace-wide operation, so it is not settable here. Set it with `orchestra_monitor_order`. A new monitor is placed last.
 - `updated_at` (String) When the monitor was last updated.
 - `updated_by` (String) User who last updated the monitor.
 

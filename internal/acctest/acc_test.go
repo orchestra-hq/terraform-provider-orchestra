@@ -330,3 +330,60 @@ resource "orchestra_incident_settings" "test" {
 		},
 	})
 }
+
+// TestAccMonitorOrder_lifecycle orders two monitors, then drops one from both
+// the configuration and the order in a single apply. Terraform updates the
+// order before it destroys the monitor, and the API requires a reorder to name
+// every monitor that exists, so this is the step a naive implementation fails.
+func TestAccMonitorOrder_lifecycle(t *testing.T) {
+	preCheck(t)
+	prefix := fmt.Sprintf("tf_acc_order_%d", os.Getpid())
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6,
+		Steps: []resource.TestStep{
+			{
+				Config: monitorOrderConfig(prefix, true),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("orchestra_monitor_order.test", "monitor_ids.#", "2"),
+					resource.TestCheckResourceAttrPair("orchestra_monitor_order.test", "monitor_ids.0", "orchestra_monitor.b", "id"),
+					resource.TestCheckResourceAttrPair("orchestra_monitor_order.test", "monitor_ids.1", "orchestra_monitor.a", "id"),
+				),
+			},
+			{
+				Config: monitorOrderConfig(prefix, false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("orchestra_monitor_order.test", "monitor_ids.#", "1"),
+					resource.TestCheckResourceAttrPair("orchestra_monitor_order.test", "monitor_ids.0", "orchestra_monitor.a", "id"),
+					resource.TestCheckResourceAttrPair("data.orchestra_monitors.all", "monitors.0.id", "orchestra_monitor.a", "id"),
+				),
+			},
+		},
+	})
+}
+
+func monitorOrderConfig(prefix string, withB bool) string {
+	monitor := func(name string) string {
+		return fmt.Sprintf(`
+resource "orchestra_monitor" %[1]q {
+  name     = "%[2]s_%[1]s"
+  match    = { integrations = ["SNOWFLAKE"] }
+  group_by = ["pipeline"]
+}
+`, name, prefix)
+	}
+	if withB {
+		return monitor("a") + monitor("b") + `
+resource "orchestra_monitor_order" "test" {
+  monitor_ids = [orchestra_monitor.b.id, orchestra_monitor.a.id]
+}`
+	}
+	return monitor("a") + `
+resource "orchestra_monitor_order" "test" {
+  monitor_ids = [orchestra_monitor.a.id]
+}
+
+data "orchestra_monitors" "all" {
+  depends_on = [orchestra_monitor_order.test]
+}`
+}

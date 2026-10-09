@@ -43,6 +43,8 @@ var calls = []struct {
 	{"POST", "/monitors", "monitor resource: create"},
 	{"PUT", "/monitors/{monitor_id}", "monitor resource: update"},
 	{"DELETE", "/monitors/{monitor_id}", "monitor resource: delete"},
+	{"GET", "/incident_settings", "incident settings resource: read"},
+	{"PATCH", "/incident_settings", "incident settings resource: create and update"},
 }
 
 // Query parameters the provider sends, by endpoint. A parameter the endpoint

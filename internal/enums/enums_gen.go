@@ -423,3 +423,10 @@ var IncidentSeverities = []string{
 	"MEDIUM",
 	"LOW",
 }
+
+// AlertBudgetRefillCadences is components.schemas.AlertBudgetRefillCadenceEnum.
+var AlertBudgetRefillCadences = []string{
+	"never",
+	"daily",
+	"weekly",
+}

@@ -262,3 +262,71 @@ resource "orchestra_monitor" "test" {
 }
 `, name, severity)
 }
+
+// TestAccIncidentSettings_lifecycle changes the workspace's one set of incident
+// settings, so it puts the originals back afterwards: destroying the resource
+// deliberately leaves the settings as they are.
+func TestAccIncidentSettings_lifecycle(t *testing.T) {
+	preCheck(t)
+	ctx := context.Background()
+	c := client.New(os.Getenv("ORCHESTRA_API_KEY"), os.Getenv("ORCHESTRA_BASE_URL"))
+
+	var original map[string]any
+	if err := c.DoJSON(ctx, http.MethodGet, "/incident_settings", nil, nil, &original); err != nil {
+		t.Fatalf("reading the current incident settings: %v", err)
+	}
+	t.Cleanup(func() {
+		restore := map[string]any{}
+		for k, v := range original {
+			if k != "updatedAt" && k != "groupingRules" { // read-only
+				restore[k] = v
+			}
+		}
+		if err := c.DoJSON(ctx, http.MethodPatch, "/incident_settings", nil, restore, nil); err != nil {
+			t.Errorf("could not restore the workspace's incident settings: %v", err)
+		}
+	})
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "orchestra_incident_settings" "test" {
+  max_alerts_per_incident     = 7
+  alert_budget_refill_cadence = "weekly"
+  auto_resolve_on_success     = true
+}`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("orchestra_incident_settings.test", "id", "incident_settings"),
+					resource.TestCheckResourceAttr("orchestra_incident_settings.test", "max_alerts_per_incident", "7"),
+					resource.TestCheckResourceAttr("orchestra_incident_settings.test", "auto_resolve_on_success", "true"),
+					// Unset settings are read back, not left unknown.
+					resource.TestCheckResourceAttrSet("orchestra_incident_settings.test", "incidents_enabled"),
+					resource.TestCheckResourceAttrSet("orchestra_incident_settings.test", "require_alert_configured"),
+				),
+			},
+			{
+				Config: `
+resource "orchestra_incident_settings" "test" {
+  max_alerts_per_incident     = 9
+  alert_budget_refill_cadence = "daily"
+  environment_ids             = []
+}`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("orchestra_incident_settings.test", "max_alerts_per_incident", "9"),
+					resource.TestCheckResourceAttr("orchestra_incident_settings.test", "alert_budget_refill_cadence", "daily"),
+					resource.TestCheckResourceAttr("orchestra_incident_settings.test", "environment_ids.#", "0"),
+					// No longer configured, so left as it was.
+					resource.TestCheckResourceAttr("orchestra_incident_settings.test", "auto_resolve_on_success", "true"),
+				),
+			},
+			{
+				ResourceName:      "orchestra_incident_settings.test",
+				ImportState:       true,
+				ImportStateId:     "incident_settings",
+				ImportStateVerify: true,
+			},
+		},
+	})
+}

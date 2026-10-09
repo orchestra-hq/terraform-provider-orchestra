@@ -6,14 +6,15 @@ description: Use when the Orchestra API may have changed — a "Spec sync" pull 
 # Keeping the provider in step with the API
 
 A weekly workflow (`.github/workflows/spec-sync.yml`) compares the live specs with
-the committed one and opens a **Spec sync** pull request when something changed.
+the committed ones and opens a **Spec sync** pull request when something changed.
 It never merges. This skill is the judgement it cannot make.
 
 ## 1. Get the report
 
 - A Spec sync PR carries it as the description, or
 - run `make spec-drift`. It is read-only: it fetches the live `engine`, `agents` and
-  `admin` specs and compares them with the committed `openapi.yaml`.
+  `admin` specs and compares the first two with the committed `openapi.yaml` and
+  `openapi-agents.yaml`. `admin` is only checked for new endpoints.
 
 It sorts findings into **Needs attention**, **Worth a look** and **Routine**.
 Routine needs nothing: `make openapi` already regenerated the enums.
@@ -34,7 +35,7 @@ names the current files; fix `SPEC_BASE` in the Makefile and the URLs in the wor
 | Run history, logs, incidents, audit, engine state | Exclude: it changes on every run, so state would diff forever |
 | A one-shot command (start, cancel, mute, merge) | Exclude: applying it twice is not the same as once |
 | A static catalogue of integrations or jobs | Exclude: `internal/enums` already generates it |
-| In the `agents` or `admin` spec | Exclude, or `candidate_*`: they are different APIs with their own base URL |
+| In the `admin` spec | Exclude, or `candidate_*`: the provider does not call that API |
 
 Excluding means an entry in `internal/apicontract/coverage.yaml` under a category that
 explains **why**. When the honest answer is "not yet", use a `candidate_*` category and

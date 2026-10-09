@@ -367,6 +367,30 @@ func TestSplitSpecInventory(t *testing.T) {
 	}
 }
 
+// TestComparedSpec covers a second API the provider calls: its schemas are
+// diffed like the Engine spec's, and its findings say which API they are in.
+func TestComparedSpec(t *testing.T) {
+	engine := doc(t, "paths: {}\n")
+	old := doc(t, monitorSpec("{type: array, items: {$ref: '#/components/schemas/GroupBy'}}", "{type: string}"))
+	cur := doc(t, monitorSpec("{type: array, items: {$ref: '#/components/schemas/GroupBy'}}", "{type: string, maxLength: 10}"))
+
+	r := Compare(Inputs{Old: engine, New: engine, Ledger: ledger{}, Compared: map[string][2]specDoc{"agents": {old, cur}}})
+	f := find(r, attention, groupConstr, "Monitor")
+	if f == nil {
+		t.Fatalf("a tightened constraint in a compared spec was not reported:\n%s", r.Markdown())
+	}
+	if !strings.Contains(f.subject, "(agents API)") {
+		t.Errorf("finding does not name its API: %q", f.subject)
+	}
+
+	// The same change in a spec that is only inventoried is not the
+	// provider's business.
+	r = Compare(Inputs{Old: engine, New: engine, Ledger: ledgerOf("agents", "POST /monitors"), Also: map[string]specDoc{"agents": cur}})
+	if len(r.findings) != 0 {
+		t.Errorf("an inventoried spec's schema change was reported:\n%s", r.Markdown())
+	}
+}
+
 func TestCleanReport(t *testing.T) {
 	spec := doc(t, "paths:\n  /a: {get: {responses: {'200': {description: ok}}}}\n")
 	r := Compare(Inputs{Old: spec, New: spec, Ledger: ledgerOf(engineSpec, "GET /a")})

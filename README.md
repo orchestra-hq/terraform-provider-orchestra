@@ -135,7 +135,7 @@ TMPDIR=/tmp/tfdocs make docs
 
 | Package | Covers |
 |---|---|
-| `internal/apicontract` | Every `(method, path)` and query parameter in the provider's source exists in `openapi.yaml`, and the generated enums match the spec. Both directions are checked: call sites are discovered by scanning `internal/`, so calling something unlisted fails the build. Every spec operation is either called by the provider or classified in `coverage.yaml`, so a new endpoint cannot pass unnoticed. |
+| `internal/apicontract` | Every `(method, path)` and query parameter in the provider's source exists in the committed spec it targets, and the generated enums match the spec. Both directions are checked: call sites are discovered by scanning `internal/`, so calling something unlisted fails the build. Every spec operation is either called by the provider or classified in `coverage.yaml`, so a new endpoint cannot pass unnoticed. |
 | `tools/specdrift` | The tool behind `make spec-drift`: structural comparison of two specs, ignoring prose, with exit statuses the scheduled workflow branches on. |
 | `internal/orchestra` | Auth and account headers, 404 detection, retry and backoff, pagination across both list shapes. |
 | `internal/provider` | Provider schema validity, resource and data source registration, configure-time errors. |
@@ -166,7 +166,7 @@ TF_ACC=1 ORCHESTRA_API_KEY=... go test ./... -run '^TestAcc' -v -timeout 30m
 Only one thing is generated: `internal/enums/enums_gen.go`, the validator lists for the spec's enums.
 
 ```bash
-make openapi   # refresh openapi.yaml from the docs site, then regenerate the enums
+make openapi   # refresh openapi.yaml and openapi-agents.yaml, then regenerate the enums
 make docs      # regenerate docs/ from the schemas and examples/
 ```
 
@@ -184,12 +184,13 @@ schemas are safe to regenerate.
 
 ## Keeping up with the API
 
-The docs site publishes three specs: `engine.yaml`, which is what this provider
-talks to and is committed as `openapi.yaml`, plus `agents.yaml` and `admin.yaml`,
-which are different APIs at different base URLs.
+The docs site publishes three specs, each a different API at its own base URL. The
+provider talks to two of them, committed as `openapi.yaml` (`engine.yaml`, the Engine
+API) and `openapi-agents.yaml` (`agents.yaml`, the Agents API). `admin.yaml` is only
+checked for new endpoints.
 
 ```bash
-make spec-drift   # read-only: what changed in the live specs since openapi.yaml
+make spec-drift   # read-only: what changed in the live specs since the committed ones
 ```
 
 It compares structure and ignores prose, because a refresh once rewrote ~1300 lines

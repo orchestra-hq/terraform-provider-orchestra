@@ -28,12 +28,13 @@ TFPLUGINDOCS_TEMP_DIR ?= .tmp-tfplugindocs
 GOFMT_PATHS ?= .
 
 # The docs site split its one openapi.yaml into engine.yaml, agents.yaml and admin.yaml.
-# The provider talks to the Engine API, committed as openapi.yaml; the other two
-# are fetched only to check for new endpoints.
+# The provider talks to the Engine and Agents APIs, committed as openapi.yaml and
+# openapi-agents.yaml; admin.yaml is fetched only to check for new endpoints.
 SPEC_BASE ?= https://docs.getorchestra.io/api
 OPENAPI_URL ?= $(SPEC_BASE)/engine.yaml
 SPEC_TMP ?= .tmp-spec
 OPENAPI_PATH ?= openapi.yaml
+AGENTS_OPENAPI_PATH ?= openapi-agents.yaml
 
 .PHONY: help docs docs-clean tfplugindocs build compile test vet clean provider-bin format format-check openapi enums spec-drift
 
@@ -42,11 +43,11 @@ help:
 	@echo "  make build         Compile Go packages"
 	@echo "  make compile       Compile Go packages & tests (no test run)"
 	@echo "  make test          Run unit tests"
-	@echo "  make spec-drift    Compare openapi.yaml with the live API specs (read-only)"
+	@echo "  make spec-drift    Compare the committed specs with the live ones (read-only)"
 	@echo "  make vet           Run go vet"
 	@echo "  make provider-bin Build Terraform provider executable (if cmd entrypoint exists)"
 	@echo "  make clean         Remove temp artifacts"
-	@echo "  make openapi       Refresh openapi.yaml from the docs site, then regenerate enums"
+	@echo "  make openapi       Refresh openapi.yaml and openapi-agents.yaml, then regenerate enums"
 	@echo "  make enums         Regenerate internal/enums from openapi.yaml"
 	@echo "  make docs          Generate Terraform provider docs into ./docs"
 	@echo "  make docs-clean    Remove generated docs and temp artifacts"
@@ -95,8 +96,9 @@ provider-bin:
 	fi
 
 openapi:
-	@echo "Fetching $(OPENAPI_URL)"
+	@echo "Fetching $(OPENAPI_URL) and $(SPEC_BASE)/agents.yaml"
 	@curl --fail --silent --show-error --location --output "$(OPENAPI_PATH)" "$(OPENAPI_URL)"
+	@curl --fail --silent --show-error --location --output "$(AGENTS_OPENAPI_PATH)" "$(SPEC_BASE)/agents.yaml"
 	@$(MAKE) enums
 
 # Read-only: fetches the live specs and reports what changed since openapi.yaml,
@@ -107,7 +109,7 @@ spec-drift:
 		curl --fail --silent --show-error --location --output "$(SPEC_TMP)/$$s.yaml" "$(SPEC_BASE)/$$s.yaml" || exit 1; \
 	done
 	@$(GO) run ./tools/specdrift -old "$(OPENAPI_PATH)" -new "$(SPEC_TMP)/engine.yaml" \
-		-also agents="$(SPEC_TMP)/agents.yaml" -also admin="$(SPEC_TMP)/admin.yaml"
+		-compare agents="$(AGENTS_OPENAPI_PATH),$(SPEC_TMP)/agents.yaml" -also admin="$(SPEC_TMP)/admin.yaml"
 
 enums:
 	@python3 scripts/generate_enums.py --openapi "$(OPENAPI_PATH)" --out internal/enums/enums_gen.go

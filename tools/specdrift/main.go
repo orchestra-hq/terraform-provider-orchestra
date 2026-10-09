@@ -1,8 +1,9 @@
-// Command specdrift compares two versions of the Orchestra Engine OpenAPI spec
-// and says what the provider has to do about the difference.
+// Command specdrift compares the Orchestra OpenAPI specs the provider was built
+// against with the published ones, and says what the provider has to do about
+// the difference.
 //
 //	specdrift -new engine.yaml
-//	specdrift -new engine.yaml -also agents=agents.yaml -also admin=admin.yaml -exit-code
+//	specdrift -new engine.yaml -compare agents=openapi-agents.yaml,agents.yaml -also admin=admin.yaml -exit-code
 //
 // With -exit-code the status is 0 for no findings, 1 when something needs
 // attention, 3 when there are only routine or optional findings, and 2 on error.
@@ -42,8 +43,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 	newPath := fs.String("new", "", "the spec to compare it with (required)")
 	ledgerPath := fs.String("coverage", "internal/apicontract/coverage.yaml", "the ledger of operations the provider leaves alone")
 	exitCode := fs.Bool("exit-code", false, "exit 1 when something needs attention, 3 when there are only routine or optional findings")
+	compared := map[string][2]string{}
+	fs.Func("compare", "NAME=OLD,NEW: another spec the provider calls, committed and published, such as agents=openapi-agents.yaml,agents.yaml (repeatable)", func(s string) error {
+		name, files, ok := strings.Cut(s, "=")
+		oldFile, newFile, ok2 := strings.Cut(files, ",")
+		if !ok || !ok2 || name == "" || oldFile == "" || newFile == "" {
+			return fmt.Errorf("want NAME=OLD,NEW, got %q", s)
+		}
+		compared[name] = [2]string{oldFile, newFile}
+		return nil
+	})
 	also := map[string]string{}
-	fs.Func("also", "NAME=FILE: another spec to inventory, such as agents=agents.yaml (repeatable)", func(s string) error {
+	fs.Func("also", "NAME=FILE: another spec to inventory for new endpoints only, such as admin=admin.yaml (repeatable)", func(s string) error {
 		name, file, ok := strings.Cut(s, "=")
 		if !ok || name == "" || file == "" {
 			return fmt.Errorf("want NAME=FILE, got %q", s)
@@ -59,13 +70,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return exitError
 	}
 
-	in := Inputs{Also: map[string]specDoc{}}
+	in := Inputs{Compared: map[string][2]specDoc{}, Also: map[string]specDoc{}}
 	var err error
 	if in.Old, err = readSpec(*oldPath); err != nil {
 		return fail(stderr, err)
 	}
 	if in.New, err = readSpec(*newPath); err != nil {
 		return fail(stderr, err)
+	}
+	for name, files := range compared {
+		var pair [2]specDoc
+		for i, file := range files {
+			if pair[i], err = readSpec(file); err != nil {
+				return fail(stderr, err)
+			}
+		}
+		in.Compared[name] = pair
 	}
 	for name, file := range also {
 		if in.Also[name], err = readSpec(file); err != nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/azure_federated_credentials"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/environments"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/integrations"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/monitors"
 	datasourcepipeline "github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/pipeline"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/pipelines"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/environment"
@@ -132,6 +133,7 @@ func (p *orchestraProvider) DataSources(ctx context.Context) []func() datasource
 		func() datasource.DataSource { return &environments.EnvironmentDataSource{} },
 		func() datasource.DataSource { return &environments.EnvironmentsDataSource{} },
 		func() datasource.DataSource { return &integrations.IntegrationConnectionsDataSource{} },
+		func() datasource.DataSource { return &monitors.MonitorsDataSource{} },
 		func() datasource.DataSource { return &datasourcepipeline.PipelineDataSource{} },
 		func() datasource.DataSource { return &pipelines.PipelinesDataSource{} },
 	}
@@ -142,6 +144,7 @@ func (p *orchestraProvider) Resources(ctx context.Context) []func() resource.Res
 		func() resource.Resource { return &environment.EnvironmentResource{} },
 		func() resource.Resource { return &incidentsettings.IncidentSettingsResource{} },
 		func() resource.Resource { return &monitor.MonitorResource{} },
+		func() resource.Resource { return &monitor.MonitorOrderResource{} },
 		func() resource.Resource { return &pipeline.PipelineResource{} },
 	}
 }

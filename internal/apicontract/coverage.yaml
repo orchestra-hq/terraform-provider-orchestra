@@ -98,23 +98,6 @@ engine:
       - "DELETE /assets/{asset_id}"
       - "POST /assets/dependencies"
 
-  # Not built yet. Each category says why, and what it would take.
-
-  candidate_monitor_ordering:
-    reason: >-
-      Evaluation order is workspace-wide: this renumbers every monitor at once.
-      A per-monitor attribute would have monitors fighting on every apply, so it
-      needs one singleton resource that owns the whole list. orchestra_monitor
-      reports `order` but cannot set it.
-    operations:
-      - "POST /monitors/reorder"
-
-  candidate_monitor_list:
-    reason: >-
-      A list data source for discovering existing monitor IDs. No known need:
-      orchestra_monitor imports by ID. Build it if someone asks.
-    operations:
-      - "GET /monitors"
 
 agents:
   agents_config:

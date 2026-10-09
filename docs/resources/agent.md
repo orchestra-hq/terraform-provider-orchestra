@@ -57,7 +57,7 @@ variable "pagerduty_token" {
 
 - `avatar_path` (String) The agent's image, from Orchestra's avatar catalogue.
 - `default_effort` (String) How much reasoning the agent spends: low, medium, high, xhigh or max. Unset uses the model's default. Not every model supports every level.
-- `default_model_id` (String) The model the agent runs on, such as claude-opus-5. Orchestra picks one when unset, and moves an agent off a retired model.
+- `default_model_id` (String) The model the agent runs on, such as claude-opus-5. Unset uses Orchestra's default. Orchestra moves an agent off a retired model.
 - `description` (String) What the agent is for.
 - `git_enabled` (Boolean) Let the agent use the workspace's git connection.
 - `integrations` (Set of String) Integrations whose credentials the agent may use, such as `SNOWFLAKE`. Unset leaves them as they are.

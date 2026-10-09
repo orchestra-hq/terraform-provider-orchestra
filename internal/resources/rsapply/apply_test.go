@@ -1711,7 +1711,8 @@ func monitorStub(t *testing.T) (*stub, string) {
 		}
 		// Defaults the API applies on the way out, verified against the live
 		// API: every match dimension comes back as a list even when it was not
-		// sent, and `action.alerts` materialises as an object.
+		// sent, and `action`, with `action.alerts`, materialises as an object
+		// even for a monitor created without one.
 		if _, ok := def["enabled"]; !ok {
 			def["enabled"] = true
 		}
@@ -1725,6 +1726,9 @@ func monitorStub(t *testing.T) (*stub, string) {
 			if _, ok := match[dim]; !ok {
 				match[dim] = []any{}
 			}
+		}
+		if _, ok := def["action"].(map[string]any); !ok {
+			def["action"] = map[string]any{}
 		}
 		if a, ok := def["action"].(map[string]any); ok {
 			if _, ok := a["mute"]; !ok {
@@ -2348,4 +2352,20 @@ func TestMonitorOrder(t *testing.T) {
 	if got := calls.paths()[before:]; len(got) != 0 {
 		t.Errorf("destroy called %v; it should leave the order as it is", got)
 	}
+}
+
+// TestMonitorWithoutAction covers the shape TestAccMonitorOrder_lifecycle hit
+// live: a monitor declared without `action` comes back with a default one, so
+// planning null for it aborts the apply.
+func TestMonitorWithoutAction(t *testing.T) {
+	_, baseURL := monitorStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	objType := schemaResp.ResourceSchemas["orchestra_monitor"].ValueType().(tftypes.Object)
+
+	planAndApply(t, server, "orchestra_monitor", objType, tftypes.NewValue(objType, nil),
+		buildValue(t, objType, map[string]any{
+			"name":     "No action",
+			"match":    map[string]any{"integrations": []any{"SNOWFLAKE"}},
+			"group_by": []any{"pipeline"},
+		}), computedAttrs(schemaResp.ResourceSchemas["orchestra_monitor"]))
 }

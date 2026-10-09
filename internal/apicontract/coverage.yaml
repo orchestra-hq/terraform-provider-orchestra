@@ -98,7 +98,6 @@ engine:
       - "DELETE /assets/{asset_id}"
       - "POST /assets/dependencies"
 
-
 agents:
   agents_config:
     reason: >-

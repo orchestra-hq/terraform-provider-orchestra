@@ -10,6 +10,7 @@ import (
 	tfprovider "github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/agents"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/assets"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/azure_federated_credentials"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/environments"
@@ -136,6 +137,7 @@ func (p *orchestraProvider) DataSources(ctx context.Context) []func() datasource
 		func() datasource.DataSource { return &monitors.MonitorsDataSource{} },
 		func() datasource.DataSource { return &datasourcepipeline.PipelineDataSource{} },
 		func() datasource.DataSource { return &pipelines.PipelinesDataSource{} },
+		func() datasource.DataSource { return &agents.SkillsDataSource{} },
 	}
 }
 
@@ -146,5 +148,7 @@ func (p *orchestraProvider) Resources(ctx context.Context) []func() resource.Res
 		func() resource.Resource { return &monitor.MonitorResource{} },
 		func() resource.Resource { return &monitor.MonitorOrderResource{} },
 		func() resource.Resource { return &pipeline.PipelineResource{} },
+		func() resource.Resource { return &agents.AgentResource{} },
+		func() resource.Resource { return &agents.SkillResource{} },
 	}
 }

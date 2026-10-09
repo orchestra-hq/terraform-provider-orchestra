@@ -56,6 +56,10 @@ anyone building from source should expect to rewrite their configuration.
 - `orchestra_incident_settings` manages the workspace's incident settings: whether incidents are raised, which
   failures can raise one, and the alert budget. It is a singleton, so settings left unset keep their current value
   and destroying it only removes it from state.
+- `orchestra_agent` and `orchestra_skill` manage AI agents and the skills they use, through the Agents API
+  (`/api/ai/v1` beside the Engine API). A skill is markdown held in Terraform, or a file in a connected repository
+  that Orchestra keeps in sync. An agent's `secrets` are written but never read back. `orchestra_skills` lists
+  skills, including the ones Orchestra publishes, so an agent can use them by ID.
 - `orchestra_pipeline.data` is now the full pipeline definition — tasks, task groups, schedules, sensors,
   trigger events, alerts, anomalies, inputs and configuration — validated at plan time against
   `POST /pipelines/schema`.

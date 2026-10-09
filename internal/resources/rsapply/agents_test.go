@@ -15,9 +15,10 @@ import (
 // agentsStub serves the Agents API from the stub's root, which is where the
 // provider sends it when base_url is not the Engine API's path.
 //
-// It behaves as a server that fills in its own defaults would: a model when
-// none is given, an empty prompt list, the workspace's LLM key. It masks
-// secrets in responses, so a provider that read them back would fail.
+// It fills in the defaults the live API does: an empty prompt list and the
+// workspace's LLM key. A model is not one of them; the live API stores none
+// until one is set. It masks secrets in responses, so a provider that read
+// them back would fail.
 func agentsStub(t *testing.T) (*stub, string) {
 	t.Helper()
 	s := &stub{}
@@ -50,7 +51,7 @@ func agentsStub(t *testing.T) (*stub, string) {
 	mux.HandleFunc("POST /agents", func(w http.ResponseWriter, r *http.Request) {
 		body := s.record(r)
 		agent = map[string]any{
-			"agentId": "aaaaaaaa-0000-0000-0000-000000000001", "defaultModelId": "claude-opus-5",
+			"agentId":       "aaaaaaaa-0000-0000-0000-000000000001",
 			"samplePrompts": []any{}, "gitEnabled": false, "llmKeyType": map[string]any{"type": "ACCOUNT_DEFAULT"},
 		}
 		for k, v := range body {
@@ -156,9 +157,9 @@ func TestAgentLifecycle(t *testing.T) {
 	}
 	state := created.String()
 	for _, want := range []string{
-		`"default_model_id":tftypes.String<"claude-opus-5">`, // the server's choice
-		`"TOKEN":tftypes.String<"s3cret">`,                   // not the masked echo
-		`"integrations":tftypes.Set[tftypes.String]<>`,       // unset, so read back
+		`"default_model_id":tftypes.String<null>`,      // unset, and not sent as ""
+		`"TOKEN":tftypes.String<"s3cret">`,             // not the masked echo
+		`"integrations":tftypes.Set[tftypes.String]<>`, // unset, so read back
 	} {
 		if !strings.Contains(state, want) {
 			t.Errorf("state is missing %s:\n%s", want, state)

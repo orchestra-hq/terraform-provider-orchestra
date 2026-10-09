@@ -69,11 +69,12 @@ func providerSource(t *testing.T) map[string]string {
 	return out
 }
 
-func discoverCalls(t *testing.T, spec openAPI) []callSite {
+// discoverCalls finds the call sites into one spec.
+func discoverCalls(t *testing.T, spec openAPI, s apiSpec) []callSite {
 	t.Helper()
 	var found []callSite
 	for file, src := range providerSource(t) {
-		if strings.HasSuffix(file, "client.go") {
+		if strings.HasSuffix(file, "client.go") || !s.owns(file) {
 			continue // the transport itself takes the path as an argument
 		}
 		for _, m := range doJSONRE.FindAllStringSubmatch(src, -1) {
@@ -83,9 +84,6 @@ func discoverCalls(t *testing.T, spec openAPI) []callSite {
 			found = append(found, callSite{"GET", pathToSpec(spec, m[1], ""), file})
 		}
 	}
-	if len(found) == 0 {
-		t.Fatal("found no API call sites in internal/ — the patterns above have gone stale")
-	}
 	return found
 }
 
@@ -93,12 +91,16 @@ func discoverCalls(t *testing.T, spec openAPI) []callSite {
 // provide on its own: it fails when the provider starts calling something the
 // list does not mention, which is the direction the original bugs travelled.
 func TestEveryCallSiteIsListed(t *testing.T) {
-	spec := loadSpec(t)
+	spec := loadSpec(t, engineAPI)
 	listed := map[string]bool{}
 	for _, c := range calls {
 		listed[c.method+" "+c.path] = true
 	}
-	for _, c := range discoverCalls(t, spec) {
+	found := discoverCalls(t, spec, engineAPI)
+	if len(found) == 0 {
+		t.Fatal("found no API call sites in internal/ — the patterns in this file have gone stale")
+	}
+	for _, c := range found {
 		if !listed[c.method+" "+c.path] {
 			t.Errorf("%s calls %s %s, which is not in the calls list in this file", c.file, c.method, c.path)
 		}
@@ -109,9 +111,9 @@ func TestEveryCallSiteIsListed(t *testing.T) {
 // parameter. The API ignores an undeclared parameter rather than rejecting it,
 // so nothing else in the suite would notice.
 func TestEverySetQueryParameterIsDeclaredInSource(t *testing.T) {
-	spec := loadSpec(t)
+	spec := loadSpec(t, engineAPI)
 	byFile := map[string][]callSite{}
-	for _, c := range discoverCalls(t, spec) {
+	for _, c := range discoverCalls(t, spec, engineAPI) {
 		byFile[c.file] = append(byFile[c.file], c)
 	}
 

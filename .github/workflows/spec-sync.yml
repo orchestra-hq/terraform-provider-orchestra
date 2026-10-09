@@ -62,7 +62,7 @@ jobs:
               --output ".tmp-spec/${spec}.yaml" "https://docs.getorchestra.io/api/${spec}.yaml"
           done
 
-      - name: Compare with the committed spec
+      - name: Compare with the committed specs
         id: drift
         run: |
           # Build the tool: `go run` reports every non-zero exit as 1, which
@@ -72,7 +72,7 @@ jobs:
           set +e
           .tmp-spec/specdrift -exit-code \
             -old openapi.yaml -new .tmp-spec/engine.yaml \
-            -also agents=.tmp-spec/agents.yaml -also admin=.tmp-spec/admin.yaml \
+            -compare agents=openapi-agents.yaml,.tmp-spec/agents.yaml -also admin=.tmp-spec/admin.yaml \
             > .tmp-spec/report.md
           status=$?
           set -e
@@ -114,14 +114,15 @@ jobs:
 
           git switch --create "$BRANCH"
           cp .tmp-spec/engine.yaml openapi.yaml
+          cp .tmp-spec/agents.yaml openapi-agents.yaml
           python3 -m pip install --quiet pyyaml
           make enums
-          git add openapi.yaml internal/enums
+          git add openapi.yaml openapi-agents.yaml internal/enums
 
           # --allow-empty: a ledger entry gone stale needs a pull request even
           # though no file changed.
           git commit --allow-empty \
-            -m "Refresh the Engine API spec" \
+            -m "Refresh the Engine and Agents API specs" \
             -m "Opened by the weekly spec-sync workflow. The pull request description carries the drift report."
           git push --force origin "$BRANCH"
 

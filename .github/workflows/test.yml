@@ -9,6 +9,14 @@ on:
 permissions:
   contents: read
 
+# The acceptance tests share one live workspace, and some of what they touch is
+# workspace-wide: monitor order, incident settings. Two runs at once interfere,
+# so they take turns. GitHub keeps only the newest waiting run per group, so a
+# waiting run that a newer one displaces is cancelled and needs re-running.
+concurrency:
+  group: acceptance-workspace
+  cancel-in-progress: false
+
 jobs:
   test:
     runs-on: ubuntu-latest

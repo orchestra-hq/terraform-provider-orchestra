@@ -48,7 +48,8 @@ anyone building from source should expect to rewrite their configuration.
 - `orchestra_monitor_order` puts the monitors it lists first, in that order, with every other monitor following
   in the order it already had. The API requires a reorder to name every monitor, but a configuration that had to
   as well could not delete a monitor: Terraform updates the order before destroying the monitor it no longer
-  lists. A monitor moved in front of the listed ones outside Terraform shows up as drift.
+  lists. A monitor moved in front of the listed ones outside Terraform shows up as drift, and one created during
+  the apply, by Terraform or anyone else, is picked up rather than failing the reorder.
 - `orchestra_monitors` lists the workspace's monitors in evaluation order, for importing or ordering them.
 - `orchestra_pipeline.paused` is settable. Pausing has its own endpoint, so changing only `paused` does not save
   a new version of the definition. Left unset, it is left alone, so a pause made in the Orchestra UI survives the

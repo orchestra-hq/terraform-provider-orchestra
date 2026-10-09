@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"sort"
 
@@ -152,27 +153,39 @@ func (r *MonitorOrderResource) reorder(ctx context.Context, plan *orderModel, di
 		return
 	}
 
-	var current []wireMonitorResponse
-	if err := r.client.DoJSON(ctx, http.MethodGet, "/monitors", nil, nil, &current); err != nil {
-		diags.AddError("Cannot list monitors", err.Error())
-		return
-	}
-
 	first := tfconv.GoStrings(plan.MonitorIds)
-	ids := append([]string{}, first...)
 	listed := map[string]bool{}
 	for _, id := range first {
 		listed[id] = true
 	}
-	for _, id := range evaluationOrder(current) {
-		if !listed[id] {
-			ids = append(ids, id)
-		}
-	}
 
+	// A monitor created or deleted between the read and the reorder makes the
+	// API reject it with a 400. That happens within a single apply: Terraform
+	// creates monitors the order does not depend on in parallel with it. So
+	// read again and retry; a 400 that persists is a real error, such as a
+	// listed monitor that does not exist.
 	var reordered []wireMonitorResponse
-	if err := r.client.DoJSON(ctx, http.MethodPost, "/monitors/reorder", nil,
-		map[string]any{"monitorIds": ids}, &reordered); err != nil {
+	for attempt := 1; ; attempt++ {
+		var current []wireMonitorResponse
+		if err := r.client.DoJSON(ctx, http.MethodGet, "/monitors", nil, nil, &current); err != nil {
+			diags.AddError("Cannot list monitors", err.Error())
+			return
+		}
+		ids := append([]string{}, first...)
+		for _, id := range evaluationOrder(current) {
+			if !listed[id] {
+				ids = append(ids, id)
+			}
+		}
+
+		err := r.client.DoJSON(ctx, http.MethodPost, "/monitors/reorder", nil, map[string]any{"monitorIds": ids}, &reordered)
+		if err == nil {
+			break
+		}
+		var apiErr *client.APIError
+		if attempt < 3 && errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusBadRequest {
+			continue
+		}
 		diags.AddError("Cannot reorder monitors", err.Error())
 		return
 	}

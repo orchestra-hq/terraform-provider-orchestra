@@ -136,7 +136,7 @@ func (r *AgentResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 					listvalidator.ValueStringsAre(stringvalidator.LengthBetween(1, 500)),
 				},
 			},
-			"default_model_id": serverDefaulted("The model the agent runs on, such as claude-opus-5. Orchestra picks one when unset, and moves an agent off a retired model."),
+			"default_model_id": serverDefaulted("The model the agent runs on, such as claude-opus-5. Unset uses Orchestra's default. Orchestra moves an agent off a retired model."),
 			"default_effort":   serverDefaulted("How much reasoning the agent spends: low, medium, high, xhigh or max. Unset uses the model's default. Not every model supports every level."),
 			"git_enabled": schema.BoolAttribute{
 				Optional:    true,

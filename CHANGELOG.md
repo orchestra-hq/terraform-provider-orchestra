@@ -43,6 +43,9 @@ anyone building from source should expect to rewrite their configuration.
   says what happens when one opens. `order` is reported but not settable — evaluation order is set across the
   whole workspace by `POST /monitors/reorder`, so a per-resource attribute would have monitors fighting each
   other on every apply.
+- `orchestra_pipeline.paused` is settable. Pausing has its own endpoint, so changing only `paused` does not save
+  a new version of the definition. Left unset, it is left alone, so a pause made in the Orchestra UI survives the
+  next apply.
 - `orchestra_pipeline.data` is now the full pipeline definition — tasks, task groups, schedules, sensors,
   trigger events, alerts, anomalies, inputs and configuration — validated at plan time against
   `POST /pipelines/schema`.

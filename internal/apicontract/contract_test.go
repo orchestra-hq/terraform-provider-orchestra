@@ -29,6 +29,7 @@ var calls = []struct {
 	{"PUT", "/pipelines", "pipeline resource: update"},
 	{"DELETE", "/pipelines", "pipeline resource: delete"},
 	{"POST", "/pipelines/schema", "pipeline resource: plan-time validation"},
+	{"PUT", "/pipelines/{pipeline_id_or_alias}/pause", "pipeline resource: pause"},
 	{"GET", "/pipelines", "pipelines data source"},
 	{"GET", "/assets", "assets data source"},
 	{"GET", "/compute_resources/azure/federated_credentials", "azure federated credentials data source"},

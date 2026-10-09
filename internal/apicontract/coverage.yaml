@@ -110,15 +110,6 @@ engine:
       - "GET /incident_settings"
       - "PATCH /incident_settings"
 
-  candidate_pipeline_pause:
-    reason: >-
-      A persistent toggle rather than an action: PipelineResponse.paused reflects
-      it. Building it makes `paused` settable on orchestra_pipeline, which is
-      read-only today. Needs a follow-up call after create, since POST /pipelines
-      has no paused field.
-    operations:
-      - "PUT /pipelines/{pipeline_id_or_alias}/pause"
-
   candidate_monitor_ordering:
     reason: >-
       Evaluation order is workspace-wide: this renumbers every monitor at once.

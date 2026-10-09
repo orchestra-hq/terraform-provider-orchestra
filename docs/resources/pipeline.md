@@ -90,6 +90,7 @@ resource "orchestra_pipeline" "daily_sales" {
 
 - `alias` (String) Unique identifier. Letters, numbers and underscores only, max 255 characters. Changing it replaces the pipeline.
 - `data` (Attributes) The pipeline definition: its tasks, schedule, sensors and alerts. (see [below for nested schema](#nestedatt--data))
+- `paused` (Boolean) Whether the pipeline is paused. A paused pipeline's schedules, sensors, trigger events and API starts do not start new runs. Leave unset to leave it as it is, so a pause made in the Orchestra UI is not undone by the next apply.
 - `published` (Boolean) Whether the pipeline is published and can be triggered.
 
 ### Read-Only
@@ -99,7 +100,6 @@ resource "orchestra_pipeline" "daily_sales" {
 - `latest_version_number` (Number) Highest saved version number.
 - `name` (String) The pipeline name, taken from `data.name` or from the YAML in the repository.
 - `num_tasks` (Number) Number of tasks in the pipeline.
-- `paused` (Boolean) Whether the pipeline is paused.
 - `published_version_number` (Number) Version number currently published.
 - `updated_at` (String) When the pipeline was last updated.
 - `yaml_path` (String) Path to the pipeline YAML file, assigned by Orchestra.

@@ -96,12 +96,15 @@ func pipelineStub(t *testing.T) (*stub, string) {
 	var stored json.RawMessage
 	// The API echoes the alias it was given, so the stub must too.
 	storedAlias := "daily_sales"
+	// Only the pause endpoint changes this; POST and PUT /pipelines have no
+	// paused field.
+	paused := false
 
 	response := func() map[string]any {
 		out := map[string]any{
 			"id": "33333333-3333-3333-3333-333333333333", "name": "daily_sales",
 			"yamlPath": "", "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-02T00:00:00Z",
-			"paused": false, "numTasks": 1, "alias": storedAlias,
+			"paused": paused, "numTasks": 1, "alias": storedAlias,
 			"storageProvider": "ORCHESTRA", "latestVersionNumber": 1, "publishedVersionNumber": 1,
 		}
 		if stored != nil {
@@ -157,6 +160,14 @@ func pipelineStub(t *testing.T) (*stub, string) {
 	mux.HandleFunc("/pipelines/schema", func(w http.ResponseWriter, r *http.Request) {
 		s.record(r)
 		write(w, http.StatusOK, map[string]any{"message": "Pipeline schema is valid"})
+	})
+	mux.HandleFunc("PUT /pipelines/{id}/pause", func(w http.ResponseWriter, r *http.Request) {
+		body := s.record(r)
+		paused, _ = body["paused"].(bool)
+		// PipelineResponse: no definition.
+		out := response()
+		delete(out, "data")
+		write(w, http.StatusOK, out)
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		s.record(r)
@@ -2053,5 +2064,82 @@ func TestConstraintsTightenedByTheAPI(t *testing.T) {
 				t.Errorf("a valid value was rejected: %s", got)
 			}
 		})
+	}
+}
+
+func pausedConfig(t *testing.T, objType tftypes.Object, paused any) tftypes.Value {
+	t.Helper()
+	cfg := map[string]any{
+		"alias":     "daily_sales",
+		"published": true,
+		"data": map[string]any{
+			"name": "Daily sales",
+			"tasks": map[string]any{
+				"ingest": map[string]any{
+					"integration":     "FIVETRAN",
+					"integration_job": "FIVETRAN_SYNC_ALL",
+					"parameters":      `{"connector_id":"abc"}`,
+					// Its numerics are Computed, so they go unknown in any
+					// plan that changes something; a naive comparison of
+					// plan and state then sees a definition change.
+					"anomalies": []any{
+						map[string]any{"type": "task_duration_above_baseline"},
+					},
+				},
+			},
+		},
+	}
+	if paused != nil {
+		cfg["paused"] = paused
+	}
+	return buildValue(t, objType, cfg)
+}
+
+// TestPipelinePausedOnCreate covers the follow-up call: POST /pipelines has no
+// paused field, so a pipeline created paused needs the pause endpoint too.
+func TestPipelinePausedOnCreate(t *testing.T) {
+	calls, baseURL := pipelineStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	objType := schemaResp.ResourceSchemas["orchestra_pipeline"].ValueType().(tftypes.Object)
+
+	state := planAndApply(t, server, "orchestra_pipeline", objType, tftypes.NewValue(objType, nil),
+		pausedConfig(t, objType, true), computedAttrs(schemaResp.ResourceSchemas["orchestra_pipeline"]))
+
+	pause := calls.find(http.MethodPut, "/pipelines/33333333-3333-3333-3333-333333333333/pause")
+	if pause == nil {
+		t.Fatalf("no PUT /pipelines/{id}/pause; calls were %v", calls.paths())
+	}
+	if pause.Body["paused"] != true {
+		t.Errorf("pause body was %#v, want paused: true", pause.Body)
+	}
+	if !strings.Contains(state.String(), `"paused":tftypes.Bool<"true">`) {
+		t.Errorf("state is not paused: %s", state)
+	}
+}
+
+// TestPipelinePauseOnlySkipsDefinitionUpdate pins two things: leaving `paused`
+// unset never calls the pause endpoint, and changing only `paused` does not
+// PUT the definition, which would save a new version for nothing.
+func TestPipelinePauseOnlySkipsDefinitionUpdate(t *testing.T) {
+	calls, baseURL := pipelineStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	objType := schemaResp.ResourceSchemas["orchestra_pipeline"].ValueType().(tftypes.Object)
+	comp := computedAttrs(schemaResp.ResourceSchemas["orchestra_pipeline"])
+
+	created := planAndApply(t, server, "orchestra_pipeline", objType, tftypes.NewValue(objType, nil),
+		pausedConfig(t, objType, nil), comp)
+	for _, c := range calls.paths() {
+		if strings.HasSuffix(c, "/pause") {
+			t.Fatalf("`paused` was unset, yet create called %s", c)
+		}
+	}
+
+	planAndApply(t, server, "orchestra_pipeline", objType, created, pausedConfig(t, objType, true), comp)
+
+	if calls.find(http.MethodPut, "/pipelines") != nil {
+		t.Errorf("a pause-only change sent PUT /pipelines; calls were %v", calls.paths())
+	}
+	if calls.find(http.MethodPut, "/pipelines/33333333-3333-3333-3333-333333333333/pause") == nil {
+		t.Errorf("no pause call; calls were %v", calls.paths())
 	}
 }

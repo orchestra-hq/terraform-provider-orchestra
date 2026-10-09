@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
 
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
 )
@@ -158,6 +159,65 @@ func (r *PipelineResource) getDefinition(ctx context.Context, s selector) (*wire
 	return &out, nil
 }
 
+// reconcilePaused brings the pipeline's paused flag in line with the plan.
+// POST and PUT /pipelines have no paused field, so this is always a second
+// call. On success api is replaced by the pause response, which is newer.
+func (r *PipelineResource) reconcilePaused(ctx context.Context, plan PipelineModel, api *pipelineResponse) error {
+	if plan.Paused.IsNull() || plan.Paused.IsUnknown() {
+		return nil // unset: leave it as it is
+	}
+	want := plan.Paused.ValueBool()
+	if api.Paused != nil && *api.Paused == want {
+		return nil
+	}
+	if api.Id == nil {
+		return errors.New("the API did not return a pipeline ID to pause")
+	}
+
+	var out pipelineResponse
+	err := r.client.DoJSON(ctx, http.MethodPut, "/pipelines/"+url.PathEscape(*api.Id)+"/pause", nil,
+		map[string]bool{"paused": want}, &out)
+	if err != nil {
+		return err
+	}
+	out.Data = api.Data // PipelineResponse carries no definition
+	*api = out
+	return nil
+}
+
+// onlyPausedChanged reports whether `data` and `published` are as they were.
+//
+// The framework blanks every Computed attribute that config leaves unset (an
+// anomaly's server-defaulted numerics, say) whenever anything in the resource
+// changes, so the plan's unknowns are filled from state before comparing.
+func onlyPausedChanged(plan, state tftypes.Value) bool {
+	filled, err := tftypes.Transform(plan, func(p *tftypes.AttributePath, v tftypes.Value) (tftypes.Value, error) {
+		if v.IsKnown() {
+			return v, nil
+		}
+		if prior, _, err := tftypes.WalkAttributePath(state, p); err == nil {
+			if pv, ok := prior.(tftypes.Value); ok {
+				return pv, nil
+			}
+		}
+		return v, nil
+	})
+	if err != nil {
+		return false
+	}
+	for _, name := range []string{"data", "published"} {
+		p := tftypes.NewAttributePath().WithAttributeName(name)
+		a, _, errA := tftypes.WalkAttributePath(filled, p)
+		b, _, errB := tftypes.WalkAttributePath(state, p)
+		av, okA := a.(tftypes.Value)
+		bv, okB := b.(tftypes.Value)
+		if errA != nil || errB != nil || !okA || !okB || !av.Equal(bv) {
+			return false
+		}
+	}
+	return true
+}
+
 // ---------- validation ----------
 
 func (r *PipelineResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
@@ -289,8 +349,18 @@ func (r *PipelineResource) Create(ctx context.Context, req resource.CreateReques
 		}
 	}
 
-	r.apply(ctx, &plan, api, &resp.Diagnostics)
-	if resp.Diagnostics.HasError() {
+	if err := r.reconcilePaused(ctx, plan, &api); err != nil {
+		// The pipeline exists, so state is still saved below. The error taints
+		// it, and the next apply replaces it.
+		resp.Diagnostics.AddAttributeError(path.Root("paused"), "Cannot pause pipeline",
+			"The pipeline was created but its paused flag could not be set: "+err.Error())
+	}
+
+	// Checked on its own: a failed pause above must still save state.
+	var applyDiags diag.Diagnostics
+	r.apply(ctx, &plan, api, &applyDiags)
+	resp.Diagnostics.Append(applyDiags...)
+	if applyDiags.HasError() {
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -361,7 +431,15 @@ func (r *PipelineResource) Update(ctx context.Context, req resource.UpdateReques
 
 	var api pipelineResponse
 
-	{
+	pauseOnly := onlyPausedChanged(req.Plan.Raw, req.State.Raw)
+	if pauseOnly {
+		// Only `paused` changed. Every PUT /pipelines saves a new version of
+		// the definition, so pausing alone should not go through it. State
+		// holds the definition with its server-computed values; the plan has
+		// those as unknown.
+		plan.Data = state.Data
+		api.Id, api.Paused = state.Id.ValueStringPointer(), state.Paused.ValueBoolPointer()
+	} else {
 		def := definitionToWire(plan.Data, path.Root("data"), &resp.Diagnostics)
 		if resp.Diagnostics.HasError() {
 			return
@@ -389,8 +467,23 @@ func (r *PipelineResource) Update(ctx context.Context, req resource.UpdateReques
 		}
 	}
 
-	r.apply(ctx, &plan, api, &resp.Diagnostics)
-	if resp.Diagnostics.HasError() {
+	if err := r.reconcilePaused(ctx, plan, &api); err != nil {
+		resp.Diagnostics.AddAttributeError(path.Root("paused"), "Cannot pause pipeline",
+			"The pipeline's paused flag could not be set: "+err.Error())
+		if pauseOnly {
+			// Nothing changed, and api holds only an ID: keep the prior state.
+			resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+			return
+		}
+		// The definition change above has landed, so state is still saved,
+		// carrying the paused flag as it actually is.
+	}
+
+	// Checked on its own: a failed pause above must still save state.
+	var applyDiags diag.Diagnostics
+	r.apply(ctx, &plan, api, &applyDiags)
+	resp.Diagnostics.Append(applyDiags...)
+	if applyDiags.HasError() {
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)

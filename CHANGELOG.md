@@ -46,6 +46,9 @@ anyone building from source should expect to rewrite their configuration.
 - `orchestra_pipeline.paused` is settable. Pausing has its own endpoint, so changing only `paused` does not save
   a new version of the definition. Left unset, it is left alone, so a pause made in the Orchestra UI survives the
   next apply.
+- `orchestra_incident_settings` manages the workspace's incident settings: whether incidents are raised, which
+  failures can raise one, and the alert budget. It is a singleton, so
+  settings left unset keep their current value and destroying it only removes it from state.
 - `orchestra_pipeline.data` is now the full pipeline definition — tasks, task groups, schedules, sensors,
   trigger events, alerts, anomalies, inputs and configuration — validated at plan time against
   `POST /pipelines/schema`.

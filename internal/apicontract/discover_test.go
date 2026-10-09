@@ -11,10 +11,11 @@ import (
 )
 
 // Matches DoJSON(ctx, http.MethodGet, "/path"  and  ListAll(ctx, "/path".
-// A path built by concatenation ("/environments/"+id) keeps its literal
-// prefix; pathToSpec turns that back into the spec's templated form.
+// A path built by concatenation ("/environments/"+id, or
+// "/pipelines/"+id+"/pause") keeps its literal prefix and suffix; pathToSpec
+// turns those back into the spec's templated form.
 var (
-	doJSONRE = regexp.MustCompile(`DoJSON\(\s*ctx,\s*http\.Method(\w+),\s*"([^"]+)"`)
+	doJSONRE = regexp.MustCompile(`DoJSON\(\s*ctx,\s*http\.Method(\w+),\s*"([^"]+)"(?:\s*\+[^,"]+\+\s*"([^"]+)")?`)
 	listRE   = regexp.MustCompile(`ListAll\(\s*ctx,\s*"([^"]+)"`)
 	setRE    = regexp.MustCompile(`\.Set\("([^"]+)"`)
 )
@@ -25,21 +26,26 @@ type callSite struct {
 
 // pathToSpec maps a Go path literal onto the spec's path template. A trailing
 // slash in the source means an ID was concatenated on, e.g. "/environments/"
-// is the spec's /environments/{environment_id}.
-func pathToSpec(spec openAPI, raw string) string {
-	if _, ok := spec.Paths[raw]; ok {
+// is the spec's /environments/{environment_id}; suffix is any literal after
+// the ID, e.g. "/pause".
+func pathToSpec(spec openAPI, raw, suffix string) string {
+	if _, ok := spec.Paths[raw]; ok && suffix == "" {
 		return raw
 	}
 	if !strings.HasSuffix(raw, "/") {
-		return raw
+		return raw + suffix
 	}
 	for p := range spec.Paths {
-		if strings.HasPrefix(p, raw) && strings.HasSuffix(p, "}") &&
-			!strings.Contains(strings.TrimPrefix(p, raw), "/") {
+		param, ok := strings.CutPrefix(p, raw)
+		if !ok {
+			continue
+		}
+		param, ok = strings.CutSuffix(param, suffix)
+		if ok && strings.HasPrefix(param, "{") && strings.HasSuffix(param, "}") && !strings.Contains(param, "/") {
 			return p
 		}
 	}
-	return raw
+	return raw + "{?}" + suffix
 }
 
 func providerSource(t *testing.T) map[string]string {
@@ -71,10 +77,10 @@ func discoverCalls(t *testing.T, spec openAPI) []callSite {
 			continue // the transport itself takes the path as an argument
 		}
 		for _, m := range doJSONRE.FindAllStringSubmatch(src, -1) {
-			found = append(found, callSite{strings.ToUpper(m[1]), pathToSpec(spec, m[2]), file})
+			found = append(found, callSite{strings.ToUpper(m[1]), pathToSpec(spec, m[2], m[3]), file})
 		}
 		for _, m := range listRE.FindAllStringSubmatch(src, -1) {
-			found = append(found, callSite{"GET", pathToSpec(spec, m[1]), file})
+			found = append(found, callSite{"GET", pathToSpec(spec, m[1], ""), file})
 		}
 	}
 	if len(found) == 0 {

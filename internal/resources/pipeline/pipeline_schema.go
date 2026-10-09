@@ -1,7 +1,7 @@
 // Hand-maintained. The OpenAPI codegen renders `PipelineModel.pipeline` — a
 // map of (TaskGroupModel | TaskModel) — as an empty object, because Terraform
 // has no union type. See definition_schema.go for how that union is modelled
-// instead, and scripts/generate_generator_config.py for what is generated.
+// instead.
 
 package pipeline
 
@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -78,8 +79,11 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 				Description: "Number of tasks in the pipeline.",
 			},
 			"paused": schema.BoolAttribute{
-				Computed:    true,
-				Description: "Whether the pipeline is paused.",
+				Optional:            true,
+				Computed:            true,
+				Description:         "Whether the pipeline is paused. A paused pipeline's schedules, sensors, trigger events and API starts do not start new runs. Leave unset to leave it as it is.",
+				MarkdownDescription: "Whether the pipeline is paused. A paused pipeline's schedules, sensors, trigger events and API starts do not start new runs. Leave unset to leave it as it is, so a pause made in the Orchestra UI is not undone by the next apply.",
+				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 			"latest_version_number": schema.Int64Attribute{
 				Computed:    true,

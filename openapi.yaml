@@ -1010,9 +1010,8 @@ paths:
       - Incident settings
       summary: Get incident settings
       description: 'Get the workspace''s incident settings: whether incidents are
-        on, which failures can raise one, the grouping rules in evaluation order,
-        and how incidents alert. A workspace that has never saved its settings gets
-        the defaults.'
+        on, which failures can raise one, and how incidents alert. A workspace that
+        has never saved its settings gets the defaults.'
       parameters:
       - name: X-Orchestra-Account-Id
         in: header
@@ -1758,46 +1757,10 @@ paths:
       - ApiKey: []
       - OAuth:
         - orchestra:write
-  /integrations/:
-    get:
-      tags:
-      - Integrations
-      summary: List integrations
-      description: List all integrations supported by Orchestra, including their auth
-        and job schemas.
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: '#/components/schemas/IntegrationResponse'
-                type: array
-                title: Response Get Integrations Public Integrations  Get
-      security: []
-  /integrations/jobs:
-    get:
-      tags:
-      - Integrations
-      summary: List integration jobs
-      description: List all integration job types supported by Orchestra, including
-        their job schemas.
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: '#/components/schemas/IntegrationJobResponse'
-                type: array
-                title: Response Get Integration Jobs Public Integrations Jobs Get
-      security: []
   /integrations/connections:
     get:
       tags:
-      - Integrations
+      - Integration Connections
       summary: List integration connections
       description: List the integration connections configured for the workspace the
         credential resolves to. Returns connection metadata only — secret auth parameters
@@ -1851,6 +1814,313 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-orchestra-mcp: true
+  /integrations/{integration}/auth/{connection_id}:
+    get:
+      tags:
+      - Integration Connections
+      summary: Get an integration connection
+      description: Fetch a single integration connection in the workspace the credential
+        resolves to, including its auth parameters. Secret auth parameters are obfuscated
+        in the response.
+      parameters:
+      - name: integration
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/IntegrationsEnum'
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleIntegrationAuthResponse'
+              example: &id003
+                accountId: b7a2c6f1-3e4d-4b8a-9c21-5f6e7d8a9b0c
+                connectionId: snowflake_production_48213
+                integration: SNOWFLAKE
+                connectionName: Snowflake production
+                isDefault: true
+                credentialStore: ORCHESTRA
+                authStatus: SUCCEEDED
+                message: null
+                externalMessage: null
+                updatedAt: '2026-10-12T09:30:00+00:00'
+                createdAt: '2026-10-12T09:30:00+00:00'
+                parameters: &id001
+                  snowflake_auth_type: USERNAME_PASSWORD
+                  snowflake_user: ORCHESTRA_SVC
+                  snowflake_password: '*******f9q'
+                  snowflake_account: xy12345.eu-west-1
+                  snowflake_role: TRANSFORMER
+                  snowflake_warehouse: TRANSFORMING
+                  snowflake_database: ANALYTICS
+                  snowflake_schema: PUBLIC
+                  use_private_connection: false
+        '422': &id002
+          description: Validation failed. Check path parameters, query parameters,
+            and JSON request bodies.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags:
+      - Integration Connections
+      summary: Update an integration connection
+      description: 'Update one of `connectionName`, `isDefault: true`, or `parameters`
+        with `credentialStore` on an integration connection. `parameters` follow the
+        integration''s `authSchema` and re-authenticate the connection; send obfuscated
+        secrets back unchanged to keep them. OAuth integrations return a `redirectUrl`
+        instead.'
+      parameters:
+      - name: integration
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/IntegrationsEnum'
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartialIntegrationAuthRequest'
+            example:
+              connectionName: Snowflake warehouse
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/SingleIntegrationAuthResponse'
+                - $ref: '#/components/schemas/IntegrationOAuthRedirectResponse'
+                title: Response Update Integration Connection
+              example:
+                accountId: b7a2c6f1-3e4d-4b8a-9c21-5f6e7d8a9b0c
+                connectionId: snowflake_production_48213
+                integration: SNOWFLAKE
+                connectionName: Snowflake warehouse
+                isDefault: true
+                credentialStore: ORCHESTRA
+                authStatus: SUCCEEDED
+                message: null
+                externalMessage: null
+                updatedAt: '2026-10-12T10:15:00+00:00'
+                createdAt: '2026-10-12T09:30:00+00:00'
+                parameters: *id001
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422': *id002
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+    delete:
+      tags:
+      - Integration Connections
+      summary: Delete an integration connection
+      description: Delete an integration connection from the workspace the credential
+        resolves to, along with any asset configurations and agent integration mappings
+        that use it. The default connection cannot be deleted while the integration
+        has other connections.
+      parameters:
+      - name: integration
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/IntegrationsEnum'
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '204':
+          description: Connection deleted.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422': *id002
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+  /integrations/{integration}/auth:
+    post:
+      tags:
+      - Integration Connections
+      summary: Create an integration connection
+      description: Create a connection for an integration in the caller's workspace.
+        `parameters` must match the integration's `authSchema`, as returned by Get
+        an integration. Secret parameters are obfuscated in the response. OAuth integrations
+        return a `redirectUrl` instead and need a user's credential.
+      parameters:
+      - name: integration
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/IntegrationsEnum'
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationAuthRequest'
+            example:
+              connectionName: Snowflake production
+              parameters:
+                snowflake_auth_type: USERNAME_PASSWORD
+                snowflake_user: ORCHESTRA_SVC
+                snowflake_password: my-secret-password
+                snowflake_account: xy12345.eu-west-1
+                snowflake_role: TRANSFORMER
+                snowflake_warehouse: TRANSFORMING
+                snowflake_database: ANALYTICS
+                snowflake_schema: PUBLIC
+                use_private_connection: false
+      responses:
+        '201':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/SingleIntegrationAuthResponse'
+                - $ref: '#/components/schemas/IntegrationOAuthRedirectResponse'
+                title: Response Create Integration Connection
+              example: *id003
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422': *id002
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
+  /integrations/:
+    get:
+      tags:
+      - Integrations
+      summary: List integrations
+      description: List all integrations supported by Orchestra, including their auth
+        and job schemas.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/IntegrationResponse'
+                type: array
+                title: Response Get Integrations Public Integrations  Get
+      security: []
+  /integrations/jobs:
+    get:
+      tags:
+      - Integrations
+      summary: List integration jobs
+      description: List all integration job types supported by Orchestra, including
+        their job schemas.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/IntegrationJobResponse'
+                type: array
+                title: Response Get Integration Jobs Public Integrations Jobs Get
+      security: []
   /integrations/{integration}:
     get:
       tags:
@@ -8293,7 +8563,7 @@ components:
         name:
           anyOf:
           - type: string
-            maxLength: 100
+            maxLength: 60
             minLength: 1
           - type: 'null'
           title: Name
@@ -9381,51 +9651,6 @@ components:
 
         free-form interval asks a first-time user for an opinion they do not have
         yet.'
-    IncidentGroupingRuleResponse:
-      properties:
-        settingsField:
-          type: string
-          title: Settingsfield
-        name:
-          type: string
-          title: Name
-        description:
-          type: string
-          title: Description
-        priority:
-          type: integer
-          title: Priority
-        tags:
-          items:
-            $ref: '#/components/schemas/IncidentGroupingRuleTagEnum'
-          type: array
-          title: Tags
-        beta:
-          type: boolean
-          title: Beta
-      additionalProperties: false
-      type: object
-      required:
-      - settingsField
-      - name
-      - description
-      - priority
-      - tags
-      - beta
-      title: IncidentGroupingRuleResponse
-      description: A grouping rule, and the settings field that switches it on and
-        off.
-    IncidentGroupingRuleTagEnum:
-      type: string
-      enum:
-      - assets
-      - task_runs
-      - pipeline_runs
-      - matrix
-      - tasks
-      - pipelines
-      title: IncidentGroupingRuleTagEnum
-      description: What a grouping rule keys off.
     IncidentSettingsResponse:
       properties:
         incidentsEnabled:
@@ -9436,6 +9661,12 @@ components:
           type: boolean
           title: Requirealertconfigured
           default: true
+        requireDefaultBranchOrPublishedVersion:
+          type: boolean
+          title: Only default branches and published versions
+          description: Only raise incidents for runs on a Git-backed pipeline's default
+            branch, or of an Orchestra-backed pipeline's published version.
+          default: true
         environmentIds:
           items:
             type: string
@@ -9445,30 +9676,6 @@ components:
           description: Only failures from these environments open or join an incident;
             leave it empty for every environment.
           default: []
-        groupingRuleSameTaskRunEnabled:
-          type: boolean
-          title: Groupingrulesametaskrunenabled
-          default: true
-        groupingRuleSamePipelineRunEnabled:
-          type: boolean
-          title: Groupingrulesamepipelinerunenabled
-          default: true
-        groupingRuleSameAssetEnabled:
-          type: boolean
-          title: Groupingrulesameassetenabled
-          default: true
-        groupingRuleSameMatrixParentEnabled:
-          type: boolean
-          title: Groupingrulesamematrixparentenabled
-          default: true
-        groupingRuleSameTaskEnabled:
-          type: boolean
-          title: Groupingrulesametaskenabled
-          default: true
-        groupingRuleSamePipelineEnabled:
-          type: boolean
-          title: Groupingrulesamepipelineenabled
-          default: false
         warningsEnabled:
           type: boolean
           title: Warningsenabled
@@ -9476,7 +9683,7 @@ components:
         groupWarningWithFailed:
           type: boolean
           title: Groupwarningwithfailed
-          default: false
+          default: true
         autoResolveOnSuccess:
           type: boolean
           title: Auto-resolve on success
@@ -9503,23 +9710,14 @@ components:
           title: Auto-diagnose incidents
           description: Have Orchestra's diagnoser investigate incidents as they open
             and grow.
-          default: false
+          default: true
         updatedAt:
           anyOf:
           - type: string
           - type: 'null'
           title: Updatedat
-        groupingRules:
-          items:
-            $ref: '#/components/schemas/IncidentGroupingRuleResponse'
-          type: array
-          title: Groupingrules
-          description: The rules behind the toggles above, in the order they are evaluated.
-          readOnly: true
       additionalProperties: false
       type: object
-      required:
-      - groupingRules
       title: IncidentSettingsResponse
       description: An account's current incident settings.
     PatchIncidentSettingsRequest:
@@ -9532,6 +9730,12 @@ components:
           type: boolean
           title: Requirealertconfigured
           default: true
+        requireDefaultBranchOrPublishedVersion:
+          type: boolean
+          title: Only default branches and published versions
+          description: Only raise incidents for runs on a Git-backed pipeline's default
+            branch, or of an Orchestra-backed pipeline's published version.
+          default: true
         environmentIds:
           items:
             type: string
@@ -9541,30 +9745,6 @@ components:
           description: Only failures from these environments open or join an incident;
             leave it empty for every environment.
           default: []
-        groupingRuleSameTaskRunEnabled:
-          type: boolean
-          title: Groupingrulesametaskrunenabled
-          default: true
-        groupingRuleSamePipelineRunEnabled:
-          type: boolean
-          title: Groupingrulesamepipelinerunenabled
-          default: true
-        groupingRuleSameAssetEnabled:
-          type: boolean
-          title: Groupingrulesameassetenabled
-          default: true
-        groupingRuleSameMatrixParentEnabled:
-          type: boolean
-          title: Groupingrulesamematrixparentenabled
-          default: true
-        groupingRuleSameTaskEnabled:
-          type: boolean
-          title: Groupingrulesametaskenabled
-          default: true
-        groupingRuleSamePipelineEnabled:
-          type: boolean
-          title: Groupingrulesamepipelineenabled
-          default: false
         warningsEnabled:
           type: boolean
           title: Warningsenabled
@@ -9572,7 +9752,7 @@ components:
         groupWarningWithFailed:
           type: boolean
           title: Groupwarningwithfailed
-          default: false
+          default: true
         autoResolveOnSuccess:
           type: boolean
           title: Auto-resolve on success
@@ -9599,7 +9779,7 @@ components:
           title: Auto-diagnose incidents
           description: Have Orchestra's diagnoser investigate incidents as they open
             and grow.
-          default: false
+          default: true
       additionalProperties: false
       type: object
       title: PatchIncidentSettingsRequest
@@ -9607,6 +9787,177 @@ components:
         keep
 
         their stored value; an unknown rule key is rejected.'
+    IntegrationAuthRequest:
+      properties:
+        connectionName:
+          type: string
+          title: Connectionname
+          description: Display name for the connection.
+        credentialStore:
+          $ref: '#/components/schemas/CredentialStoresEnum'
+          description: Where the secrets live. ORCHESTRA stores them encrypted in
+            Orchestra; an external store takes that store's reference parameters instead.
+          default: ORCHESTRA
+        parameters:
+          additionalProperties: true
+          type: object
+          title: Parameters
+          description: Auth parameters, keyed by the field names in the integration's
+            authSchema.
+        validationParams:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Validationparams
+          description: Parameters matching the integration's validateSchema. Supplying
+            them runs an extra validation against the provider once the connection
+            authenticates.
+        callbackPath:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Callbackpath
+      additionalProperties: false
+      type: object
+      required:
+      - connectionName
+      - parameters
+      title: IntegrationAuthRequest
+      description: Request to create or authenticate an integration connection.
+    IntegrationOAuthRedirectResponse:
+      properties:
+        accountId:
+          type: string
+          format: uuid4
+          title: Accountid
+        connectionId:
+          type: string
+          title: Connectionid
+        integration:
+          $ref: '#/components/schemas/IntegrationsEnum'
+        redirectUrl:
+          type: string
+          title: Redirecturl
+      additionalProperties: false
+      type: object
+      required:
+      - accountId
+      - connectionId
+      - integration
+      - redirectUrl
+      title: IntegrationOAuthRedirectResponse
+      description: Response containing an OAuth redirect URL for browser-based auth
+        flows.
+    PartialIntegrationAuthRequest:
+      properties:
+        connectionName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connectionname
+        credentialStore:
+          anyOf:
+          - $ref: '#/components/schemas/CredentialStoresEnum'
+          - type: 'null'
+        parameters:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Parameters
+        validationParams:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Validationparams
+          description: Parameters matching the integration's validateSchema. Supplying
+            them runs an extra validation against the provider once the connection
+            authenticates.
+        callbackPath:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Callbackpath
+        isDefault:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Isdefault
+      additionalProperties: false
+      type: object
+      title: PartialIntegrationAuthRequest
+      description: Request to partially update an integration connection. Only one
+        field group at a time.
+    SingleIntegrationAuthResponse:
+      properties:
+        accountId:
+          type: string
+          format: uuid4
+          title: Accountid
+        connectionId:
+          type: string
+          title: Connectionid
+        integration:
+          $ref: '#/components/schemas/IntegrationsEnum'
+        connectionName:
+          type: string
+          title: Connectionname
+        isDefault:
+          type: boolean
+          title: Isdefault
+        credentialStore:
+          anyOf:
+          - $ref: '#/components/schemas/CredentialStoresEnum'
+          - type: 'null'
+          default: ORCHESTRA
+        authStatus:
+          $ref: '#/components/schemas/AuthStatus'
+        message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Message
+        externalMessage:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Externalmessage
+        updatedAt:
+          type: string
+          title: Updatedat
+        createdAt:
+          type: string
+          title: Createdat
+        parameters:
+          $ref: '#/components/schemas/BaseModel'
+      additionalProperties: false
+      type: object
+      required:
+      - accountId
+      - connectionId
+      - integration
+      - connectionName
+      - isDefault
+      - authStatus
+      - message
+      - updatedAt
+      - createdAt
+      - parameters
+      title: SingleIntegrationAuthResponse
+      description: An integration connection and its auth parameters. Secret parameters
+        are obfuscated.
+    BaseModel:
+      properties: {}
+      type: object
+      title: BaseModel
+    CredentialStoresEnum:
+      type: string
+      enum:
+      - ORCHESTRA
+      - AWS_SECRETS_MANAGER
+      title: CredentialStoresEnum
   securitySchemes:
     ApiKey:
       type: http
@@ -9676,6 +10027,9 @@ tags:
   description: Endpoints for compute resource configuration details
 - name: Integrations
   description: Endpoints for listing available integrations and integration jobs in
-    Orchestra, and the metadata for your connected integrations
+    Orchestra
+- name: Integration Connections
+  description: Endpoints for listing, creating, updating, and deleting integration
+    connections. Secret auth parameters are obfuscated in responses
 - name: Environments
   description: Endpoints for managing environments

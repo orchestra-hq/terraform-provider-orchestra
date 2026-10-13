@@ -43,6 +43,7 @@ resource "orchestra_incident_settings" "this" {
 - `incidents_enabled` (Boolean) Raise incidents. Off, failures still alert but are not grouped into incidents.
 - `max_alerts_per_incident` (Number) The alert budget: live alerts sent to each destination per incident, from 1 to 50, before further updates are rolled into one notice.
 - `require_alert_configured` (Boolean) Only failures from pipelines with alerting configured can raise an incident.
+- `require_default_branch_or_published_version` (Boolean) Only runs on a Git-backed pipeline's default branch, or of an Orchestra-backed pipeline's published version, can raise an incident.
 - `warnings_enabled` (Boolean) Let warnings open and join incidents.
 
 ### Read-Only

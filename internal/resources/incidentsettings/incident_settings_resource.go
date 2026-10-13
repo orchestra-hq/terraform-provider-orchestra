@@ -35,12 +35,10 @@ const singletonID = "incident_settings"
 // struct fields because each is the same Optional+Computed boolean.
 type toggle struct{ attr, field, desc string }
 
-// toggles leaves out the spec's six groupingRuleSame*Enabled settings. The live
-// API neither returns them nor shows them in the UI, so an attribute for one
-// could be set but never read back, which fails the apply.
 var toggles = []toggle{
 	{"incidents_enabled", "incidentsEnabled", "Raise incidents. Off, failures still alert but are not grouped into incidents."},
 	{"require_alert_configured", "requireAlertConfigured", "Only failures from pipelines with alerting configured can raise an incident."},
+	{"require_default_branch_or_published_version", "requireDefaultBranchOrPublishedVersion", "Only runs on a Git-backed pipeline's default branch, or of an Orchestra-backed pipeline's published version, can raise an incident."},
 	{"warnings_enabled", "warningsEnabled", "Let warnings open and join incidents."},
 	{"group_warning_with_failed", "groupWarningWithFailed", "Group warnings into the same incidents as failures."},
 	{"auto_resolve_on_success", "autoResolveOnSuccess", "Resolve an open incident once everything it covers has succeeded again."},

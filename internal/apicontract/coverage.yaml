@@ -99,17 +99,6 @@ engine:
       - "DELETE /assets/{asset_id}"
       - "POST /assets/dependencies"
 
-  candidate_integration_connections:
-    reason: >-
-      Not yet. Connections are configuration the workspace owns, with full CRUD,
-      so they belong in Terraform as orchestra_integration_connection. Delete
-      this entry when that resource lands.
-    operations:
-      - "POST /integrations/{integration}/auth"
-      - "GET /integrations/{integration}/auth/{connection_id}"
-      - "PATCH /integrations/{integration}/auth/{connection_id}"
-      - "DELETE /integrations/{integration}/auth/{connection_id}"
-
 agents:
   agents_listing:
     reason: >-

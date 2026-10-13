@@ -69,6 +69,7 @@ The provider fails at configure time when no key resolves, rather than on the fi
 | `orchestra_pipeline` | `POST/PUT/DELETE /pipelines`, `GET /pipeline`, `GET /pipelines/data`, `POST /pipelines/schema` |
 | `orchestra_environment` | `POST/GET/PATCH/DELETE /environments[/{id}]` |
 | `orchestra_monitor` | `POST /monitors`, `GET/PUT/DELETE /monitors/{id}` |
+| `orchestra_integration_connection` | `POST /integrations/{integration}/auth`, `GET/PATCH/DELETE /integrations/{integration}/auth/{id}`. Secrets are masked on read, so `parameters` is not refreshed. |
 | `orchestra_incident_settings` | `GET/PATCH /incident_settings`. One per workspace; destroy leaves the settings as they are. |
 | `orchestra_monitor_order` | `GET /monitors`, `POST /monitors/reorder`. One per workspace; destroy leaves the order as it is. |
 | `orchestra_agent` | Agents API: `POST /agents`, `GET/PATCH/DELETE /agents/{id}`, `GET/PUT /agents/{id}/skills` and `/integrations` |

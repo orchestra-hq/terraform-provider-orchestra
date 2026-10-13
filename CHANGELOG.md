@@ -57,6 +57,9 @@ anyone building from source should expect to rewrite their configuration.
 - `orchestra_incident_settings` manages the workspace's incident settings: whether incidents are raised, which
   failures can raise one, and the alert budget. It is a singleton, so settings left unset keep their current value
   and destroying it only removes it from state.
+- `orchestra_integration_connection` manages an integration's credentials, which tasks reference by ID. Secrets
+  come back masked, so `parameters` is written but never refreshed. Integrations that sign in through a browser
+  (OAuth) are rejected with a pointer to the Orchestra UI.
 - `orchestra_agent` and `orchestra_skill` manage AI agents and the skills they use, through the Agents API
   (`/api/ai/v1` beside the Engine API). A skill is markdown held in Terraform, or a file in a connected repository
   that Orchestra keeps in sync. An agent's `secrets` are written but never read back. `orchestra_skills` lists

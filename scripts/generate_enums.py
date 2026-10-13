@@ -32,6 +32,7 @@ ENUMS: dict[str, str] = {
     "MonitorGroupByEnum": "MonitorGroupBys",
     "IncidentSeverityEnum": "IncidentSeverities",
     "AlertBudgetRefillCadenceEnum": "AlertBudgetRefillCadences",
+    "CredentialStoresEnum": "CredentialStores",
 }
 
 

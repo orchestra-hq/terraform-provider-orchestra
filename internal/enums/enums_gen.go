@@ -430,3 +430,9 @@ var AlertBudgetRefillCadences = []string{
 	"daily",
 	"weekly",
 }
+
+// CredentialStores is components.schemas.CredentialStoresEnum.
+var CredentialStores = []string{
+	"ORCHESTRA",
+	"AWS_SECRETS_MANAGER",
+}

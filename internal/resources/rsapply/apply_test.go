@@ -2154,8 +2154,6 @@ func TestPipelinePauseOnlySkipsDefinitionUpdate(t *testing.T) {
 func incidentSettingsStub(t *testing.T) (*stub, string) {
 	t.Helper()
 	s := &stub{}
-	// The shape the live API returns, which is not quite the spec's: no
-	// groupingRule* toggles or groupingRules, and a setting the spec lacks.
 	stored := map[string]any{
 		"incidentsEnabled": true, "requireAlertConfigured": true, "environmentIds": []any{},
 		"requireDefaultBranchOrPublishedVersion": true,

@@ -279,7 +279,7 @@ func TestAccIncidentSettings_lifecycle(t *testing.T) {
 	t.Cleanup(func() {
 		restore := map[string]any{}
 		for k, v := range original {
-			if k != "updatedAt" && k != "groupingRules" { // read-only
+			if k != "updatedAt" { // read-only
 				restore[k] = v
 			}
 		}
@@ -294,14 +294,16 @@ func TestAccIncidentSettings_lifecycle(t *testing.T) {
 			{
 				Config: `
 resource "orchestra_incident_settings" "test" {
-  max_alerts_per_incident     = 7
-  alert_budget_refill_cadence = "weekly"
-  auto_resolve_on_success     = true
+  max_alerts_per_incident                     = 7
+  alert_budget_refill_cadence                 = "weekly"
+  auto_resolve_on_success                     = true
+  require_default_branch_or_published_version = false
 }`,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("orchestra_incident_settings.test", "id", "incident_settings"),
 					resource.TestCheckResourceAttr("orchestra_incident_settings.test", "max_alerts_per_incident", "7"),
 					resource.TestCheckResourceAttr("orchestra_incident_settings.test", "auto_resolve_on_success", "true"),
+					resource.TestCheckResourceAttr("orchestra_incident_settings.test", "require_default_branch_or_published_version", "false"),
 					// Unset settings are read back, not left unknown.
 					resource.TestCheckResourceAttrSet("orchestra_incident_settings.test", "incidents_enabled"),
 					resource.TestCheckResourceAttrSet("orchestra_incident_settings.test", "require_alert_configured"),

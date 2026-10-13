@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 
 	client "github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/provider"
@@ -262,6 +263,59 @@ resource "orchestra_monitor" "test" {
   }
 }
 `, name, severity)
+}
+
+// TestAccIntegrationConnection_lifecycle uses the HTTP integration: it needs no
+// real account to authenticate against, and its bearer token is a secret, so
+// the masked read-back is exercised too.
+func TestAccIntegrationConnection_lifecycle(t *testing.T) {
+	preCheck(t)
+	name := fmt.Sprintf("tf_acc_conn_%d", os.Getpid())
+	const addr = "orchestra_integration_connection.test"
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6,
+		Steps: []resource.TestStep{
+			{
+				Config: connectionConfig(name, "tf-acc-token-1"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet(addr, "id"),
+					resource.TestCheckResourceAttr(addr, "name", name),
+					resource.TestCheckResourceAttrSet(addr, "credential_store"),
+					resource.TestCheckResourceAttrSet(addr, "is_default"),
+					resource.TestCheckResourceAttrSet(addr, "auth_status"),
+				),
+			},
+			{
+				// A rename and new credentials are two PATCHes.
+				Config: connectionConfig(name+"_renamed", "tf-acc-token-2"),
+				Check:  resource.TestCheckResourceAttr(addr, "name", name+"_renamed"),
+			},
+			{
+				ResourceName: addr,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					return "HTTP/" + s.RootModule().Resources[addr].Primary.ID, nil
+				},
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"parameters"}, // secrets come back masked
+			},
+		},
+	})
+}
+
+func connectionConfig(name, token string) string {
+	return fmt.Sprintf(`
+resource "orchestra_integration_connection" "test" {
+  integration = "HTTP"
+  name        = %[1]q
+  parameters = jsonencode({
+    base_url     = "https://example.com"
+    auth_type    = "BEARER_TOKEN"
+    bearer_token = %[2]q
+  })
+}
+`, name, token)
 }
 
 // TestAccIncidentSettings_lifecycle changes the workspace's one set of incident

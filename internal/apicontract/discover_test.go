@@ -27,7 +27,8 @@ type callSite struct {
 // pathToSpec maps a Go path literal onto the spec's path template. A trailing
 // slash in the source means an ID was concatenated on, e.g. "/environments/"
 // is the spec's /environments/{environment_id}; suffix is any literal after
-// the ID, e.g. "/pause".
+// the ID, e.g. "/pause". A suffix that itself ends in a slash is followed by a
+// second ID, as in "/integrations/"+integration+"/auth/"+id.
 func pathToSpec(spec openAPI, raw, suffix string) string {
 	if _, ok := spec.Paths[raw]; ok && suffix == "" {
 		return raw
@@ -35,17 +36,27 @@ func pathToSpec(spec openAPI, raw, suffix string) string {
 	if !strings.HasSuffix(raw, "/") {
 		return raw + suffix
 	}
+	tmpl := raw + "{?}" + suffix
+	if strings.HasSuffix(suffix, "/") {
+		tmpl += "{?}"
+	}
+	want := strings.Split(tmpl, "/")
 	for p := range spec.Paths {
-		param, ok := strings.CutPrefix(p, raw)
-		if !ok {
-			continue
-		}
-		param, ok = strings.CutSuffix(param, suffix)
-		if ok && strings.HasPrefix(param, "{") && strings.HasSuffix(param, "}") && !strings.Contains(param, "/") {
+		if got := strings.Split(p, "/"); len(got) == len(want) && segmentsMatch(got, want) {
 			return p
 		}
 	}
-	return raw + "{?}" + suffix
+	return tmpl
+}
+
+func segmentsMatch(spec, tmpl []string) bool {
+	for i, seg := range tmpl {
+		if seg == "{?}" && strings.HasPrefix(spec[i], "{") || seg == spec[i] {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func providerSource(t *testing.T) map[string]string {

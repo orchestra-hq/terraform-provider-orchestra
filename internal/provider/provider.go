@@ -20,6 +20,7 @@ import (
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/datasources/pipelines"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/environment"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/incidentsettings"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/integrationconnection"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/monitor"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/pipeline"
 
@@ -145,6 +146,7 @@ func (p *orchestraProvider) Resources(ctx context.Context) []func() resource.Res
 	return []func() resource.Resource{
 		func() resource.Resource { return &environment.EnvironmentResource{} },
 		func() resource.Resource { return &incidentsettings.IncidentSettingsResource{} },
+		func() resource.Resource { return &integrationconnection.IntegrationConnectionResource{} },
 		func() resource.Resource { return &monitor.MonitorResource{} },
 		func() resource.Resource { return &monitor.MonitorOrderResource{} },
 		func() resource.Resource { return &pipeline.PipelineResource{} },

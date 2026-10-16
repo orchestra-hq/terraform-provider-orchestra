@@ -52,6 +52,14 @@ resource "orchestra_pipeline" "daily_sales" {
       timezone = "Europe/London"
     }]
 
+    # One run at a time; a run that starts while one is in progress waits.
+    configuration = {
+      concurrency = {
+        max_active = "1"
+        on_limit   = "QUEUE"
+      }
+    }
+
     alerts = [{
       name     = "notify_on_failure"
       statuses = ["FAILED"]

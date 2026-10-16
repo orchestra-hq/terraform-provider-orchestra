@@ -33,6 +33,7 @@ ENUMS: dict[str, str] = {
     "IncidentSeverityEnum": "IncidentSeverities",
     "AlertBudgetRefillCadenceEnum": "AlertBudgetRefillCadences",
     "CredentialStoresEnum": "CredentialStores",
+    "ConcurrencyOnLimit": "ConcurrencyOnLimits",
 }
 
 

@@ -22,6 +22,7 @@ var Integrations = []string{
 	"AWS_RDS",
 	"AWS_REDSHIFT",
 	"AWS_S3",
+	"AWS_BATCH",
 	"AWS_BEDROCK",
 	"AWS_SAGEMAKER",
 	"AWS_SECRETS_MANAGER",
@@ -161,6 +162,7 @@ var IntegrationJobs = []string{
 	"AWS_REDSHIFT_EXECUTE_STATEMENT",
 	"AWS_S3_GET_FILE",
 	"AWS_S3_PUT_FILE",
+	"AWS_BATCH_SUBMIT_JOB",
 	"AWS_BEDROCK_INVOKE_MODEL",
 	"AWS_SAGEMAKER_DEPLOY_MODEL",
 	"AWS_SAGEMAKER_TRAIN_MODEL",
@@ -347,6 +349,7 @@ var OperationTypes = []string{
 
 // PipelineRunStatuses is components.schemas.PipelineRunStatus.
 var PipelineRunStatuses = []string{
+	"QUEUED",
 	"CREATED",
 	"RUNNING",
 	"SUCCEEDED",
@@ -414,6 +417,7 @@ var MonitorGroupBys = []string{
 	"pipeline",
 	"connection",
 	"monitor",
+	"downstream_assets",
 }
 
 // IncidentSeverities is components.schemas.IncidentSeverityEnum.
@@ -435,4 +439,12 @@ var AlertBudgetRefillCadences = []string{
 var CredentialStores = []string{
 	"ORCHESTRA",
 	"AWS_SECRETS_MANAGER",
+	"AZURE_KEY_VAULT",
+}
+
+// ConcurrencyOnLimits is components.schemas.ConcurrencyOnLimit.
+var ConcurrencyOnLimits = []string{
+	"SKIP",
+	"QUEUE",
+	"QUEUE_LATEST",
 }

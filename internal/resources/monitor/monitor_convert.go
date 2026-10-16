@@ -23,6 +23,8 @@ func toWire(m monitorModel, diags *diag.Diagnostics) wireDefinition {
 			Assets:       tfconv.GoStrings(m.Match.Assets),
 			Connections:  tfconv.GoStrings(m.Match.Connections),
 			Integrations: tfconv.GoStrings(m.Match.Integrations),
+
+			OperationFailuresOnly: m.Match.OperationFailuresOnly.ValueBool(),
 		}
 		if len(m.Match.Labels) > 0 {
 			out.Match.Labels = make(map[string][]wireLabel, len(m.Match.Labels))
@@ -47,6 +49,8 @@ func toWire(m monitorModel, diags *diag.Diagnostics) wireDefinition {
 			Mute:     m.Action.Mute.ValueBool(),
 			Severity: tfconv.StringPtrOrNil(m.Action.Severity),
 			Assignee: tfconv.StringPtrOrNil(m.Action.Assignee),
+			// Non-nil, so none is sent as [] rather than null.
+			Subscribers: append([]string{}, tfconv.GoStrings(m.Action.Subscribers)...),
 		}
 		if m.Action.Alerts != nil {
 			a.Alerts = &wireAlerts{
@@ -87,6 +91,8 @@ func apply(m *monitorModel, api wireMonitorResponse) {
 		Assets:       tfconv.Strings(d.Match.Assets),
 		Connections:  tfconv.Strings(d.Match.Connections),
 		Integrations: tfconv.Strings(d.Match.Integrations),
+
+		OperationFailuresOnly: types.BoolValue(d.Match.OperationFailuresOnly),
 	}
 	if len(d.Match.Labels) > 0 {
 		m.Match.Labels = make(map[string]labelMatchTF, len(d.Match.Labels))
@@ -119,6 +125,8 @@ func apply(m *monitorModel, api wireMonitorResponse) {
 			Mute:     types.BoolValue(d.Action.Mute),
 			Severity: tfconv.String(d.Action.Severity),
 			Assignee: tfconv.String(d.Action.Assignee),
+			// Never null: the schema defaults it to [].
+			Subscribers: tfconv.Strings(append([]string{}, d.Action.Subscribers...)),
 		}
 		if d.Action.Alerts != nil {
 			a.Alerts = &alertsTF{

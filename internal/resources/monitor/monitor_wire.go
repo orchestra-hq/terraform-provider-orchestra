@@ -36,6 +36,8 @@ type wireMatch struct {
 	Connections  []string               `json:"connections,omitempty"`
 	Integrations []string               `json:"integrations,omitempty"`
 	Labels       map[string][]wireLabel `json:"labels,omitempty"`
+
+	OperationFailuresOnly bool `json:"operationFailuresOnly"`
 }
 
 type wireLabel struct {
@@ -49,10 +51,12 @@ type wireTrigger struct {
 }
 
 type wireAction struct {
-	Mute     bool        `json:"mute"`
-	Severity *string     `json:"severity,omitempty"`
-	Assignee *string     `json:"assignee,omitempty"`
-	Alerts   *wireAlerts `json:"alerts,omitempty"`
+	Mute     bool    `json:"mute"`
+	Severity *string `json:"severity,omitempty"`
+	Assignee *string `json:"assignee,omitempty"`
+	// Always sent: a PUT resets an omitted field to its default.
+	Subscribers []string    `json:"subscribers"`
+	Alerts      *wireAlerts `json:"alerts,omitempty"`
 }
 
 type wireAlerts struct {

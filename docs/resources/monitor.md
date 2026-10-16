@@ -47,6 +47,9 @@ resource "orchestra_monitor" "flaky_ingestion" {
 
   match = {
     integrations = ["FIVETRAN"]
+
+    # Only failing syncs, not a task that could not start.
+    operation_failures_only = true
   }
 
   group_by = ["connection"]
@@ -125,6 +128,7 @@ Optional:
 - `connections` (List of String) Connection IDs to claim events from.
 - `integrations` (List of String) Integrations to claim events from.
 - `labels` (Attributes Map) Label matches keyed by label name (max 32). Each entry is a JSON path into the event and the values that count as a match. (see [below for nested schema](#nestedatt--match--labels))
+- `operation_failures_only` (Boolean) Claim only failures with an operation behind them, such as a failing dbt model or test, not task-level failures such as a dbt parsing error. Narrows the other dimensions; it does not count as one.
 - `pipelines` (List of String) Pipeline IDs to claim events from.
 
 <a id="nestedatt--match--labels"></a>
@@ -143,9 +147,10 @@ Required:
 Optional:
 
 - `alerts` (Attributes) Where to send the alert. (see [below for nested schema](#nestedatt--action--alerts))
-- `assignee` (String) User ID to assign the incident to.
+- `assignee` (String) User ID to assign the incident to. Can be a Slack-only user, who is notified in Slack but cannot open the incident in Orchestra.
 - `mute` (Boolean) Open the incident without alerting.
 - `severity` (String) Severity to open the incident at.
+- `subscribers` (List of String) User IDs mentioned in the incident's Slack alerts, at most 20. Like assignee, they can be Slack-only users.
 
 <a id="nestedatt--action--alerts"></a>
 ### Nested Schema for `action.alerts`

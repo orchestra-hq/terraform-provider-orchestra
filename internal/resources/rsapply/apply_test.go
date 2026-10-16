@@ -1692,7 +1692,8 @@ func TestPipelineReadNotFoundNamesTheSelector(t *testing.T) {
 
 // monitorStub answers the monitor endpoints the way the live API does: it
 // echoes the stored definition back with the server-side defaults filled in
-// (`enabled`, `action.mute`, `alsoSendToPipelineDestinations`) and assigns
+// (`enabled`, `action.mute`, `action.subscribers`, `match.operationFailuresOnly`,
+// `alsoSendToPipelineDestinations`) and assigns
 // `order`, which is workspace-wide and not settable per monitor.
 func monitorStub(t *testing.T) (*stub, string) {
 	t.Helper()
@@ -1727,12 +1728,18 @@ func monitorStub(t *testing.T) (*stub, string) {
 				match[dim] = []any{}
 			}
 		}
+		if _, ok := match["operationFailuresOnly"]; !ok {
+			match["operationFailuresOnly"] = false
+		}
 		if _, ok := def["action"].(map[string]any); !ok {
 			def["action"] = map[string]any{}
 		}
 		if a, ok := def["action"].(map[string]any); ok {
 			if _, ok := a["mute"]; !ok {
 				a["mute"] = false
+			}
+			if _, ok := a["subscribers"]; !ok {
+				a["subscribers"] = []any{}
 			}
 			al, _ := a["alerts"].(map[string]any)
 			if al == nil {

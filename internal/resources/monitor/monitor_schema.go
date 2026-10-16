@@ -151,6 +151,13 @@ func matchAttribute() schema.Attribute {
 						"must be 1-64 characters of letters, numbers, or _.:/-")),
 				},
 			},
+			"operation_failures_only": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
+				Description: "Claim only failures with an operation behind them, such as a failing dbt model or test, " +
+					"not task-level failures such as a dbt parsing error. Narrows the other dimensions; it does not count as one.",
+			},
 		},
 	}
 }
@@ -257,11 +264,11 @@ func actionAttribute() schema.Attribute {
 		Default: objectdefault.StaticValue(types.ObjectValueMust(
 			map[string]attr.Type{
 				"mute": types.BoolType, "severity": types.StringType, "assignee": types.StringType,
-				"alerts": alertsObjectType(),
+				"subscribers": types.ListType{ElemType: types.StringType}, "alerts": alertsObjectType(),
 			},
 			map[string]attr.Value{
 				"mute": types.BoolValue(false), "severity": types.StringNull(), "assignee": types.StringNull(),
-				"alerts": alertsDefault(),
+				"subscribers": types.ListValueMust(types.StringType, []attr.Value{}), "alerts": alertsDefault(),
 			},
 		)),
 		Description: "What happens when an incident opens.",
@@ -279,7 +286,16 @@ func actionAttribute() schema.Attribute {
 			},
 			"assignee": schema.StringAttribute{
 				Optional:    true,
-				Description: "User ID to assign the incident to.",
+				Description: "User ID to assign the incident to. Can be a Slack-only user, who is notified in Slack but cannot open the incident in Orchestra.",
+			},
+			"subscribers": schema.ListAttribute{
+				Optional:    true,
+				Computed:    true,
+				ElementType: types.StringType,
+				// The API returns [] when none were sent.
+				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
+				Description: "User IDs mentioned in the incident's Slack alerts, at most 20. Like assignee, they can be Slack-only users.",
+				Validators:  []validator.List{listvalidator.SizeAtMost(20)},
 			},
 			"alerts": schema.SingleNestedAttribute{
 				Optional: true,
@@ -331,6 +347,8 @@ type matchTF struct {
 	Connections  []types.String          `tfsdk:"connections"`
 	Integrations []types.String          `tfsdk:"integrations"`
 	Labels       map[string]labelMatchTF `tfsdk:"labels"`
+
+	OperationFailuresOnly types.Bool `tfsdk:"operation_failures_only"`
 }
 
 type groupByLabelTF struct {
@@ -349,10 +367,11 @@ type triggerTF struct {
 }
 
 type actionTF struct {
-	Mute     types.Bool   `tfsdk:"mute"`
-	Severity types.String `tfsdk:"severity"`
-	Assignee types.String `tfsdk:"assignee"`
-	Alerts   *alertsTF    `tfsdk:"alerts"`
+	Mute        types.Bool     `tfsdk:"mute"`
+	Severity    types.String   `tfsdk:"severity"`
+	Assignee    types.String   `tfsdk:"assignee"`
+	Subscribers []types.String `tfsdk:"subscribers"`
+	Alerts      *alertsTF      `tfsdk:"alerts"`
 }
 
 type alertsTF struct {

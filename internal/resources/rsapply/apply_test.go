@@ -961,6 +961,9 @@ func applyServerDefaults(raw json.RawMessage) json.RawMessage {
 	if raw, ok := obj["anomalies"]; ok {
 		obj["anomalies"] = defaultAnomalies(raw)
 	}
+	if raw, ok := obj["configuration"]; ok {
+		obj["configuration"] = defaultConcurrency(raw)
+	}
 	out, err := json.Marshal(obj)
 	if err != nil {
 		return raw
@@ -1018,6 +1021,25 @@ func defaultAnomalies(raw json.RawMessage) json.RawMessage {
 	return out
 }
 
+// defaultConcurrency fills in onLimit, which the spec declares non-nullable
+// with a default of SKIP.
+func defaultConcurrency(raw json.RawMessage) json.RawMessage {
+	var cfg map[string]json.RawMessage
+	var c map[string]json.RawMessage
+	if json.Unmarshal(raw, &cfg) != nil || json.Unmarshal(cfg["concurrency"], &c) != nil || c == nil {
+		return raw
+	}
+	if _, ok := c["onLimit"]; !ok {
+		c["onLimit"] = json.RawMessage(`"SKIP"`)
+	}
+	cfg["concurrency"], _ = json.Marshal(c)
+	out, err := json.Marshal(cfg)
+	if err != nil {
+		return raw
+	}
+	return out
+}
+
 // TestPipelineServerDefaultsDoNotBreakApply covers the whole class: the API
 // fills in declared defaults on the way out, so an Optional attribute left
 // unset in config comes back populated. planAndApply fails if any planned
@@ -1052,6 +1074,8 @@ func TestPipelineServerDefaultsDoNotBreakApply(t *testing.T) {
 			"anomalies": []any{
 				map[string]any{"type": "pipeline_duration_above_baseline"},
 			},
+			// A limit with no on_limit, which the API returns as SKIP.
+			"configuration": map[string]any{"retries": 1, "concurrency": map[string]any{"max_active": "2"}},
 		},
 	})
 

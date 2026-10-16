@@ -441,3 +441,10 @@ var CredentialStores = []string{
 	"AWS_SECRETS_MANAGER",
 	"AZURE_KEY_VAULT",
 }
+
+// ConcurrencyOnLimits is components.schemas.ConcurrencyOnLimit.
+var ConcurrencyOnLimits = []string{
+	"SKIP",
+	"QUEUE",
+	"QUEUE_LATEST",
+}

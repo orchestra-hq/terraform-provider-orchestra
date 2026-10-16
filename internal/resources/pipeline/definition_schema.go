@@ -1,6 +1,8 @@
 package pipeline
 
 import (
+	"regexp"
+
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
@@ -521,6 +523,18 @@ func configurationAttributes() map[string]schema.Attribute {
 					Description:         "Maximum concurrent runs, as a number or a template expression.",
 					MarkdownDescription: "Maximum concurrent runs. The API accepts an integer or a `${{ }}` template, so Terraform carries both as a string (for example `\"3\"`).",
 				},
+				"on_limit": schema.StringAttribute{
+					Optional: true,
+					// Server-defaulted (SKIP, per the spec) and echoed back, so
+					// Computed rather than trusting the declared default.
+					Computed:            true,
+					Description:         "What happens to a run that would exceed max_active: SKIP, QUEUE, QUEUE_LATEST, or a template expression. Defaulted by Orchestra when not set.",
+					MarkdownDescription: "What happens to a run that would exceed `max_active`: `SKIP` it, `QUEUE` it, or `QUEUE_LATEST` to keep only the newest waiting run. Also accepts a `${{ }}` template. Defaulted by Orchestra (to `SKIP`) when not set.",
+					Validators: []validator.String{stringvalidator.Any(
+						stringvalidator.OneOf(enums.ConcurrencyOnLimits...),
+						stringvalidator.RegexMatches(templatePattern, "must be a ${{ }} template"),
+					)},
+				},
 			},
 			Description: "Concurrency limits.",
 		},
@@ -658,3 +672,7 @@ func webhookObjectType() types.ObjectType {
 	}
 	return types.ObjectType{AttrTypes: attrs}
 }
+
+// templatePattern is the spec's pattern for the template half of a
+// ParameterizedEnumStr.
+var templatePattern = regexp.MustCompile(`\$\{\{\s*([^}]+?)\s*\}\}`)

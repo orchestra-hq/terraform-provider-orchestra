@@ -48,12 +48,13 @@ func TestAccPipeline_lifecycle(t *testing.T) {
 	preCheck(t)
 	alias := fmt.Sprintf("tf_acc_%d", os.Getpid())
 	var versionBeforePause string
+	const queue = `max_active = "1", on_limit = "QUEUE"`
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: protoV6,
 		Steps: []resource.TestStep{
 			{
-				Config: pipelineConfig(alias, "abc", ""),
+				Config: pipelineConfig(alias, "abc", "", `max_active = "1"`),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("orchestra_pipeline.test", "id"),
 					resource.TestCheckResourceAttr("orchestra_pipeline.test", "alias", alias),
@@ -61,15 +62,17 @@ func TestAccPipeline_lifecycle(t *testing.T) {
 					// The API defaults these and echoes them back.
 					resource.TestCheckResourceAttr("orchestra_pipeline.test", "data.webhook.enabled", "false"),
 					resource.TestCheckResourceAttr("orchestra_pipeline.test", "data.tasks.ingest.depends_on.#", "0"),
+					resource.TestCheckResourceAttr("orchestra_pipeline.test", "data.configuration.concurrency.on_limit", "SKIP"),
 				),
 			},
 			{
 				// An in-place edit. If anything plans a replacement, or the
 				// applied state differs from the plan, this step fails.
-				Config: pipelineConfig(alias, "def", ""),
+				Config: pipelineConfig(alias, "def", "", queue),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("orchestra_pipeline.test", "data.tasks.ingest.parameters",
 						`{"connector_id":"def"}`),
+					resource.TestCheckResourceAttr("orchestra_pipeline.test", "data.configuration.concurrency.on_limit", "QUEUE"),
 					resource.TestCheckResourceAttrWith("orchestra_pipeline.test", "latest_version_number",
 						func(v string) error { versionBeforePause = v; return nil }),
 				),
@@ -77,7 +80,7 @@ func TestAccPipeline_lifecycle(t *testing.T) {
 			{
 				// Pausing alone goes through its own endpoint, not a new
 				// version of the definition.
-				Config: pipelineConfig(alias, "def", "paused = true"),
+				Config: pipelineConfig(alias, "def", "paused = true", queue),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("orchestra_pipeline.test", "paused", "true"),
 					resource.TestCheckResourceAttrWith("orchestra_pipeline.test", "latest_version_number",
@@ -99,7 +102,7 @@ func TestAccPipeline_lifecycle(t *testing.T) {
 	})
 }
 
-func pipelineConfig(alias, connector, extra string) string {
+func pipelineConfig(alias, connector, extra, concurrency string) string {
 	return fmt.Sprintf(`
 resource "orchestra_pipeline" "test" {
   alias     = %[1]q
@@ -115,9 +118,10 @@ resource "orchestra_pipeline" "test" {
         parameters      = jsonencode({ connector_id = %[2]q })
       }
     }
+    configuration = { concurrency = { %[4]s } }
   }
 }
-`, alias, connector, extra)
+`, alias, connector, extra, concurrency)
 }
 
 // TestAccPipelinesDataSource_envelope pins the pagination behaviour the spec

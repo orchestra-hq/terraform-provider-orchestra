@@ -130,6 +130,7 @@ type concurrencyTF struct {
 	// MaxActive is ParameterizedIntStr in the spec: an integer or a ${{ }}
 	// template. Terraform carries both as a string.
 	MaxActive types.String `tfsdk:"max_active"`
+	OnLimit   types.String `tfsdk:"on_limit"`
 }
 
 type inputTF struct {

@@ -18,17 +18,21 @@ paths:
         never sees one. Sessions started for a task run or an incident are visible
         to everyone in the workspace who can view the agent.
       parameters:
-      - name: agent_id
+      - name: agent_ids
         in: query
         required: false
         schema:
           anyOf:
-          - type: string
-            format: uuid4
+          - type: array
+            items:
+              type: string
+              format: uuid4
           - type: 'null'
-          description: Only return sessions of this agent.
-          title: Agent Id
-        description: Only return sessions of this agent.
+          description: Only return sessions of these agents. Repeat the parameter
+            to match any of several, e.g. `?agent_ids=<id>&agent_ids=<id>`.
+          title: Agent Ids
+        description: Only return sessions of these agents. Repeat the parameter to
+          match any of several, e.g. `?agent_ids=<id>&agent_ids=<id>`.
       - name: status
         in: query
         required: false
@@ -45,6 +49,44 @@ paths:
         description: Only return sessions in these statuses. Repeat the parameter
           to match any of several, e.g. `?status=BUSY&status=IDLE`. One of `BUSY`,
           `EXPIRED`, `FAILED`, `IDLE`, `INITIALISING`, `PENDING`, `STARTUP_ERROR`.
+      - name: session_mode
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              $ref: '#/components/schemas/AgentSessionModeEnum'
+          - type: 'null'
+          description: Only return sessions started in these modes. Repeat the parameter
+            to match any of several. One of `USER`, `TASK_RUN`, `INCIDENT`.
+          title: Session Mode
+        description: Only return sessions started in these modes. Repeat the parameter
+          to match any of several. One of `USER`, `TASK_RUN`, `INCIDENT`.
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          description: Only return sessions whose name, or whose agent's name, contains
+            this text. Case-insensitive.
+          title: Q
+        description: Only return sessions whose name, or whose agent's name, contains
+          this text. Case-insensitive.
+      - name: archived
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Return only archived sessions instead of only unarchived ones.
+            Defaults to false.
+          default: false
+          title: Archived
+        description: Return only archived sessions instead of only unarchived ones.
+          Defaults to false.
       - name: page_size
         in: query
         required: false
@@ -1553,6 +1595,22 @@ components:
       required:
       - results
       title: AgentAvatarCatalogResponse
+    AgentIntegrationConnection:
+      properties:
+        integration:
+          $ref: '#/components/schemas/IntegrationsEnum'
+        connectionId:
+          $ref: '#/components/schemas/StoredConnectionID'
+        connectionName:
+          type: string
+          title: Connectionname
+      additionalProperties: false
+      type: object
+      required:
+      - integration
+      - connectionId
+      - connectionName
+      title: AgentIntegrationConnection
     AgentIntegrationMappingResponse:
       properties:
         agentId:
@@ -1655,6 +1713,11 @@ components:
           type: boolean
           title: Orchestramanaged
           default: false
+        integrations:
+          items:
+            $ref: '#/components/schemas/AgentIntegrationConnection'
+          type: array
+          title: Integrations
         createdAt:
           type: string
           title: Createdat
@@ -1683,6 +1746,7 @@ components:
       - description
       - gitEnabled
       - llmKeyType
+      - integrations
       - createdAt
       - createdBy
       - updatedAt
@@ -1868,6 +1932,7 @@ components:
       - claude-opus-5
       - claude-sonnet-5
       - claude-opus-5-5
+      - claude-sonnet-5-5
       title: AgentSessionModelEnum
     AgentSessionResponse:
       properties:
@@ -1923,6 +1988,10 @@ components:
         updatedAt:
           type: string
           title: Updatedat
+        isArchived:
+          type: boolean
+          title: Isarchived
+          default: false
         name:
           anyOf:
           - type: string
@@ -2281,6 +2350,7 @@ components:
       - AWS_RDS
       - AWS_REDSHIFT
       - AWS_S3
+      - AWS_BATCH
       - AWS_BEDROCK
       - AWS_SAGEMAKER
       - AWS_SECRETS_MANAGER
@@ -2793,6 +2863,8 @@ components:
       - GITLAB
       - BITBUCKET
       title: StorageProvider
+    StoredConnectionID:
+      type: string
     ValidationError:
       properties:
         loc:

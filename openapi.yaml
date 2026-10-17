@@ -28,7 +28,9 @@ paths:
       - Artifacts
       summary: List task run artifacts
       description: List artifacts linked to a task run, such as dbt `manifest.json`,
-        `run_results.json`, `catalog.json`, and `sources.json` files.
+        `run_results.json`, `catalog.json`, `semantic_manifest.json`, and `sources.json`
+        files. For dbt v2, `dbt docs generate` produces `index.html`, `assets.zip`,
+        and `info_schema.zip` instead of `catalog.json`.
       parameters:
       - name: pipeline_run_id
         in: path
@@ -682,21 +684,21 @@ paths:
           title: Action
         description: 'Filter by action. Comma-separated values are supported. One
           of: ACCOUNT_CREATED, ACCOUNT_DELETED, ACCOUNT_SETTINGS_UPDATED, ACCOUNT_UPDATED,
-          AGENT_CREATED, AGENT_DELETED, AGENT_UPDATED, API_KEY_ROTATED, ASSET_CREATED,
-          ASSET_DELETED, ASSET_DEPENDENCIES_CREATED, ASSET_UPDATED, ENVIRONMENT_CREATED,
-          ENVIRONMENT_DELETED, ENVIRONMENT_UPDATED, GIT_CONNECTION_CREATED, GIT_CONNECTION_DELETED,
-          GIT_CONNECTION_UPDATED, GROUP_CREATED, GROUP_DELETED, GROUP_UPDATED, INCIDENT_MERGED,
-          INCIDENT_STATUS_UPDATED, INCIDENT_UNMERGED, INCIDENT_UPDATED, INTEGRATION_CONNECTION_CREATED,
-          INTEGRATION_CONNECTION_DELETED, INTEGRATION_CONNECTION_UPDATED, INTEGRATION_CONNECTION_VALIDATED,
-          INTEGRATION_STATE_UPDATED, INVITE_SENT, IP_RESTRICTIONS_UPDATED, LOGIN_GOOGLE,
-          LOGIN_KEYCLOAK, LOGIN_MICROSOFT, LOGIN_OKTA, LOGIN_PASSWORD, MONITOR_CREATED,
-          MONITOR_DELETED, MONITOR_UPDATED, MONITORS_REORDERED, ORGANISATION_SETTINGS_UPDATED,
-          PIPELINE_CREATED, PIPELINE_DELETED, PIPELINE_IMPORTED, PIPELINE_PAUSED,
-          PIPELINE_RUN_CANCELLED, PIPELINE_RUN_RESTARTED, PIPELINE_STARTED, PIPELINE_UPDATED,
-          PRODUCT_CREATED, PRODUCT_DELETED, PRODUCT_UPDATED, SKILL_CREATED, SKILL_DELETED,
-          SKILL_IMPORTED, SKILL_UPDATED, TASK_RUN_OUTPUT_SET, USER_ADDED_TO_ACCOUNT,
-          USER_ADDED_TO_GROUP, USER_CREATED, USER_DEACTIVATED, USER_MIGRATED, USER_REACTIVATED,
-          USER_REMOVED_FROM_GROUP, USER_UPDATED.'
+          AGENT_CREATED, AGENT_DELETED, AGENT_SESSION_DELETED, AGENT_SESSION_UPDATED,
+          AGENT_UPDATED, API_KEY_ROTATED, ASSET_CREATED, ASSET_DELETED, ASSET_DEPENDENCIES_CREATED,
+          ASSET_UPDATED, ENVIRONMENT_CREATED, ENVIRONMENT_DELETED, ENVIRONMENT_UPDATED,
+          GIT_CONNECTION_CREATED, GIT_CONNECTION_DELETED, GIT_CONNECTION_UPDATED,
+          GROUP_CREATED, GROUP_DELETED, GROUP_UPDATED, INCIDENT_MERGED, INCIDENT_STATUS_UPDATED,
+          INCIDENT_UNMERGED, INCIDENT_UPDATED, INTEGRATION_CONNECTION_CREATED, INTEGRATION_CONNECTION_DELETED,
+          INTEGRATION_CONNECTION_UPDATED, INTEGRATION_CONNECTION_VALIDATED, INTEGRATION_STATE_UPDATED,
+          INVITE_SENT, IP_RESTRICTIONS_UPDATED, LOGIN_GOOGLE, LOGIN_KEYCLOAK, LOGIN_MICROSOFT,
+          LOGIN_OKTA, LOGIN_PASSWORD, MONITOR_CREATED, MONITOR_DELETED, MONITOR_UPDATED,
+          MONITORS_REORDERED, ORGANISATION_SETTINGS_UPDATED, PIPELINE_CREATED, PIPELINE_DELETED,
+          PIPELINE_IMPORTED, PIPELINE_PAUSED, PIPELINE_RUN_CANCELLED, PIPELINE_RUN_RESTARTED,
+          PIPELINE_STARTED, PIPELINE_UPDATED, PRODUCT_CREATED, PRODUCT_DELETED, PRODUCT_UPDATED,
+          SKILL_CREATED, SKILL_DELETED, SKILL_IMPORTED, SKILL_UPDATED, TASK_RUN_OUTPUT_SET,
+          USER_ADDED_TO_ACCOUNT, USER_ADDED_TO_GROUP, USER_CREATED, USER_DEACTIVATED,
+          USER_MIGRATED, USER_REACTIVATED, USER_REMOVED_FROM_GROUP, USER_UPDATED.'
       - name: resource_type
         in: query
         required: false
@@ -705,10 +707,10 @@ paths:
           default: ''
           title: Resource Type
         description: 'Filter by the type of resource acted on. Comma-separated values
-          are supported. One of: ACCOUNT, AGENT, API_KEY, ASSET, ENVIRONMENT, GIT_CONNECTION,
-          GROUP, INCIDENT, INTEGRATION_CONNECTION, INTEGRATION_STATE, INVITE, IP_RESTRICTIONS,
-          MONITOR, ORGANISATION, PIPELINE, PIPELINE_RUN, PRODUCT, SKILL, TASK_RUN,
-          USER.'
+          are supported. One of: ACCOUNT, AGENT, AGENT_SESSION, API_KEY, ASSET, ENVIRONMENT,
+          GIT_CONNECTION, GROUP, INCIDENT, INTEGRATION_CONNECTION, INTEGRATION_STATE,
+          INVITE, IP_RESTRICTIONS, MONITOR, ORGANISATION, PIPELINE, PIPELINE_RUN,
+          PRODUCT, SKILL, TASK_RUN, USER.'
       - name: resource_id
         in: query
         required: false
@@ -1253,9 +1255,10 @@ paths:
       tags:
       - Incidents
       summary: Update an incident
-      description: 'Change an incident''s status, severity or name. A field left out
-        of the request body keeps its stored value. `assignee` is not settable via
-        the public API yet.
+      description: 'Change an incident''s status, severity, name, assignee or subscribers.
+        A field left out of the request body keeps its stored value, and sending `assignee`
+        as null unassigns. An assignee or subscriber must be able to view the incident
+        or be in the account''s Slack workspace.
 
 
         Returns the detail shape - a patch writes timeline rows of its own, so the
@@ -1854,7 +1857,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SingleIntegrationAuthResponse'
-              example: &id003
+              example:
                 accountId: b7a2c6f1-3e4d-4b8a-9c21-5f6e7d8a9b0c
                 connectionId: snowflake_production_48213
                 integration: SNOWFLAKE
@@ -1866,7 +1869,7 @@ paths:
                 externalMessage: null
                 updatedAt: '2026-10-12T09:30:00+00:00'
                 createdAt: '2026-10-12T09:30:00+00:00'
-                parameters: &id001
+                parameters:
                   snowflake_auth_type: USERNAME_PASSWORD
                   snowflake_user: ORCHESTRA_SVC
                   snowflake_password: '*******f9q'
@@ -1876,7 +1879,7 @@ paths:
                   snowflake_database: ANALYTICS
                   snowflake_schema: PUBLIC
                   use_private_connection: false
-        '422': &id002
+        '422':
           description: Validation failed. Check path parameters, query parameters,
             and JSON request bodies.
         '401':
@@ -1885,6 +1888,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+      x-orchestra-mcp: true
     patch:
       tags:
       - Integration Connections
@@ -1949,10 +1953,21 @@ paths:
                 externalMessage: null
                 updatedAt: '2026-10-12T10:15:00+00:00'
                 createdAt: '2026-10-12T09:30:00+00:00'
-                parameters: *id001
+                parameters:
+                  snowflake_auth_type: USERNAME_PASSWORD
+                  snowflake_user: ORCHESTRA_SVC
+                  snowflake_password: '*******f9q'
+                  snowflake_account: xy12345.eu-west-1
+                  snowflake_role: TRANSFORMER
+                  snowflake_warehouse: TRANSFORMING
+                  snowflake_database: ANALYTICS
+                  snowflake_schema: PUBLIC
+                  use_private_connection: false
         '400':
           $ref: '#/components/responses/BadRequest'
-        '422': *id002
+        '422':
+          description: Validation failed. Check path parameters, query parameters,
+            and JSON request bodies.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2002,7 +2017,9 @@ paths:
           description: Connection deleted.
         '400':
           $ref: '#/components/responses/BadRequest'
-        '422': *id002
+        '422':
+          description: Validation failed. Check path parameters, query parameters,
+            and JSON request bodies.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2070,10 +2087,33 @@ paths:
                 - $ref: '#/components/schemas/SingleIntegrationAuthResponse'
                 - $ref: '#/components/schemas/IntegrationOAuthRedirectResponse'
                 title: Response Create Integration Connection
-              example: *id003
+              example:
+                accountId: b7a2c6f1-3e4d-4b8a-9c21-5f6e7d8a9b0c
+                connectionId: snowflake_production_48213
+                integration: SNOWFLAKE
+                connectionName: Snowflake production
+                isDefault: true
+                credentialStore: ORCHESTRA
+                authStatus: SUCCEEDED
+                message: null
+                externalMessage: null
+                updatedAt: '2026-10-12T09:30:00+00:00'
+                createdAt: '2026-10-12T09:30:00+00:00'
+                parameters:
+                  snowflake_auth_type: USERNAME_PASSWORD
+                  snowflake_user: ORCHESTRA_SVC
+                  snowflake_password: '*******f9q'
+                  snowflake_account: xy12345.eu-west-1
+                  snowflake_role: TRANSFORMER
+                  snowflake_warehouse: TRANSFORMING
+                  snowflake_database: ANALYTICS
+                  snowflake_schema: PUBLIC
+                  use_private_connection: false
         '400':
           $ref: '#/components/responses/BadRequest'
-        '422': *id002
+        '422':
+          description: Validation failed. Check path parameters, query parameters,
+            and JSON request bodies.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2126,8 +2166,9 @@ paths:
       tags:
       - Integrations
       summary: Get an integration
-      description: Fetch a single integration by its identifier, including its auth
-        and job schemas.
+      description: 'Fetch a single integration by its identifier, including its auth
+        and job schemas. Each `auth_schema` item''s `name` is a connection field,
+        and `format: password` marks a secret one.'
       parameters:
       - name: integration
         in: path
@@ -2147,6 +2188,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
       security: []
   /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/logs:
     get:
@@ -2788,8 +2830,9 @@ paths:
           type: string
           default: ''
           title: Status
-        description: Filter by status. Comma-separated values are supported where
-          the parameter accepts multiple values.
+        description: 'Filter by status. Comma-separated values are supported where
+          the parameter accepts multiple values. Valid values: QUEUED, CREATED, RUNNING,
+          SUCCEEDED, WARNING, FAILED, SKIPPED, CANCELLING, CANCELLED.'
       - name: page
         in: query
         required: false
@@ -4473,6 +4516,9 @@ components:
           anyOf:
           - $ref: '#/components/schemas/ParameterizedIntStr'
           - type: 'null'
+        onLimit:
+          $ref: '#/components/schemas/ParameterizedEnumStr_ConcurrencyOnLimit_'
+          default: SKIP
       additionalProperties: false
       type: object
       title: ConcurrencyModel
@@ -4880,6 +4926,7 @@ components:
       - AWS_REDSHIFT_EXECUTE_STATEMENT
       - AWS_S3_GET_FILE
       - AWS_S3_PUT_FILE
+      - AWS_BATCH_SUBMIT_JOB
       - AWS_BEDROCK_INVOKE_MODEL
       - AWS_SAGEMAKER_DEPLOY_MODEL
       - AWS_SAGEMAKER_TRAIN_MODEL
@@ -5020,6 +5067,7 @@ components:
       - AWS_RDS
       - AWS_REDSHIFT
       - AWS_S3
+      - AWS_BATCH
       - AWS_BEDROCK
       - AWS_SAGEMAKER
       - AWS_SECRETS_MANAGER
@@ -6093,6 +6141,7 @@ components:
     PipelineRunStatus:
       type: string
       enum:
+      - QUEUED
       - CREATED
       - RUNNING
       - SUCCEEDED
@@ -7353,6 +7402,11 @@ components:
           - type: boolean
           - type: 'null'
           title: Allow File Upload
+        allow_variables:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Allow Variables
         label:
           type: string
           title: Label
@@ -8137,9 +8191,14 @@ components:
         assignee:
           anyOf:
           - type: string
-            format: uuid4
           - type: 'null'
           title: Assignee
+        subscribers:
+          items:
+            type: string
+          type: array
+          title: Subscribers
+          default: []
         parentIncidentId:
           anyOf:
           - type: string
@@ -8346,6 +8405,7 @@ components:
       - RENAMED
       - SEVERITY_CHANGED
       - STATUS_CHANGED
+      - SUBSCRIBERS_CHANGED
       - UNASSIGNED
       - UNMERGED
       - UNMUTED
@@ -8383,9 +8443,14 @@ components:
         assignee:
           anyOf:
           - type: string
-            format: uuid4
           - type: 'null'
           title: Assignee
+        subscribers:
+          items:
+            type: string
+          type: array
+          title: Subscribers
+          default: []
         parentIncidentId:
           anyOf:
           - type: string
@@ -9072,6 +9137,8 @@ components:
       - ACCOUNT_UPDATED
       - AGENT_CREATED
       - AGENT_DELETED
+      - AGENT_SESSION_DELETED
+      - AGENT_SESSION_UPDATED
       - AGENT_UPDATED
       - API_KEY_ROTATED
       - ASSET_CREATED
@@ -9223,6 +9290,7 @@ components:
       enum:
       - ACCOUNT
       - AGENT
+      - AGENT_SESSION
       - API_KEY
       - ASSET
       - ENVIRONMENT
@@ -9343,9 +9411,15 @@ components:
         assignee:
           anyOf:
           - type: string
-            format: uuid4
           - type: 'null'
           title: Assignee
+        subscribers:
+          items:
+            type: string
+          type: array
+          maxItems: 20
+          title: Subscribers
+          default: []
         alerts:
           $ref: '#/components/schemas/MonitorAlerts'
       additionalProperties: false
@@ -9453,6 +9527,7 @@ components:
       - pipeline
       - connection
       - monitor
+      - downstream_assets
       title: MonitorGroupByEnum
       description: 'What makes two events this monitor claimed one incident.
 
@@ -9499,6 +9574,10 @@ components:
           type: object
           maxProperties: 32
           title: Labels
+        operationFailuresOnly:
+          type: boolean
+          title: Operationfailuresonly
+          default: false
       additionalProperties: false
       type: object
       title: MonitorMatch
@@ -9957,7 +10036,20 @@ components:
       enum:
       - ORCHESTRA
       - AWS_SECRETS_MANAGER
+      - AZURE_KEY_VAULT
       title: CredentialStoresEnum
+    ConcurrencyOnLimit:
+      type: string
+      enum:
+      - SKIP
+      - QUEUE
+      - QUEUE_LATEST
+      title: ConcurrencyOnLimit
+    ParameterizedEnumStr_ConcurrencyOnLimit_:
+      anyOf:
+      - $ref: '#/components/schemas/ConcurrencyOnLimit'
+      - type: string
+        pattern: \$\{\{\s*([^}]+?)\s*\}\}
   securitySchemes:
     ApiKey:
       type: http

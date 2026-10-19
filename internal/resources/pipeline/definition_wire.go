@@ -125,6 +125,7 @@ type wireConfiguration struct {
 type wireConcurrency struct {
 	// MaxActive is ParameterizedIntStr: an integer or a ${{ }} template.
 	MaxActive *json.RawMessage `json:"maxActive,omitempty"`
+	OnLimit   *string          `json:"onLimit,omitempty"`
 }
 
 type wireInput struct {

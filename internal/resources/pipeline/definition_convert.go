@@ -372,7 +372,10 @@ func configurationToWire(c *configurationTF) *wireConfiguration {
 		Timeout:    int64PtrOrNil(c.Timeout),
 	}
 	if c.Concurrency != nil {
-		out.Concurrency = &wireConcurrency{MaxActive: parameterizedIntStr(c.Concurrency.MaxActive)}
+		out.Concurrency = &wireConcurrency{
+			MaxActive: parameterizedIntStr(c.Concurrency.MaxActive),
+			OnLimit:   tfconv.StringPtrOrNil(c.Concurrency.OnLimit),
+		}
 	}
 	return out
 }
@@ -622,7 +625,10 @@ func configurationFromWire(c *wireConfiguration) *configurationTF {
 		Timeout:    tfInt64(c.Timeout),
 	}
 	if c.Concurrency != nil {
-		out.Concurrency = &concurrencyTF{MaxActive: tfParameterizedIntStr(c.Concurrency.MaxActive)}
+		out.Concurrency = &concurrencyTF{
+			MaxActive: tfParameterizedIntStr(c.Concurrency.MaxActive),
+			OnLimit:   tfconv.String(c.Concurrency.OnLimit),
+		}
 	}
 	return out
 }

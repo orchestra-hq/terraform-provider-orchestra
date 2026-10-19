@@ -70,6 +70,14 @@ resource "orchestra_pipeline" "daily_sales" {
       timezone = "Europe/London"
     }]
 
+    # One run at a time; a run that starts while one is in progress waits.
+    configuration = {
+      concurrency = {
+        max_active = "1"
+        on_limit   = "QUEUE"
+      }
+    }
+
     alerts = [{
       name     = "notify_on_failure"
       statuses = ["FAILED"]
@@ -202,6 +210,7 @@ Optional:
 Optional:
 
 - `max_active` (String) Maximum concurrent runs. The API accepts an integer or a `${{ }}` template, so Terraform carries both as a string (for example `"3"`).
+- `on_limit` (String) What happens to a run that would exceed `max_active`: `SKIP` it, `QUEUE` it, or `QUEUE_LATEST` to keep only the newest waiting run. Also accepts a `${{ }}` template. Defaulted by Orchestra (to `SKIP`) when not set.
 
 
 
@@ -420,6 +429,7 @@ Optional:
 Optional:
 
 - `max_active` (String) Maximum concurrent runs. The API accepts an integer or a `${{ }}` template, so Terraform carries both as a string (for example `"3"`).
+- `on_limit` (String) What happens to a run that would exceed `max_active`: `SKIP` it, `QUEUE` it, or `QUEUE_LATEST` to keep only the newest waiting run. Also accepts a `${{ }}` template. Defaulted by Orchestra (to `SKIP`) when not set.
 
 
 
@@ -557,6 +567,7 @@ Optional:
 Optional:
 
 - `max_active` (String) Maximum concurrent runs. The API accepts an integer or a `${{ }}` template, so Terraform carries both as a string (for example `"3"`).
+- `on_limit` (String) What happens to a run that would exceed `max_active`: `SKIP` it, `QUEUE` it, or `QUEUE_LATEST` to keep only the newest waiting run. Also accepts a `${{ }}` template. Defaulted by Orchestra (to `SKIP`) when not set.
 
 
 

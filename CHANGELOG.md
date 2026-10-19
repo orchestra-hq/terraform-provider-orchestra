@@ -51,6 +51,8 @@ anyone building from source should expect to rewrite their configuration.
   lists. A monitor moved in front of the listed ones outside Terraform shows up as drift, and one created during
   the apply, by Terraform or anyone else, is picked up rather than failing the reorder.
 - `orchestra_monitors` lists the workspace's monitors in evaluation order, for importing or ordering them.
+- `orchestra_monitor.action.subscribers` and `match.operation_failures_only`. A monitor update replaces the whole
+  definition, so before these existed an apply reset either one set in the Orchestra UI.
 - `orchestra_pipeline.paused` is settable. Pausing has its own endpoint, so changing only `paused` does not save
   a new version of the definition. Left unset, it is left alone, so a pause made in the Orchestra UI survives the
   next apply.

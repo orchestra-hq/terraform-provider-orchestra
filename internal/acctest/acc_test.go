@@ -240,6 +240,8 @@ func TestAccMonitor_lifecycle(t *testing.T) {
 					// Defaults the API fills in.
 					resource.TestCheckResourceAttr("orchestra_monitor.test", "enabled", "true"),
 					resource.TestCheckResourceAttr("orchestra_monitor.test", "action.mute", "false"),
+					resource.TestCheckResourceAttr("orchestra_monitor.test", "action.subscribers.#", "0"),
+					resource.TestCheckResourceAttr("orchestra_monitor.test", "match.operation_failures_only", "true"),
 				),
 			},
 			{
@@ -259,7 +261,7 @@ func monitorConfig(name, severity string) string {
 	return fmt.Sprintf(`
 resource "orchestra_monitor" "test" {
   name     = %[1]q
-  match    = { integrations = ["SNOWFLAKE"] }
+  match    = { integrations = ["SNOWFLAKE"], operation_failures_only = true }
   group_by = ["pipeline"]
 
   action = {

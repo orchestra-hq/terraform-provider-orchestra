@@ -29,6 +29,9 @@ resource "orchestra_monitor" "flaky_ingestion" {
 
   match = {
     integrations = ["FIVETRAN"]
+
+    # Only failing syncs, not a task that could not start.
+    operation_failures_only = true
   }
 
   group_by = ["connection"]

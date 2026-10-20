@@ -142,6 +142,7 @@ type wireInput struct {
 	Type     string          `json:"type"`
 	Default  json.RawMessage `json:"default,omitempty"`
 	Optional *bool           `json:"optional,omitempty"`
+	Options  []string        `json:"options,omitempty"`
 }
 
 type wireAlert struct {

@@ -235,6 +235,7 @@ func definitionToWire(def *definitionTF, root path.Path, diags *diag.Diagnostics
 				Type:     in.Type.ValueString(),
 				Default:  jsonAny(in.Default, root.AtName("inputs").AtMapKey(name).AtName("default"), diags),
 				Optional: boolPtrOrNil(in.Optional),
+				Options:  tfconv.GoStrings(in.Options),
 			}
 		}
 	}
@@ -499,6 +500,7 @@ func definitionFromWire(w *wireDefinition) (*definitionTF, error) {
 				Type:     types.StringValue(in.Type),
 				Default:  tfRawJSON(in.Default),
 				Optional: tfBool(in.Optional),
+				Options:  tfconv.Strings(in.Options),
 			}
 		}
 	}

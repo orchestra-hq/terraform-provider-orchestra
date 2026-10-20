@@ -246,6 +246,17 @@ func (r *PipelineResource) ValidateConfig(ctx context.Context, req resource.Vali
 		}
 	}
 
+	// The API only accepts a fixed list of values on a string input.
+	for name, in := range model.Data.Inputs {
+		if in.Options != nil && !in.Type.IsUnknown() && in.Type.ValueString() != "string" {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("data").AtName("inputs").AtMapKey(name).AtName("options"),
+				"Options on a non-string input",
+				fmt.Sprintf("Input %q has type %q. `options` is only valid on inputs of type \"string\"; remove it or change the type.", name, in.Type.ValueString()),
+			)
+		}
+	}
+
 	if len(model.Data.TaskGroups) == 0 && len(model.Data.Tasks) == 0 {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("data"),

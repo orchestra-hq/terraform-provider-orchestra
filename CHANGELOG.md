@@ -58,6 +58,8 @@ anyone building from source should expect to rewrite their configuration.
   next apply.
 - `orchestra_pipeline.data.configuration.concurrency.on_limit`: skip a run that would exceed `max_active`, queue
   it, or queue only the latest.
+- `orchestra_pipeline.data.inputs.<name>.options`: the fixed list of values a string input may take. A pipeline
+  update replaces the whole definition, so before this existed an apply cleared any set in the Orchestra UI.
 - `orchestra_incident_settings` manages the workspace's incident settings: whether incidents are raised, which
   failures can raise one, and the alert budget. It is a singleton, so settings left unset keep their current value
   and destroying it only removes it from state.

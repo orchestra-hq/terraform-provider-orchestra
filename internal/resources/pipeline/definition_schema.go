@@ -560,6 +560,13 @@ func inputSchema() schema.NestedAttributeObject {
 				Description:         "If true, the input can be omitted even without a default value.",
 				MarkdownDescription: "If true, the input can be omitted even without a default value. Defaults to `false`.",
 			},
+			"options": schema.ListAttribute{
+				Optional:            true,
+				ElementType:         types.StringType,
+				Description:         "Fixed list of values this input is allowed to take. Only valid on inputs of type string.",
+				MarkdownDescription: "Fixed list of values this input is allowed to take. Only valid on inputs of `type = \"string\"`.",
+				Validators:          []validator.List{listvalidator.SizeAtLeast(1)},
+			},
 		},
 	}
 }

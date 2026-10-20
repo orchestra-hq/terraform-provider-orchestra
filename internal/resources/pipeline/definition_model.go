@@ -137,6 +137,7 @@ type inputTF struct {
 	Type     types.String         `tfsdk:"type"`
 	Default  jsontypes.Normalized `tfsdk:"default"`
 	Optional types.Bool           `tfsdk:"optional"`
+	Options  []types.String       `tfsdk:"options"`
 }
 
 type alertTF struct {

@@ -947,6 +947,9 @@ func rawField(body, field string) (json.RawMessage, bool) {
 // default come back populated even when the request omitted them. Verified
 // against the live API, which returns `"webhook": {"enabled": false}` for a
 // pipeline created without a webhook block.
+//
+// Inputs need nothing here: the live API returns an input's `options` as sent
+// and omits the key when it was not set, rather than returning null.
 func applyServerDefaults(raw json.RawMessage) json.RawMessage {
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &obj); err != nil {
@@ -1081,6 +1084,78 @@ func TestPipelineServerDefaultsDoNotBreakApply(t *testing.T) {
 
 	planAndApply(t, server, "orchestra_pipeline", objType, tftypes.NewValue(objType, nil), config,
 		computedAttrs(schemaResp.ResourceSchemas["orchestra_pipeline"]))
+}
+
+// TestPipelineInputOptionsRoundTrip guards against an apply clearing an input's
+// allowed values: PUT /pipelines replaces the whole definition, so anything the
+// provider does not send is lost.
+func TestPipelineInputOptionsRoundTrip(t *testing.T) {
+	calls, baseURL := pipelineStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	ctx := context.Background()
+
+	objType := schemaResp.ResourceSchemas["orchestra_pipeline"].ValueType().(tftypes.Object)
+
+	config := buildValue(t, objType, map[string]any{
+		"alias":     "inputs",
+		"published": true,
+		"data": map[string]any{
+			"name": "inputs",
+			"tasks": map[string]any{
+				"t1": map[string]any{
+					"integration":     "FIVETRAN",
+					"integration_job": "FIVETRAN_SYNC_ALL",
+					"parameters":      `{"connector_id":"x"}`,
+				},
+			},
+			"inputs": map[string]any{
+				"cadence": map[string]any{"type": "string", "default": `"daily"`, "options": []any{"daily", "weekly"}},
+				"limit":   map[string]any{"type": "number"},
+			},
+		},
+	})
+
+	created := planAndApply(t, server, "orchestra_pipeline", objType, tftypes.NewValue(objType, nil), config,
+		computedAttrs(schemaResp.ResourceSchemas["orchestra_pipeline"]))
+
+	create := calls.find(http.MethodPost, "/pipelines")
+	if create == nil {
+		t.Fatalf("no POST /pipelines; calls were %v", calls.paths())
+	}
+	var body struct {
+		Data struct {
+			Inputs map[string]map[string]json.RawMessage `json:"inputs"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(create.RawBody), &body); err != nil {
+		t.Fatalf("decode request: %v", err)
+	}
+	if got := string(body.Data.Inputs["cadence"]["options"]); got != `["daily","weekly"]` {
+		t.Errorf("cadence options sent as %s, want [\"daily\",\"weekly\"]", got)
+	}
+	if got, ok := body.Data.Inputs["limit"]["options"]; ok {
+		t.Errorf("limit sent options %s, want the key omitted", got)
+	}
+
+	currentDV, err := tfprotov6.NewDynamicValue(objType, created)
+	if err != nil {
+		t.Fatalf("current state: %v", err)
+	}
+	readResp, err := server.ReadResource(ctx, &tfprotov6.ReadResourceRequest{
+		TypeName:     "orchestra_pipeline",
+		CurrentState: &currentDV,
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	failOnError(t, "read", readResp.Diagnostics)
+	read, err := readResp.NewState.Unmarshal(objType)
+	if err != nil {
+		t.Fatalf("read state: %v", err)
+	}
+	if !read.Equal(created) {
+		t.Errorf("read changed the state; a refresh would plan a diff\nwant: %s\ngot:  %s", created, read)
+	}
 }
 
 // environmentStub answers the environment endpoints with the shapes the live
@@ -1438,6 +1513,24 @@ func TestPipelineValidateConfig(t *testing.T) {
 			data:   map[string]any{"name": "empty"},
 			wantIn: "Empty pipeline",
 		},
+		{
+			name: "options on a non-string input",
+			data: map[string]any{
+				"name":   "opts",
+				"tasks":  map[string]any{"t": task},
+				"inputs": map[string]any{"limit": map[string]any{"type": "number", "options": []any{"1", "2"}}},
+			},
+			wantIn: "Options on a non-string input",
+		},
+		{
+			name: "empty options",
+			data: map[string]any{
+				"name":   "opts",
+				"tasks":  map[string]any{"t": task},
+				"inputs": map[string]any{"cadence": map[string]any{"type": "string", "options": []any{}}},
+			},
+			wantIn: "at least 1",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			config := buildValue(t, objType, map[string]any{
@@ -1458,7 +1551,7 @@ func TestPipelineValidateConfig(t *testing.T) {
 			var got string
 			for _, d := range resp.Diagnostics {
 				if d.Severity == tfprotov6.DiagnosticSeverityError {
-					got += d.Summary + " "
+					got += d.Summary + ": " + d.Detail + " "
 				}
 			}
 			if !strings.Contains(got, tc.wantIn) {

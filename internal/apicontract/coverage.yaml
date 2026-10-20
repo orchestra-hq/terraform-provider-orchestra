@@ -110,13 +110,10 @@ engine:
   candidate_properties:
     reason: >-
       Settable through the API, but not yet modelled by the provider. Each one
-      wants an attribute rather than a longer list. PipelineInputModel.options
-      is the urgent one: PUT /pipelines replaces the whole definition, so an
-      input's allowed values set in the Orchestra UI are cleared by the next
-      apply. validationParams runs an extra check of a connection's
-      credentials; it needs a decision on whether the API stores it.
+      wants an attribute rather than a longer list. validationParams runs an
+      extra check of a connection's credentials; it needs a decision on whether
+      the API stores it.
     properties:
-      - "PipelineInputModel.options"
       - "IntegrationAuthRequest.validationParams"
       - "PartialIntegrationAuthRequest.validationParams"
 

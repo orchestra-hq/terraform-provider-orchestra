@@ -225,6 +225,7 @@ Optional:
 
 - `default` (String) Default value used when the input is not supplied at runtime. The API accepts any type here, so Terraform carries it JSON-encoded — `jsonencode("a string")`, `jsonencode(3)`, `jsonencode([1,2])`.
 - `optional` (Boolean) If true, the input can be omitted even without a default value. Defaults to `false`.
+- `options` (List of String) Fixed list of values this input is allowed to take. Only valid on inputs of `type = "string"`.
 
 
 <a id="nestedatt--data--schedule"></a>

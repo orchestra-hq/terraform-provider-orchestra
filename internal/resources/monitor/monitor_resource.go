@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	client "github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
 )
@@ -48,33 +49,35 @@ func (r *MonitorResource) Configure(_ context.Context, req resource.ConfigureReq
 // least one dimension. A monitor matching nothing would claim every event on
 // the account, which the API rejects and which is never what an author means.
 func (r *MonitorResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
-	var model monitorModel
-	if diags := req.Config.Get(ctx, &model); diags.HasError() {
-		// Unknown values cannot be decoded yet; Create/Update checks again.
-		return
-	}
-	// The spec puts minItems 1 / maxItems 32 on the single groupBy list; here it
-	// is two attributes, so the bound is on their total.
-	total := len(model.GroupBy) + len(model.GroupByLabels)
-	if total == 0 {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("group_by"),
-			"Nothing to group by",
-			"Set `group_by`, `group_by_labels`, or both. A monitor has to say what makes two claimed events the same incident.",
-		)
-	}
-	if total > 32 {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("group_by"),
-			"Too many group-by entries",
-			fmt.Sprintf("`group_by` and `group_by_labels` hold %d entries between them; the API allows at most 32.", total),
-		)
+	// Decode only what each check reads: an unknown value anywhere else fails a whole-model decode.
+	var groupBy []types.String
+	var groupByLabels []groupByLabelTF
+	diags := req.Config.GetAttribute(ctx, path.Root("group_by"), &groupBy)
+	diags.Append(req.Config.GetAttribute(ctx, path.Root("group_by_labels"), &groupByLabels)...)
+	if !diags.HasError() {
+		// The spec puts minItems 1 / maxItems 32 on the single groupBy list; here
+		// it is two attributes, so the bound is on their total.
+		total := len(groupBy) + len(groupByLabels)
+		if total == 0 {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("group_by"),
+				"Nothing to group by",
+				"Set `group_by`, `group_by_labels`, or both. A monitor has to say what makes two claimed events the same incident.",
+			)
+		}
+		if total > 32 {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("group_by"),
+				"Too many group-by entries",
+				fmt.Sprintf("`group_by` and `group_by_labels` hold %d entries between them; the API allows at most 32.", total),
+			)
+		}
 	}
 
-	if model.Match == nil {
+	var m *matchTF
+	if req.Config.GetAttribute(ctx, path.Root("match"), &m).HasError() || m == nil {
 		return
 	}
-	m := model.Match
 	if len(m.Pipelines) == 0 && len(m.Assets) == 0 && len(m.Connections) == 0 &&
 		len(m.Integrations) == 0 && len(m.Labels) == 0 {
 		resp.Diagnostics.AddAttributeError(

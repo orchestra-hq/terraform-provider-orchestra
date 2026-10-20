@@ -232,21 +232,26 @@ func TestAccMonitor_lifecycle(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6,
 		Steps: []resource.TestStep{
 			{
-				Config: monitorConfig(name, "HIGH"),
+				Config: monitorConfig(name, "HIGH", true),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("orchestra_monitor.test", "id"),
 					resource.TestCheckResourceAttrSet("orchestra_monitor.test", "order"),
 					resource.TestCheckResourceAttr("orchestra_monitor.test", "name", name),
+					resource.TestCheckResourceAttr("orchestra_monitor.test", "match.operation_failures_only", "true"),
 					// Defaults the API fills in.
 					resource.TestCheckResourceAttr("orchestra_monitor.test", "enabled", "true"),
 					resource.TestCheckResourceAttr("orchestra_monitor.test", "action.mute", "false"),
+					// Unset, so the provider sends [] and the API must keep it.
 					resource.TestCheckResourceAttr("orchestra_monitor.test", "action.subscribers.#", "0"),
-					resource.TestCheckResourceAttr("orchestra_monitor.test", "match.operation_failures_only", "true"),
 				),
 			},
 			{
-				Config: monitorConfig(name, "MEDIUM"),
-				Check:  resource.TestCheckResourceAttr("orchestra_monitor.test", "action.severity", "MEDIUM"),
+				// Turning it off must store false, not keep the true already there.
+				Config: monitorConfig(name, "MEDIUM", false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("orchestra_monitor.test", "action.severity", "MEDIUM"),
+					resource.TestCheckResourceAttr("orchestra_monitor.test", "match.operation_failures_only", "false"),
+				),
 			},
 			{
 				ResourceName:      "orchestra_monitor.test",
@@ -257,18 +262,18 @@ func TestAccMonitor_lifecycle(t *testing.T) {
 	})
 }
 
-func monitorConfig(name, severity string) string {
+func monitorConfig(name, severity string, operationFailuresOnly bool) string {
 	return fmt.Sprintf(`
 resource "orchestra_monitor" "test" {
   name     = %[1]q
-  match    = { integrations = ["SNOWFLAKE"], operation_failures_only = true }
+  match    = { integrations = ["SNOWFLAKE"], operation_failures_only = %[3]t }
   group_by = ["pipeline"]
 
   action = {
     severity = %[2]q
   }
 }
-`, name, severity)
+`, name, severity, operationFailuresOnly)
 }
 
 // TestAccIntegrationConnection_lifecycle uses the HTTP integration: it needs no

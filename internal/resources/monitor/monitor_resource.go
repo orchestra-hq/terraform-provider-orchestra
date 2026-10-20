@@ -45,9 +45,9 @@ func (r *MonitorResource) Configure(_ context.Context, req resource.ConfigureReq
 	r.client = c
 }
 
-// ValidateConfig enforces the one rule the schema cannot: `match` must name at
-// least one dimension. A monitor matching nothing would claim every event on
-// the account, which the API rejects and which is never what an author means.
+// ValidateConfig enforces what the schema cannot: `match` names at least one
+// dimension, since a monitor matching nothing would claim every event on the
+// account, and `group_by` with `group_by_labels` holds 1 to 32 entries.
 func (r *MonitorResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
 	// Decode only what each check reads: an unknown value anywhere else fails a whole-model decode.
 	var groupBy []types.String

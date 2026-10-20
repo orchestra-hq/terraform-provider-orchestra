@@ -22,6 +22,9 @@ import (
 type coverageCategory struct {
 	Reason     string   `yaml:"reason"`
 	Operations []string `yaml:"operations"`
+	// Properties are "Schema.property" entries the provider leaves out of a
+	// request body it sends; see TestEveryWrittenPropertyIsClassified.
+	Properties []string `yaml:"properties"`
 }
 
 func loadCoverage(t *testing.T) map[string]map[string]coverageCategory {

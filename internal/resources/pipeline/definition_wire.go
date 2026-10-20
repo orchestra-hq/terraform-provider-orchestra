@@ -12,6 +12,16 @@ import (
 //
 // Keep these in sync with components.schemas.PipelineModel in openapi.yaml.
 
+// WireSchemas pairs the spec schemas this package sends with the types that
+// encode them, for internal/apicontract's property check. The task groups and
+// tasks are listed because `pipeline` is carried as raw JSON, which the check
+// cannot follow.
+var WireSchemas = map[string]any{
+	"PipelineModel":  wireDefinition{},
+	"TaskGroupModel": wireTaskGroup{},
+	"TaskModel":      wireTask{},
+}
+
 type wireDefinition struct {
 	Version       string                     `json:"version"`
 	Name          string                     `json:"name"`

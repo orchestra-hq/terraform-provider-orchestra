@@ -1,6 +1,6 @@
 ---
 name: spec-sync
-description: Use when the Orchestra API may have changed — a "Spec sync" pull request is open, `make spec-drift` reports something, TestEverySpecOperationIsClassified fails, or you are asked whether the API has new resources, data sources or parameters to add. Decides what each change means for the provider and applies it.
+description: Use when the Orchestra API may have changed — a "Spec sync" pull request is open, `make spec-drift` reports something, TestEverySpecOperationIsClassified or TestEveryWrittenPropertyIsClassified fails, or you are asked whether the API has new resources, data sources or parameters to add. Decides what each change means for the provider and applies it.
 ---
 
 # Keeping the provider in step with the API
@@ -52,7 +52,12 @@ wire. This is the one that breaks silently: a monitor's `groupBy` became a union
 the provider could no longer read monitors that used it.
 
 **New property on a schema the provider writes**: model it. Otherwise an update sends
-the body without it and may drop a value set elsewhere.
+the body without it and may drop a value set elsewhere. `go test` enforces this:
+TestEveryWrittenPropertyIsClassified fails until the property is sent, as a JSON tag on
+the wire struct named in the failure or a key in the map literal that builds the body,
+or is listed under `properties` in `coverage.yaml`. Exclude only what the provider must
+not send, such as a git-only field; "not yet" goes in `candidate_properties`, and on a
+PUT body it is a bug waiting for an apply.
 
 **Removed endpoint or enum value**: breaking. Fix the callers, and say so in CHANGELOG.
 
@@ -66,7 +71,7 @@ Follow the workflow in CLAUDE.md. These each cost a CI round-trip before:
 - **Check defaults against the live API.** The spec said `minBaselineSeconds` was 0; the API
   returned 10. Where the server defaults a field, make it `Computed`.
 - **An acceptance test is required.** CI runs them against a real workspace on every PR.
-- **When you implement something listed in `coverage.yaml`, delete its entry.** The
+- **When you implement an endpoint or property listed in `coverage.yaml`, delete its entry.** The
   classification test fails if you do not, which is how it stays honest.
 
 ## 4. Check

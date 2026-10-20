@@ -81,10 +81,21 @@ type wireAgent struct {
 	LLMKeyType     *wireLLMKey `json:"llmKeyType"`
 }
 
+// wireLLMKey flattens the oneOf of the three LLM key models, discriminated by
+// `type`.
 type wireLLMKey struct {
 	Type         string  `json:"type"`
 	Integration  *string `json:"integration,omitempty"`
 	ConnectionID *string `json:"connectionId,omitempty"`
+}
+
+// WireSchemas pairs the spec schemas this package sends with the types that
+// encode them, for internal/apicontract's property check. The request bodies
+// themselves are built as maps, which the check reads from source instead.
+var WireSchemas = map[string]any{
+	"AccountDefaultLLMKey": wireLLMKey{},
+	"OrchestraLLMKey":      wireLLMKey{},
+	"ConnectionLLMKey":     wireLLMKey{},
 }
 
 func (r *AgentResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {

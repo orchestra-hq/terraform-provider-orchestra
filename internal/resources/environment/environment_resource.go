@@ -159,6 +159,11 @@ type wireEnvValue struct {
 	Value any    `json:"value"`
 }
 
+// WireSchemas pairs the spec schemas this package sends with the types that
+// encode them, for internal/apicontract's property check. The request bodies
+// themselves are built as maps, which the check reads from source instead.
+var WireSchemas = map[string]any{"EnvironmentValueType": wireEnvValue{}}
+
 // toWire converts the always-string Terraform value to the type the API expects.
 func (v valueModel) toWire(p path.Path, diags *diag.Diagnostics) wireEnvValue {
 	typ := tfconv.GoString(v.Type)

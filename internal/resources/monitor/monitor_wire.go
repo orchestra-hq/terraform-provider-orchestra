@@ -10,6 +10,16 @@ import (
 // Wire types mirror components.schemas.MonitorDefinition and MonitorResponse.
 // Keep them in sync with openapi.yaml.
 
+// WireSchemas pairs the spec schemas this package sends with the types that
+// encode them, for internal/apicontract: a schema property that none of their
+// JSON tags names fails the build. Nested schemas are paired by following the
+// fields, so only roots and types the fields cannot lead to are listed.
+// GroupByLabel is the second kind: wireGroupBy marshals it by hand.
+var WireSchemas = map[string]any{
+	"MonitorDefinition": wireDefinition{},
+	"GroupByLabel":      wireGroupByLabel{},
+}
+
 type wireMonitorResponse struct {
 	MonitorID  string         `json:"monitorId"`
 	Definition wireDefinition `json:"definition"`

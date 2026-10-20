@@ -1,9 +1,12 @@
-# Operations the provider deliberately does not implement, and why.
+# Operations the provider deliberately does not implement, and properties of
+# the request bodies it sends that it deliberately leaves out, and why.
 #
 # This lists exclusions only. What the provider does implement is read from its
 # own source by the contract tests, so the two cannot drift apart: an operation
 # in the spec that is neither called nor listed here fails
-# TestEverySpecOperationIsClassified until someone decides.
+# TestEverySpecOperationIsClassified, and a property of a request body the
+# provider sends that is neither sent nor listed here, as "Schema.property",
+# fails TestEveryWrittenPropertyIsClassified, until someone decides.
 #
 # The reason is the point of the file. Declarative configuration belongs in
 # Terraform; run history, incidents and one-shot actions do not. When you add an
@@ -81,10 +84,41 @@ engine:
     reason: >-
       A pipeline whose definition lives in a repository is owned by Orchestra's
       git sync. Terraform would be a second writer to the same file. Removed
-      deliberately; see the README.
+      deliberately; see the README. The create request's repository, file,
+      branch and commit message fields only apply to such a pipeline, and the
+      provider always creates with storageProvider ORCHESTRA.
     operations:
       - "POST /pipelines/import"
       - "PATCH /pipelines/storage-settings"
+    properties:
+      - "PublicCreatePipelineRequest.repository"
+      - "PublicCreatePipelineRequest.yamlPath"
+      - "PublicCreatePipelineRequest.defaultBranch"
+      - "PublicCreatePipelineRequest.workingBranch"
+      - "PublicCreatePipelineRequest.message"
+      - "PublicCreatePipelineRequest.messageIsCustom"
+
+  oauth_sign_in:
+    reason: >-
+      Where the Orchestra UI returns after a browser sign-in.
+      orchestra_integration_connection refuses integrations that sign in with
+      OAuth, which Terraform cannot complete, so there is nothing to return to.
+    properties:
+      - "IntegrationAuthRequest.callbackPath"
+      - "PartialIntegrationAuthRequest.callbackPath"
+
+  candidate_properties:
+    reason: >-
+      Settable through the API, but not yet modelled by the provider. Each one
+      wants an attribute rather than a longer list. PipelineInputModel.options
+      is the urgent one: PUT /pipelines replaces the whole definition, so an
+      input's allowed values set in the Orchestra UI are cleared by the next
+      apply. validationParams runs an extra check of a connection's
+      credentials; it needs a decision on whether the API stores it.
+    properties:
+      - "PipelineInputModel.options"
+      - "IntegrationAuthRequest.validationParams"
+      - "PartialIntegrationAuthRequest.validationParams"
 
   assets:
     reason: >-

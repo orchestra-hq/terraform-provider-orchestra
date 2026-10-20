@@ -37,8 +37,8 @@ once targeted endpoints that did not exist, and one of those failed silently.
    ```
 
    A weekly workflow opens a **Spec sync** PR with that report. Decide each item with the
-   `spec-sync` skill, and classify any endpoint you choose not to implement in
-   `internal/apicontract/coverage.yaml`.
+   `spec-sync` skill, and classify any endpoint you choose not to implement, or request-body property you
+   choose not to send, in `internal/apicontract/coverage.yaml`.
 
    Check the exact path, method, query parameters, request body schema and response schema. Watch for:
    - list endpoints that return a bare array versus a `{page, pageSize, total, results}` envelope,
@@ -90,7 +90,7 @@ for k,v in d['properties'].items(): print(f'  {k:24}', json.dumps(v)[:140])
 | `internal/enums/` | Generated from the spec — never edit by hand |
 | `internal/tfconv/` | Shared API-JSON ↔ Terraform value conversion |
 | `internal/apicontract/` | Tests asserting the provider matches the spec, in both directions |
-| `internal/apicontract/coverage.yaml` | Every endpoint the provider deliberately leaves alone, and why. A spec operation neither called nor listed fails `go test` |
+| `internal/apicontract/coverage.yaml` | Every endpoint the provider deliberately leaves alone, and every property it leaves out of a request body it sends, and why. A spec operation neither called nor listed, or a written property neither sent nor listed, fails `go test` |
 | `tools/specdrift/` | `make spec-drift`: structural diff of two specs, run weekly by `.github/workflows/spec-sync.yml` |
 | `.claude/skills/spec-sync/` | How to decide what a spec change means for the provider |
 | `internal/resources/rsapply/` | Tests driving resources through plan/apply against a stub API |
@@ -154,6 +154,10 @@ attribute name, a required-but-empty field, a union with no discriminator. Do no
 - Don't edit `docs/` or `internal/enums/enums_gen.go` by hand
 - Don't add an endpoint call without a matching entry in `internal/apicontract/contract_test.go`; the test scans
   `internal/` for call sites, so an unlisted one fails the build rather than failing silently in production
+- Don't leave a property out of a request body without listing it under `properties` in `coverage.yaml`. A PUT
+  replaces the whole object, so an unsent property resets what the Orchestra UI set: `orchestra_monitor` cleared
+  `subscribers` on every apply. `TestEveryWrittenPropertyIsClassified` reads a wire struct's JSON tags, so a new
+  one that its package's `WireSchemas` cannot reach must be added there
 - Don't let a stub return a shape the real API never produces. The API fills in declared defaults on the way out
   (`webhook` → `{"enabled": false}`, `dependsOn` → `[]`, a task's `name` → `""`, an anomaly's numerics), and a
   stub that echoes the request verbatim hides every resulting apply failure. See `applyServerDefaults`.

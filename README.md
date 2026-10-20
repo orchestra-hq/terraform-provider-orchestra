@@ -138,7 +138,7 @@ TMPDIR=/tmp/tfdocs make docs
 
 | Package | Covers |
 |---|---|
-| `internal/apicontract` | Every `(method, path)` and query parameter in the provider's source exists in the committed spec it targets, and the generated enums match the spec. Both directions are checked: call sites are discovered by scanning `internal/`, so calling something unlisted fails the build. Every spec operation is either called by the provider or classified in `coverage.yaml`, so a new endpoint cannot pass unnoticed. |
+| `internal/apicontract` | Every `(method, path)` and query parameter in the provider's source exists in the committed spec it targets, and the generated enums match the spec. Both directions are checked: call sites are discovered by scanning `internal/`, so calling something unlisted fails the build. Every spec operation is either called by the provider or classified in `coverage.yaml`, so a new endpoint cannot pass unnoticed, and so is every property of a request body the provider sends. |
 | `tools/specdrift` | The tool behind `make spec-drift`: structural comparison of two specs, ignoring prose, with exit statuses the scheduled workflow branches on. |
 | `internal/orchestra` | Auth and account headers, 404 detection, retry and backoff, pagination across both list shapes. |
 | `internal/provider` | Provider schema validity, resource and data source registration, configure-time errors. |
@@ -209,8 +209,10 @@ fails the run instead of reporting "no changes": the spec has moved once already
 `internal/apicontract/coverage.yaml` records every endpoint the provider chooses not
 to implement, with the reason. An endpoint that is neither implemented nor listed
 there fails `go test`, which is what turns "the API grew a settings endpoint" into a
-decision rather than something noticed weeks later. How to make the decision is in
-`.claude/skills/spec-sync/SKILL.md`.
+decision rather than something noticed weeks later. The same goes for each property of
+a request body the provider sends: one that is neither sent nor listed fails `go test`,
+because a PUT that leaves it out resets whatever the Orchestra UI set. How to make the
+decision is in `.claude/skills/spec-sync/SKILL.md`.
 
 ## Releasing
 

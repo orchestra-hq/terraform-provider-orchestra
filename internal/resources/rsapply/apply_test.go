@@ -1920,7 +1920,8 @@ func monitorValue(t *testing.T, objType tftypes.Object, name, channel string) tf
 			"integrations": []any{"SNOWFLAKE", "DBT"},
 		},
 		"action": map[string]any{
-			"severity": "HIGH",
+			"severity":    "HIGH",
+			"subscribers": []any{"00000000-0000-0000-0000-000000000002"},
 			"alerts": map[string]any{
 				"destinations": []any{
 					map[string]any{"integration": "SLACK", "destination": channel},
@@ -1956,6 +1957,10 @@ func TestMonitorLifecycle(t *testing.T) {
 	match, ok := create.Body["match"].(map[string]any)
 	if !ok || match["integrations"] == nil {
 		t.Errorf("create body lost `match`: %#v", create.Body)
+	}
+	action, _ := create.Body["action"].(map[string]any)
+	if got, _ := action["subscribers"].([]any); len(got) != 1 || got[0] != "00000000-0000-0000-0000-000000000002" {
+		t.Errorf("create body sent subscribers %#v, want the one configured", action["subscribers"])
 	}
 
 	// --- update ---
@@ -2010,6 +2015,7 @@ func TestMonitorRejectsEmptyMatch(t *testing.T) {
 		"name":     "catch everything",
 		"group_by": []any{"pipeline"},
 		"match":    map[string]any{},
+		"action":   map[string]any{"subscribers": unknown}, // must not switch the check off
 	})
 	configDV, err := tfprotov6.NewDynamicValue(objType, config)
 	if err != nil {
@@ -2487,7 +2493,7 @@ func TestMonitorOrder(t *testing.T) {
 // live: a monitor declared without `action` comes back with a default one, so
 // planning null for it aborts the apply.
 func TestMonitorWithoutAction(t *testing.T) {
-	_, baseURL := monitorStub(t)
+	calls, baseURL := monitorStub(t)
 	server, schemaResp := newServer(t, baseURL)
 	objType := schemaResp.ResourceSchemas["orchestra_monitor"].ValueType().(tftypes.Object)
 
@@ -2497,6 +2503,20 @@ func TestMonitorWithoutAction(t *testing.T) {
 			"match":    map[string]any{"integrations": []any{"SNOWFLAKE"}},
 			"group_by": []any{"pipeline"},
 		}), computedAttrs(schemaResp.ResourceSchemas["orchestra_monitor"]))
+
+	create := calls.find(http.MethodPost, "/monitors")
+	if create == nil {
+		t.Fatalf("no POST /monitors; calls were %v", calls.paths())
+	}
+	// The stub echoes a null back, and the API rejects one, so only the body shows [] was sent.
+	action, _ := create.Body["action"].(map[string]any)
+	if got, ok := action["subscribers"].([]any); !ok || len(got) != 0 {
+		t.Errorf("subscribers sent as %#v, want []", action["subscribers"])
+	}
+	match, _ := create.Body["match"].(map[string]any)
+	if got, ok := match["operationFailuresOnly"].(bool); !ok || got {
+		t.Errorf("operationFailuresOnly sent as %#v, want false", match["operationFailuresOnly"])
+	}
 }
 
 // TestMonitorOrderSurvivesANewMonitor covers the race between reading the

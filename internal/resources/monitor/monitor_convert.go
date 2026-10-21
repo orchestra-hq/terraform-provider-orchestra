@@ -68,9 +68,10 @@ func toWire(m monitorModel, diags *diag.Diagnostics) wireDefinition {
 // apply copies the API response into the model.
 //
 // The API fills in declared defaults on the way out, so an Optional attribute
-// left unset in config comes back populated. `enabled`, `action.mute` and
+// left unset in config comes back populated. `enabled`, `action.mute`,
+// `action.subscribers`, `match.operation_failures_only` and
 // `also_send_to_pipeline_destinations` all carry client-side defaults matching
-// the server's, so the planned value and the applied value agree.
+// what is sent or filled in, so the planned value and the applied value agree.
 func apply(m *monitorModel, api wireMonitorResponse) {
 	d := api.Definition
 

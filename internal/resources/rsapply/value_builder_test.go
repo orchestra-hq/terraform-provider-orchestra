@@ -8,17 +8,26 @@ import (
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 )
 
+type unknownLiteral struct{}
+
+// unknown stands for a value not known until apply, such as another resource's computed attribute.
+var unknown = unknownLiteral{}
+
 // buildValue makes a tftypes.Value of the given type from a plain Go literal,
 // filling every attribute the literal omits with null. Writing these values
 // out by hand is unmanageable for a schema as nested as orchestra_pipeline's.
 //
 // Supported literals: map[string]any for objects and maps, []any for lists and
-// sets, string, bool, int, float64, and nil for null.
+// sets, string, bool, int, float64, nil for null, and unknown for a value not
+// known until apply.
 func buildValue(t *testing.T, typ tftypes.Type, literal any) tftypes.Value {
 	t.Helper()
 
 	if literal == nil {
 		return tftypes.NewValue(typ, nil)
+	}
+	if literal == unknown {
+		return tftypes.NewValue(typ, tftypes.UnknownValue)
 	}
 
 	switch target := typ.(type) {

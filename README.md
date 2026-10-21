@@ -219,16 +219,35 @@ decision is in `.claude/skills/spec-sync/SKILL.md`.
 
 ## Releasing
 
-Tag a release and [GoReleaser](.goreleaser.yml) builds the per-platform archives, checksums and GPG signature the
-[Terraform Registry requires](https://developer.hashicorp.com/terraform/registry/providers/publishing).
+The provider is published to the Terraform Registry as `orchestra-hq/orchestra`. Pushing a version tag runs the
+unit tests, then [GoReleaser](.goreleaser.yml) builds the per-platform archives, checksums and GPG signature the
+[registry requires](https://developer.hashicorp.com/terraform/registry/providers/publishing) and publishes a
+GitHub release. The registry picks the release up within minutes.
+
+To release:
+
+1. In a PR, rename `## Unreleased` in the CHANGELOG to the version, e.g. `## 0.1.0`, and merge it.
+2. Tag the merge commit on `main` and push the tag:
 
 ```bash
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-The release workflow needs the `GPG_PRIVATE_KEY` and `PASSPHRASE` repository secrets, and publishes a draft release
-for review.
+<details>
+<summary>One-time setup</summary>
+
+The registry only publishes from a public GitHub repository owned by the namespace, so this one lives at
+`orchestra-hq/terraform-provider-orchestra`.
+
+1. Generate an RSA GPG key; the registry rejects GPG's default ECC type.
+2. Add the ASCII-armoured private key and its passphrase as the `GPG_PRIVATE_KEY` and `PASSPHRASE` repository
+   secrets.
+3. In the registry, add the public key to the `orchestra-hq` namespace under **User Settings → Signing Keys**.
+4. In the registry, choose **Publish → Provider** and pick this repository. Later releases are picked up
+   automatically.
+
+</details>
 
 ## License
 
-[MPL-2.0](LICENSE)
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.

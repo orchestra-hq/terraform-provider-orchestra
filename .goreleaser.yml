@@ -57,8 +57,8 @@ signs:
       - "${artifact}"
 
 release:
-  # Let the maintainer write the notes before the release goes out.
-  draft: true
+  # Published, not draft: the registry ignores draft releases.
+  header: "See the [CHANGELOG](https://github.com/orchestra-hq/terraform-provider-orchestra/blob/{{ .Tag }}/CHANGELOG.md) for what changed."
   extra_files:
     - glob: "terraform-registry-manifest.json"
       name_template: "{{ .ProjectName }}_{{ .Version }}_manifest.json"

@@ -41,3 +41,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+
+      # The public registry needs a public repo; until then, releases go to HCP Terraform's private registry.
+      - name: Publish to the HCP Terraform private registry
+        if: vars.TFC_ORGANIZATION != ''
+        run: scripts/publish-hcp-registry.sh "$GITHUB_REF_NAME"
+        env:
+          TFC_ORGANIZATION: ${{ vars.TFC_ORGANIZATION }}
+          TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
+          GPG_KEY_ID: ${{ steps.import_gpg.outputs.keyid }}

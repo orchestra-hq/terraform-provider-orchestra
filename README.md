@@ -216,10 +216,26 @@ decision is in `.claude/skills/spec-sync/SKILL.md`.
 
 ## Releasing
 
-The provider is published to the Terraform Registry as `orchestra-hq/orchestra`. Pushing a version tag runs the
-unit tests, then [GoReleaser](.goreleaser.yml) builds the per-platform archives, checksums and GPG signature the
-[registry requires](https://developer.hashicorp.com/terraform/registry/providers/publishing) and publishes a
-GitHub release. The registry picks the release up within minutes.
+Pushing a version tag runs the unit tests, then [GoReleaser](.goreleaser.yml) builds the per-platform archives,
+checksums and GPG signature a registry needs and publishes a GitHub release.
+
+Until this repository is public, releases also go to Orchestra's
+[HCP Terraform private registry](https://developer.hashicorp.com/terraform/cloud-docs/registry/publish-providers),
+which only members of that HCP Terraform organization can install from:
+
+```hcl
+terraform {
+  required_providers {
+    orchestra = {
+      source = "app.terraform.io/<organization>/orchestra"
+    }
+  }
+}
+```
+
+Run `terraform login` first so `terraform init` can authenticate. Once the repository is public, the
+[public registry](https://developer.hashicorp.com/terraform/registry/providers/publishing) serves it as
+`orchestra-hq/orchestra` instead.
 
 To release:
 
@@ -231,9 +247,24 @@ git tag v0.1.0 && git push origin v0.1.0
 ```
 
 <details>
-<summary>One-time setup</summary>
+<summary>One-time setup: HCP Terraform private registry</summary>
 
-The registry only publishes from a public GitHub repository owned by the namespace, so this one lives at
+1. Generate an RSA GPG key and add the ASCII-armoured private key and its passphrase as the `GPG_PRIVATE_KEY` and
+   `PASSPHRASE` repository secrets.
+2. Add an HCP Terraform API token from the owners team, or a team with **Manage Private Registry**, as the
+   `TFC_TOKEN` repository secret.
+3. Set the `TFC_ORGANIZATION` repository variable to the organization's name. The release step is skipped while it
+   is unset.
+
+The first release creates the provider and registers the signing key. The step cannot resume a half-published
+version, so if it fails partway, delete that version in HCP Terraform before re-running it.
+
+</details>
+
+<details>
+<summary>One-time setup: public registry</summary>
+
+The public registry only publishes from a public GitHub repository owned by the namespace, so this one lives at
 `orchestra-hq/terraform-provider-orchestra`.
 
 1. Generate an RSA GPG key; the registry rejects GPG's default ECC type.

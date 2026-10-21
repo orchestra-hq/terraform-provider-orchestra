@@ -105,7 +105,7 @@ func matchAttribute() schema.Attribute {
 				// The API returns every match dimension as a list even when it
 				// was not sent, so an Optional-only attribute would plan null
 				// and apply [] — which aborts the apply.
-				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
+				Default:     listdefault.StaticValue(emptyStrings()),
 				Description: "Pipeline IDs to claim events from.",
 			},
 			"assets": schema.ListAttribute{
@@ -115,7 +115,7 @@ func matchAttribute() schema.Attribute {
 				// The API returns every match dimension as a list even when it
 				// was not sent, so an Optional-only attribute would plan null
 				// and apply [] — which aborts the apply.
-				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
+				Default:     listdefault.StaticValue(emptyStrings()),
 				Description: "Asset IDs to claim events from.",
 			},
 			"connections": schema.ListAttribute{
@@ -125,7 +125,7 @@ func matchAttribute() schema.Attribute {
 				// The API returns every match dimension as a list even when it
 				// was not sent, so an Optional-only attribute would plan null
 				// and apply [] — which aborts the apply.
-				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
+				Default:     listdefault.StaticValue(emptyStrings()),
 				Description: "Connection IDs to claim events from.",
 			},
 			"integrations": schema.ListAttribute{
@@ -133,7 +133,7 @@ func matchAttribute() schema.Attribute {
 				Computed:    true,
 				ElementType: types.StringType,
 				// See the note on `pipelines`.
-				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
+				Default:     listdefault.StaticValue(emptyStrings()),
 				Description: "Integrations to claim events from.",
 				Validators: []validator.List{
 					listvalidator.ValueStringsAre(stringvalidator.OneOf(enums.Integrations...)),
@@ -255,22 +255,9 @@ func alertsDefault() types.Object {
 }
 
 func actionAttribute() schema.Attribute {
-	return schema.SingleNestedAttribute{
-		Optional: true,
-		Computed: true,
-		// The API materialises `action` on every response, even for a monitor
-		// created without one, so a monitor that omits it would plan null and
-		// apply an object.
-		Default: objectdefault.StaticValue(types.ObjectValueMust(
-			map[string]attr.Type{
-				"mute": types.BoolType, "severity": types.StringType, "assignee": types.StringType,
-				"subscribers": types.ListType{ElemType: types.StringType}, "alerts": alertsObjectType(),
-			},
-			map[string]attr.Value{
-				"mute": types.BoolValue(false), "severity": types.StringNull(), "assignee": types.StringNull(),
-				"subscribers": types.ListValueMust(types.StringType, []attr.Value{}), "alerts": alertsDefault(),
-			},
-		)),
+	a := schema.SingleNestedAttribute{
+		Optional:    true,
+		Computed:    true,
 		Description: "What happens when an incident opens.",
 		Attributes: map[string]schema.Attribute{
 			"mute": schema.BoolAttribute{
@@ -292,8 +279,8 @@ func actionAttribute() schema.Attribute {
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.StringType,
-				// The API returns [] when none were sent.
-				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
+				// toWire sends [] for none, and the API echoes it.
+				Default:     listdefault.StaticValue(emptyStrings()),
 				Description: "User IDs mentioned in the incident's Slack alerts, at most 20. Like assignee, they can be Slack-only users.",
 				Validators:  []validator.List{listvalidator.SizeAtMost(20)},
 			},
@@ -321,6 +308,22 @@ func actionAttribute() schema.Attribute {
 			},
 		},
 	}
+	// The API materialises `action` on every response, even for a monitor
+	// created without one, so a monitor that omits it would plan null and apply
+	// an object.
+	a.Default = objectdefault.StaticValue(types.ObjectValueMust(
+		a.GetType().(types.ObjectType).AttrTypes,
+		map[string]attr.Value{
+			"mute": types.BoolValue(false), "severity": types.StringNull(), "assignee": types.StringNull(),
+			"subscribers": emptyStrings(), "alerts": alertsDefault(),
+		},
+	))
+	return a
+}
+
+// emptyStrings is the [] the API returns for a list attribute it was not sent.
+func emptyStrings() types.List {
+	return types.ListValueMust(types.StringType, []attr.Value{})
 }
 
 type monitorModel struct {

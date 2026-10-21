@@ -64,7 +64,7 @@ type wireAction struct {
 	Mute     bool    `json:"mute"`
 	Severity *string `json:"severity,omitempty"`
 	Assignee *string `json:"assignee,omitempty"`
-	// Always sent: a PUT resets an omitted field to its default.
+	// Never omitted, so the stored value is the planned [] rather than the server's default.
 	Subscribers []string    `json:"subscribers"`
 	Alerts      *wireAlerts `json:"alerts,omitempty"`
 }

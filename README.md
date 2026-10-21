@@ -184,6 +184,9 @@ hand, the generator produced a single two-attribute data source with no descript
 wrapper around it was larger than its output. It was retired rather than left as scaffolding that implies the
 schemas are safe to regenerate.
 
+[`design/openapi-generation.md`](design/openapi-generation.md) plans how to generate more again, in stages that
+each fail the build on a shape they cannot map.
+
 
 ## Keeping up with the API
 

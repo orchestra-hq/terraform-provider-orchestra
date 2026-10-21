@@ -51,11 +51,9 @@ anyone building from source should expect to rewrite their configuration.
   lists. A monitor moved in front of the listed ones outside Terraform shows up as drift, and one created during
   the apply, by Terraform or anyone else, is picked up rather than failing the reorder.
 - `orchestra_monitors` lists the workspace's monitors in evaluation order, for importing or ordering them.
-- `orchestra_monitor.action.subscribers` and `match.operation_failures_only`. A monitor update replaces the whole
-  definition, so before these existed an apply silently reset either one set in the Orchestra UI. It is still
-  reset when left out of the configuration, to `[]` and `false`, but now shows in the plan. Check the first plan
-  after upgrading: turning off `operation_failures_only` set in the UI makes the monitor claim task-level failures
-  again. Add the value to the configuration to keep it.
+- `orchestra_monitor.action.subscribers` and `match.operation_failures_only`. Left out of the configuration they
+  are `[]` and `false`. A monitor update replaces the whole definition, so a value set in the Orchestra UI shows
+  as drift and the next apply resets it.
 - `orchestra_pipeline.paused` is settable. Pausing has its own endpoint, so changing only `paused` does not save
   a new version of the definition. Left unset, it is left alone, so a pause made in the Orchestra UI survives the
   next apply.

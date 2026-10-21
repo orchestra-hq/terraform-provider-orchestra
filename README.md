@@ -250,4 +250,4 @@ The registry only publishes from a public GitHub repository owned by the namespa
 
 ## License
 
-[MPL-2.0](LICENSE)
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.

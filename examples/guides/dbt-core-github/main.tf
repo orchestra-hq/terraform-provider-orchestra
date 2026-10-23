@@ -1,4 +1,4 @@
-# Run a dbt Core project from GitHub every night, with the warehouse
+# Connect a dbt Core project in GitHub to Orchestra, with the warehouse
 # credentials held in one Snowflake connection.
 
 variable "github_token" {
@@ -72,32 +72,8 @@ resource "orchestra_integration_connection" "dbt" {
   })
 }
 
-resource "orchestra_pipeline" "dbt_nightly" {
-  alias     = "dbt_nightly"
-  published = true
-
-  data = {
-    name = "dbt nightly build"
-
-    tasks = {
-      dbt_build = {
-        integration     = "DBT_CORE"
-        integration_job = "DBT_CORE_EXECUTE"
-        connection      = orchestra_integration_connection.dbt.id
-
-        parameters = jsonencode({
-          # Separate several commands with semicolons. Orchestra runs dbt deps itself.
-          commands        = "dbt build"
-          package_manager = "PIP"
-          python_version  = "3.12"
-        })
-      }
-    }
-
-    schedule = [{
-      name     = "nightly"
-      cron     = "cron(0 2 * * ? *)"
-      timezone = "Europe/London"
-    }]
-  }
+# A dbt Core task in a pipeline uses this connection by setting `connection`
+# to this ID.
+output "dbt_connection_id" {
+  value = orchestra_integration_connection.dbt.id
 }

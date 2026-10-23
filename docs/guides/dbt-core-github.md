@@ -1,18 +1,19 @@
 ---
-page_title: "Running dbt Core from GitHub"
+page_title: "Connecting dbt Core in GitHub"
 subcategory: ""
 description: |-
-  Connect a dbt Core project in a GitHub repository to Orchestra and run it on a schedule.
+  Connect a dbt Core project in a GitHub repository to Orchestra, with its warehouse credentials in a linked connection.
 ---
 
-# Running dbt Core from GitHub
+# Connecting dbt Core in GitHub
 
-This guide connects a dbt Core project stored in GitHub to Orchestra and runs `dbt build` every night. It creates:
+This guide connects a dbt Core project stored in GitHub to Orchestra. It creates:
 
 - a Snowflake connection that holds the warehouse credentials,
 - a dbt Core connection to the GitHub repository, which links the Snowflake connection so `profiles.yml` holds no
-  secrets,
-- a pipeline that runs `dbt build` on a schedule.
+  secrets.
+
+Pipelines then run the project through the dbt Core connection.
 
 ## Before you start
 
@@ -26,7 +27,7 @@ This guide connects a dbt Core project stored in GitHub to Orchestra and runs `d
 ## Configuration
 
 ```terraform
-# Run a dbt Core project from GitHub every night, with the warehouse
+# Connect a dbt Core project in GitHub to Orchestra, with the warehouse
 # credentials held in one Snowflake connection.
 
 variable "github_token" {
@@ -100,34 +101,10 @@ resource "orchestra_integration_connection" "dbt" {
   })
 }
 
-resource "orchestra_pipeline" "dbt_nightly" {
-  alias     = "dbt_nightly"
-  published = true
-
-  data = {
-    name = "dbt nightly build"
-
-    tasks = {
-      dbt_build = {
-        integration     = "DBT_CORE"
-        integration_job = "DBT_CORE_EXECUTE"
-        connection      = orchestra_integration_connection.dbt.id
-
-        parameters = jsonencode({
-          # Separate several commands with semicolons. Orchestra runs dbt deps itself.
-          commands        = "dbt build"
-          package_manager = "PIP"
-          python_version  = "3.12"
-        })
-      }
-    }
-
-    schedule = [{
-      name     = "nightly"
-      cron     = "cron(0 2 * * ? *)"
-      timezone = "Europe/London"
-    }]
-  }
+# A dbt Core task in a pipeline uses this connection by setting `connection`
+# to this ID.
+output "dbt_connection_id" {
+  value = orchestra_integration_connection.dbt.id
 }
 ```
 
@@ -151,12 +128,15 @@ the Snowflake connection's ID, and `profiles.yml` reads each variable with dbt's
 The password lives only in the Snowflake connection, so rotating it is one change. Linked connections are in beta; see
 the [dbt Core integration docs](https://docs.getorchestra.io/docs/integrations/dbt_core#linked-connections).
 
+## Using the connection
+
+A [Run dbt Command](https://docs.getorchestra.io/docs/integrations/dbt_core/dbt_core_execute) task uses the connection
+by setting its `connection` to the `dbt_connection_id` output. That page lists the task's parameters, such as
+`commands`, `branch`, and `project_dir` for a dbt project that isn't at the root of the repository.
+
 ## Notes
 
 - Orchestra masks secrets when it returns a connection, so Terraform never reads `parameters` back. A change made to a
   connection in the Orchestra UI is not detected.
 - If your workspace already has a GitHub connection set up in the Orchestra UI, set `auth_method = "GIT_CONNECTION"`
   and remove `token`.
-- For a dbt project that isn't at the root of the repository, set `project_dir` in the task's `parameters`. The other
-  task options, such as `branch`, are listed under
-  [Run dbt Command](https://docs.getorchestra.io/docs/integrations/dbt_core/dbt_core_execute).

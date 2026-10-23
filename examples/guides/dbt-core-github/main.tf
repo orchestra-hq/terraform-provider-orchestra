@@ -1,5 +1,4 @@
-# Connect a dbt Core project in GitHub to Orchestra, with the warehouse
-# credentials held in one Snowflake connection.
+# Connect a dbt Core project in GitHub to Orchestra.
 
 variable "github_token" {
   description = "A fine-grained GitHub token with read-only Contents and Metadata access to the dbt repository."
@@ -11,31 +10,6 @@ variable "snowflake_password" {
   description = "Password for the Snowflake user dbt runs as."
   type        = string
   sensitive   = true
-}
-
-# The warehouse credentials live here only. The dbt connection links to this
-# one rather than repeating them in profiles.yml.
-resource "orchestra_integration_connection" "snowflake" {
-  integration = "SNOWFLAKE"
-  name        = "Snowflake (dbt)"
-
-  parameters = jsonencode({
-    snowflake_auth_type = "USERNAME_PASSWORD"
-    snowflake_user      = "DBT_SVC"
-    snowflake_password  = var.snowflake_password
-    snowflake_account   = "xy12345.eu-west-1"
-    snowflake_role      = "TRANSFORMER"
-    snowflake_warehouse = "TRANSFORMING"
-    snowflake_database  = "ANALYTICS"
-    snowflake_schema    = "DBT"
-  })
-}
-
-locals {
-  # A linked connection's fields reach the task as environment variables named
-  # SNOWFLAKE__<CONNECTION_ID>__<FIELD>, with the connection ID upper-cased and
-  # every run of other characters replaced by one underscore.
-  snowflake_env = "SNOWFLAKE__${trim(upper(replace(orchestra_integration_connection.snowflake.id, "/[^A-Za-z0-9]+/", "_")), "_")}"
 }
 
 resource "orchestra_integration_connection" "dbt" {
@@ -51,7 +25,11 @@ resource "orchestra_integration_connection" "dbt" {
     auth_method = "TOKEN"
     token       = var.github_token
 
-    linked_connections = [orchestra_integration_connection.snowflake.id]
+    # Each task using this connection gets these as environment variables, so
+    # the password stays out of profiles.yml.
+    secrets = {
+      DBT_SNOWFLAKE_PASSWORD = var.snowflake_password
+    }
 
     # The top-level key must match `profile` in dbt_project.yml.
     profiles_yaml = <<-YAML
@@ -60,13 +38,13 @@ resource "orchestra_integration_connection" "dbt" {
         outputs:
           prod:
             type: snowflake
-            account: "{{ env_var('${local.snowflake_env}__SNOWFLAKE_ACCOUNT') }}"
-            user: "{{ env_var('${local.snowflake_env}__SNOWFLAKE_USER') }}"
-            password: "{{ env_var('${local.snowflake_env}__SNOWFLAKE_PASSWORD') }}"
-            role: "{{ env_var('${local.snowflake_env}__SNOWFLAKE_ROLE') }}"
-            warehouse: "{{ env_var('${local.snowflake_env}__SNOWFLAKE_WAREHOUSE') }}"
-            database: "{{ env_var('${local.snowflake_env}__SNOWFLAKE_DATABASE') }}"
-            schema: "{{ env_var('${local.snowflake_env}__SNOWFLAKE_SCHEMA') }}"
+            account: xy12345.eu-west-1
+            user: DBT_SVC
+            password: "{{ env_var('DBT_SNOWFLAKE_PASSWORD') }}"
+            role: TRANSFORMER
+            warehouse: TRANSFORMING
+            database: ANALYTICS
+            schema: DBT
             threads: 8
     YAML
   })

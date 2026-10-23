@@ -48,7 +48,8 @@ resource "orchestra_pipeline" "daily_sales" {
 ```
 
 Full reference documentation, including every attribute and worked examples, lives in [`docs/`](docs/) and is
-rendered on the Terraform Registry.
+rendered on the Terraform Registry. For a complete setup, see the guide to
+[running dbt Core from GitHub](docs/guides/dbt-core-github.md).
 
 ## Provider configuration
 

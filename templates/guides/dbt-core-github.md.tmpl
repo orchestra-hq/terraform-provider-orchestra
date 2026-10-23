@@ -1,0 +1,58 @@
+---
+page_title: "Running dbt Core from GitHub"
+subcategory: ""
+description: |-
+  Connect a dbt Core project in a GitHub repository to Orchestra and run it on a schedule.
+---
+
+# Running dbt Core from GitHub
+
+This guide connects a dbt Core project stored in GitHub to Orchestra and runs `dbt build` every night. It creates:
+
+- a Snowflake connection that holds the warehouse credentials,
+- a dbt Core connection to the GitHub repository, which links the Snowflake connection so `profiles.yml` holds no
+  secrets,
+- a pipeline that runs `dbt build` on a schedule.
+
+## Before you start
+
+- A dbt project in a GitHub repository, with a `requirements.txt` or `pyproject.toml` at its root listing what to
+  install, such as `dbt-snowflake`.
+- A [fine-grained GitHub token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+  for that repository with read-only **Contents** and **Metadata** permissions. Orchestra checks the token when the
+  connection is created.
+- A Snowflake user for dbt to run as.
+
+## Configuration
+
+{{ tffile "examples/guides/dbt-core-github/main.tf" }}
+
+Replace `my-org/dbt-project` with your repository, the Snowflake details with your own, and `dbt_project` in
+`profiles_yaml` with the `profile` name in your `dbt_project.yml`. Then supply the secrets and apply:
+
+```shell
+export TF_VAR_github_token=...
+export TF_VAR_snowflake_password=...
+terraform apply
+```
+
+## How the credentials reach dbt
+
+The dbt Core connection lists the Snowflake connection under `linked_connections`. When a task runs, Orchestra exports
+each field of a linked connection as an environment variable named `<INTEGRATION>__<CONNECTION_ID>__<FIELD>`, such as
+`SNOWFLAKE__SNOWFLAKE_PRODUCTION_48213__SNOWFLAKE_PASSWORD`. The connection ID is upper-cased, with each run of
+characters other than letters and digits replaced by one underscore. The `snowflake_env` local builds that prefix from
+the Snowflake connection's ID, and `profiles.yml` reads each variable with dbt's `env_var()`.
+
+The password lives only in the Snowflake connection, so rotating it is one change. Linked connections are in beta; see
+the [dbt Core integration docs](https://docs.getorchestra.io/docs/integrations/dbt_core#linked-connections).
+
+## Notes
+
+- Orchestra masks secrets when it returns a connection, so Terraform never reads `parameters` back. A change made to a
+  connection in the Orchestra UI is not detected.
+- If your workspace already has a GitHub connection set up in the Orchestra UI, set `auth_method = "GIT_CONNECTION"`
+  and remove `token`.
+- For a dbt project that isn't at the root of the repository, set `project_dir` in the task's `parameters`. The other
+  task options, such as `branch`, are listed under
+  [Run dbt Command](https://docs.getorchestra.io/docs/integrations/dbt_core/dbt_core_execute).

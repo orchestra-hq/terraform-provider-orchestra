@@ -51,7 +51,7 @@ resource "orchestra_pipeline" "daily_sales" {
             connection      = "name_ABCD"
 
             parameters = jsonencode({
-              commands = ["dbt build --select tag:daily"]
+              commands = "dbt build --select tag:daily"
             })
 
             configuration = {

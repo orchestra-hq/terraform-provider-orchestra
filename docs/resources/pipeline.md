@@ -51,9 +51,7 @@ resource "orchestra_pipeline" "daily_sales" {
             connection      = "name_ABCD"
 
             parameters = jsonencode({
-              commands        = "dbt build --select tag:daily"
-              package_manager = "PIP"
-              python_version  = "3.12"
+              commands = "dbt build --select tag:daily"
             })
 
             configuration = {

@@ -1,11 +1,11 @@
 ---
-page_title: "Connecting dbt Core in GitHub"
+page_title: "Connecting a dbt Core project from GitHub"
 subcategory: ""
 description: |-
   Connect a dbt Core project in a GitHub repository to Orchestra.
 ---
 
-# Connecting dbt Core in GitHub
+# Connecting a dbt Core project from GitHub
 
 This guide creates a dbt Core connection to a project stored in GitHub. Pipelines then run the project through that
 connection.
@@ -14,27 +14,18 @@ connection.
 
 - A dbt project in a GitHub repository, with a `requirements.txt` or `pyproject.toml` at its root listing what to
   install, such as `dbt-snowflake`.
-- A [fine-grained GitHub token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
-  for that repository with read-only **Contents** and **Metadata** permissions. Orchestra checks the token when the
-  connection is created.
+- Access to that repository, either:
+  - a [Git connection](https://docs.getorchestra.io/docs/git-control-and-ci-cd/) to GitHub set up in Orchestra, which
+    the example uses, or
+  - a [GitHub token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+    with read-only **Contents** and **Metadata** permissions on the repository. Orchestra checks the token when the
+    connection is created.
 - Credentials for the warehouse dbt runs against. The example uses a Snowflake user.
 
 ## Configuration
 
 ```terraform
 # Connect a dbt Core project in GitHub to Orchestra.
-
-variable "github_token" {
-  description = "A fine-grained GitHub token with read-only Contents and Metadata access to the dbt repository."
-  type        = string
-  sensitive   = true
-}
-
-variable "snowflake_password" {
-  description = "Password for the Snowflake user dbt runs as."
-  type        = string
-  sensitive   = true
-}
 
 resource "orchestra_integration_connection" "dbt" {
   integration = "DBT_CORE"
@@ -44,16 +35,9 @@ resource "orchestra_integration_connection" "dbt" {
     repo_source = "GITHUB"
     repo_path   = "my-org/dbt-project"
 
-    # With a GitHub connection already set up in the Orchestra UI, use
-    # auth_method = "GIT_CONNECTION" and drop the token.
-    auth_method = "TOKEN"
-    token       = var.github_token
-
-    # Each task using this connection gets these as environment variables, so
-    # the password stays out of profiles.yml.
-    secrets = {
-      DBT_SNOWFLAKE_PASSWORD = var.snowflake_password
-    }
+    # Uses the workspace's Git connection to GitHub. To use a GitHub token
+    # instead, set auth_method = "TOKEN" and add token.
+    auth_method = "GIT_CONNECTION"
 
     # The top-level key must match `profile` in dbt_project.yml.
     profiles_yaml = <<-YAML
@@ -64,7 +48,7 @@ resource "orchestra_integration_connection" "dbt" {
             type: snowflake
             account: xy12345.eu-west-1
             user: DBT_SVC
-            password: "{{ env_var('DBT_SNOWFLAKE_PASSWORD') }}"
+            password: "<your Snowflake password>"
             role: TRANSFORMER
             warehouse: TRANSFORMING
             database: ANALYTICS
@@ -82,19 +66,13 @@ output "dbt_connection_id" {
 ```
 
 Replace `my-org/dbt-project` with your repository, the warehouse details in `profiles_yaml` with your own, and
-`dbt_project` with the `profile` name in your `dbt_project.yml`. Then supply the secrets and apply:
+`dbt_project` with the `profile` name in your `dbt_project.yml`. Then run `terraform apply`.
 
-```shell
-export TF_VAR_github_token=...
-export TF_VAR_snowflake_password=...
-terraform apply
-```
+## Credentials in `profiles.yml`
 
-## Keeping secrets out of `profiles.yml`
-
-Orchestra stores `profiles.yml` encrypted, but the example still keeps the password out of it. Values under `secrets`
-are injected into every task that uses the connection as environment variables, and `profiles.yml` reads them with
-dbt's `env_var()`. Secret values are redacted in task logs.
+Orchestra stores `profiles.yml` encrypted and masks it when returning the connection, so credentials can go in it
+directly. Terraform treats `parameters` as sensitive, so `profiles.yml` stays out of plan and apply output. Like every
+sensitive value, it is still written to the Terraform state, so keep the state somewhere secure.
 
 ## Using the connection
 
@@ -104,7 +82,5 @@ by setting its `connection` to the `dbt_connection_id` output. That page lists t
 
 ## Notes
 
-- Orchestra masks secrets when it returns a connection, so Terraform never reads `parameters` back. A change made to a
-  connection in the Orchestra UI is not detected.
-- If your workspace already has a GitHub connection set up in the Orchestra UI, set `auth_method = "GIT_CONNECTION"`
-  and remove `token`.
+- Terraform never reads `parameters` back, because Orchestra masks secrets when it returns a connection. A change made
+  to the connection in the Orchestra UI is not detected.

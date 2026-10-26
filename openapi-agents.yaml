@@ -63,6 +63,17 @@ paths:
           title: Session Mode
         description: Only return sessions started in these modes. Repeat the parameter
           to match any of several. One of `USER`, `TASK_RUN`, `INCIDENT`.
+      - name: incident_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          description: Only return sessions about this incident.
+          title: Incident Id
+        description: Only return sessions about this incident.
       - name: q
         in: query
         required: false
@@ -145,12 +156,13 @@ paths:
       summary: Start an agent session
       description: 'Start a session with an agent and send it a first prompt. The
         agent replies asynchronously: this returns once the prompt is queued, and
-        the reply is read from `GET /sessions/{session_id}/history/messages`. Without
-        `incidentId` the session is the caller''s own, so it needs an OAuth token
-        and an API key gets 400. With `incidentId` it is the incident''s, visible
-        across the workspace, and an incident''s open session takes the prompt instead
-        of a new one starting. Needs a grant to run the agent, and to view the incident
-        when `incidentId` is set.'
+        the reply is read from `GET /sessions/{session_id}/history/messages`. `incidentId`
+        names the incident the session is about. With `sessionMode` `USER`, the default,
+        the session is the caller''s own, so it needs an OAuth token and an API key
+        gets 400. With `INCIDENT` it is the incident''s, visible across the workspace,
+        and an incident''s open session takes the prompt instead of a new one starting.
+        Needs a grant to run the agent, and to view the incident when `incidentId`
+        is set.'
       parameters:
       - name: X-Orchestra-Account-Id
         in: header
@@ -600,7 +612,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AgentResponse'
+                $ref: '#/components/schemas/PublicAgentResponse'
         '422':
           description: Validation Error
           content:
@@ -688,7 +700,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedResponse_AgentListResponse_'
+                $ref: '#/components/schemas/PaginatedResponse_PublicAgentListResponse_'
         '422':
           description: Validation Error
           content:
@@ -737,7 +749,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AgentResponse'
+                $ref: '#/components/schemas/PublicAgentResponse'
         '422':
           description: Validation Error
           content:
@@ -792,7 +804,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AgentResponse'
+                $ref: '#/components/schemas/PublicAgentResponse'
         '422':
           description: Validation Error
           content:
@@ -1648,225 +1660,6 @@ components:
       - updatedAt
       - updatedBy
       title: AgentIntegrationMappingResponse
-    AgentListResponse:
-      properties:
-        agentId:
-          type: string
-          format: uuid4
-          title: Agentid
-        organisationId:
-          type: string
-          format: uuid
-          title: Organisationid
-        accountId:
-          type: string
-          format: uuid
-          title: Accountid
-        name:
-          type: string
-          title: Name
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
-        avatarPath:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Avatarpath
-        avatarUrl:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Avatarurl
-        samplePrompts:
-          items:
-            type: string
-          type: array
-          title: Sampleprompts
-          default: []
-        gitEnabled:
-          type: boolean
-          title: Gitenabled
-        defaultModelId:
-          anyOf:
-          - $ref: '#/components/schemas/AgentSessionModelEnum'
-          - type: 'null'
-        defaultEffort:
-          anyOf:
-          - $ref: '#/components/schemas/AgentSessionEffortEnum'
-          - type: 'null'
-        llmKeyType:
-          oneOf:
-          - $ref: '#/components/schemas/AccountDefaultLLMKey'
-          - $ref: '#/components/schemas/OrchestraLLMKey'
-          - $ref: '#/components/schemas/ConnectionLLMKey'
-          title: Llmkeytype
-          discriminator:
-            propertyName: type
-            mapping:
-              ACCOUNT_DEFAULT: '#/components/schemas/AccountDefaultLLMKey'
-              CONNECTION: '#/components/schemas/ConnectionLLMKey'
-              ORCHESTRA: '#/components/schemas/OrchestraLLMKey'
-        orchestraManaged:
-          type: boolean
-          title: Orchestramanaged
-          default: false
-        integrations:
-          items:
-            $ref: '#/components/schemas/AgentIntegrationConnection'
-          type: array
-          title: Integrations
-        createdAt:
-          type: string
-          title: Createdat
-        createdBy:
-          anyOf:
-          - type: string
-            format: uuid4
-          - type: 'null'
-          title: Createdby
-        updatedAt:
-          type: string
-          title: Updatedat
-        updatedBy:
-          anyOf:
-          - type: string
-            format: uuid4
-          - type: 'null'
-          title: Updatedby
-      additionalProperties: false
-      type: object
-      required:
-      - agentId
-      - organisationId
-      - accountId
-      - name
-      - description
-      - gitEnabled
-      - llmKeyType
-      - integrations
-      - createdAt
-      - createdBy
-      - updatedAt
-      - updatedBy
-      title: AgentListResponse
-    AgentResponse:
-      properties:
-        agentId:
-          type: string
-          format: uuid4
-          title: Agentid
-        organisationId:
-          type: string
-          format: uuid
-          title: Organisationid
-        accountId:
-          type: string
-          format: uuid
-          title: Accountid
-        name:
-          type: string
-          title: Name
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
-        avatarPath:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Avatarpath
-        avatarUrl:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Avatarurl
-        samplePrompts:
-          items:
-            type: string
-          type: array
-          title: Sampleprompts
-          default: []
-        systemPrompt:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Systemprompt
-        responsePrompt:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Responseprompt
-        secrets:
-          anyOf:
-          - additionalProperties:
-              type: string
-            type: object
-          - type: 'null'
-          title: Secrets
-        gitEnabled:
-          type: boolean
-          title: Gitenabled
-        defaultModelId:
-          anyOf:
-          - $ref: '#/components/schemas/AgentSessionModelEnum'
-          - type: 'null'
-        defaultEffort:
-          anyOf:
-          - $ref: '#/components/schemas/AgentSessionEffortEnum'
-          - type: 'null'
-        llmKeyType:
-          oneOf:
-          - $ref: '#/components/schemas/AccountDefaultLLMKey'
-          - $ref: '#/components/schemas/OrchestraLLMKey'
-          - $ref: '#/components/schemas/ConnectionLLMKey'
-          title: Llmkeytype
-          discriminator:
-            propertyName: type
-            mapping:
-              ACCOUNT_DEFAULT: '#/components/schemas/AccountDefaultLLMKey'
-              CONNECTION: '#/components/schemas/ConnectionLLMKey'
-              ORCHESTRA: '#/components/schemas/OrchestraLLMKey'
-        orchestraManaged:
-          type: boolean
-          title: Orchestramanaged
-          default: false
-        createdAt:
-          type: string
-          title: Createdat
-        createdBy:
-          anyOf:
-          - type: string
-            format: uuid4
-          - type: 'null'
-          title: Createdby
-        updatedAt:
-          type: string
-          title: Updatedat
-        updatedBy:
-          anyOf:
-          - type: string
-            format: uuid4
-          - type: 'null'
-          title: Updatedby
-      additionalProperties: false
-      type: object
-      required:
-      - agentId
-      - organisationId
-      - accountId
-      - name
-      - description
-      - gitEnabled
-      - llmKeyType
-      - createdAt
-      - createdBy
-      - updatedAt
-      - updatedBy
-      title: AgentResponse
     AgentRuntimeStreamTypeEnum:
       type: string
       enum:
@@ -1963,6 +1756,12 @@ components:
             format: uuid4
           - type: 'null'
           title: Pipelinerunid
+        incidentId:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Incidentid
         status:
           $ref: '#/components/schemas/AgentSessionStatusEnum'
         modelId:
@@ -2268,6 +2067,13 @@ components:
             type: object
           - type: 'null'
           title: Pipelineeditorcontext
+        sessionMode:
+          type: string
+          enum:
+          - USER
+          - INCIDENT
+          title: Sessionmode
+          default: USER
         incidentId:
           anyOf:
           - type: string
@@ -2502,30 +2308,6 @@ components:
       - total
       - results
       title: PaginatedResponse[AgentIntegrationMappingResponse]
-    PaginatedResponse_AgentListResponse_:
-      properties:
-        page:
-          type: integer
-          title: Page
-        pageSize:
-          type: integer
-          title: Pagesize
-        total:
-          type: integer
-          title: Total
-        results:
-          items:
-            $ref: '#/components/schemas/AgentListResponse'
-          type: array
-          title: Results
-      additionalProperties: false
-      type: object
-      required:
-      - page
-      - pageSize
-      - total
-      - results
-      title: PaginatedResponse[AgentListResponse]
     PaginatedResponse_AgentSessionResponse_:
       properties:
         page:
@@ -2574,6 +2356,30 @@ components:
       - total
       - results
       title: PaginatedResponse[AgentSkillMappingResponse]
+    PaginatedResponse_PublicAgentListResponse_:
+      properties:
+        page:
+          type: integer
+          title: Page
+        pageSize:
+          type: integer
+          title: Pagesize
+        total:
+          type: integer
+          title: Total
+        results:
+          items:
+            $ref: '#/components/schemas/PublicAgentListResponse'
+          type: array
+          title: Results
+      additionalProperties: false
+      type: object
+      required:
+      - page
+      - pageSize
+      - total
+      - results
+      title: PaginatedResponse[PublicAgentListResponse]
     PaginatedResponse_SkillResponse_:
       properties:
         page:
@@ -2684,6 +2490,229 @@ components:
       - markdown
       title: PatchSkillRequest
       description: Request payload for replacing a skill markdown document.
+    PublicAgentListResponse:
+      properties:
+        agentId:
+          type: string
+          format: uuid4
+          title: Agentid
+        organisationId:
+          type: string
+          format: uuid
+          title: Organisationid
+        accountId:
+          type: string
+          format: uuid
+          title: Accountid
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        avatarPath:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatarpath
+        avatarUrl:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatarurl
+        samplePrompts:
+          items:
+            type: string
+          type: array
+          title: Sampleprompts
+          default: []
+        gitEnabled:
+          type: boolean
+          title: Gitenabled
+        defaultModelId:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionModelEnum'
+          - type: 'null'
+        defaultEffort:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionEffortEnum'
+          - type: 'null'
+        llmKeyType:
+          oneOf:
+          - $ref: '#/components/schemas/AccountDefaultLLMKey'
+          - $ref: '#/components/schemas/OrchestraLLMKey'
+          - $ref: '#/components/schemas/ConnectionLLMKey'
+          title: Llmkeytype
+          discriminator:
+            propertyName: type
+            mapping:
+              ACCOUNT_DEFAULT: '#/components/schemas/AccountDefaultLLMKey'
+              CONNECTION: '#/components/schemas/ConnectionLLMKey'
+              ORCHESTRA: '#/components/schemas/OrchestraLLMKey'
+        orchestraManaged:
+          type: boolean
+          title: Orchestramanaged
+          default: false
+        integrations:
+          items:
+            $ref: '#/components/schemas/AgentIntegrationConnection'
+          type: array
+          title: Integrations
+        createdAt:
+          type: string
+          title: Createdat
+        createdBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Createdby
+        updatedAt:
+          type: string
+          title: Updatedat
+        updatedBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Updatedby
+      additionalProperties: false
+      type: object
+      required:
+      - agentId
+      - organisationId
+      - accountId
+      - name
+      - description
+      - gitEnabled
+      - llmKeyType
+      - integrations
+      - createdAt
+      - createdBy
+      - updatedAt
+      - updatedBy
+      title: PublicAgentListResponse
+      description: An agent list entry as the public API describes it, without the
+        Home card fields.
+    PublicAgentResponse:
+      properties:
+        agentId:
+          type: string
+          format: uuid4
+          title: Agentid
+        organisationId:
+          type: string
+          format: uuid
+          title: Organisationid
+        accountId:
+          type: string
+          format: uuid
+          title: Accountid
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        avatarPath:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatarpath
+        avatarUrl:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatarurl
+        samplePrompts:
+          items:
+            type: string
+          type: array
+          title: Sampleprompts
+          default: []
+        systemPrompt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Systemprompt
+        responsePrompt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Responseprompt
+        secrets:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Secrets
+        gitEnabled:
+          type: boolean
+          title: Gitenabled
+        defaultModelId:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionModelEnum'
+          - type: 'null'
+        defaultEffort:
+          anyOf:
+          - $ref: '#/components/schemas/AgentSessionEffortEnum'
+          - type: 'null'
+        llmKeyType:
+          oneOf:
+          - $ref: '#/components/schemas/AccountDefaultLLMKey'
+          - $ref: '#/components/schemas/OrchestraLLMKey'
+          - $ref: '#/components/schemas/ConnectionLLMKey'
+          title: Llmkeytype
+          discriminator:
+            propertyName: type
+            mapping:
+              ACCOUNT_DEFAULT: '#/components/schemas/AccountDefaultLLMKey'
+              CONNECTION: '#/components/schemas/ConnectionLLMKey'
+              ORCHESTRA: '#/components/schemas/OrchestraLLMKey'
+        orchestraManaged:
+          type: boolean
+          title: Orchestramanaged
+          default: false
+        createdAt:
+          type: string
+          title: Createdat
+        createdBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Createdby
+        updatedAt:
+          type: string
+          title: Updatedat
+        updatedBy:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: Updatedby
+      additionalProperties: false
+      type: object
+      required:
+      - agentId
+      - organisationId
+      - accountId
+      - name
+      - description
+      - gitEnabled
+      - llmKeyType
+      - createdAt
+      - createdBy
+      - updatedAt
+      - updatedBy
+      title: PublicAgentResponse
+      description: An agent as the public API describes it, without the Home card
+        fields.
     SendSessionMessageRequest:
       properties:
         message:

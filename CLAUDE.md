@@ -19,9 +19,11 @@ reference docs with `make docs`, and refresh the spec with `make openapi`. `make
 
 Everything the provider talks to is described by two Orchestra OpenAPI specs, each with its own base URL:
 
-- **`https://docs.getorchestra.io/api/engine.yaml`**, the Engine API (committed as `internal/apicontract/engine.yaml`)
-- **`https://docs.getorchestra.io/api/agents.yaml`**, the Agents API (committed as `internal/apicontract/agents.yaml`). Code
-  that calls it lives under `internal/agents/`; the contract tests check calls from there against this spec.
+- **`https://docs.getorchestra.io/api/engine.yaml`**, the Engine API (committed as
+  `internal/apicontract/engine.yaml`)
+- **`https://docs.getorchestra.io/api/agents.yaml`**, the Agents API (committed as
+  `internal/apicontract/agents.yaml`). Code that calls it lives under `internal/agents/`; the contract tests check
+  calls from there against this spec.
 
 Before adding or changing anything that calls the API, read the spec. Do not infer endpoints, parameter names or
 response shapes from the existing Go code — it has been wrong before. Three of the provider's five pipeline calls

@@ -22,7 +22,7 @@ TFPLUGINDOCS_TEMP_DIR ?= .tmp-tfplugindocs
 # the tree instead. gofmt skips directories beginning with a dot.
 GOFMT_PATHS ?= .
 
-# engine and agents are committed in SPEC_DIR; admin is only fetched to check for new endpoints.
+# Only engine and agents are committed; admin is fetched to spot new endpoints.
 SPEC_BASE ?= https://docs.getorchestra.io/api
 SPEC_DIR ?= internal/apicontract
 SPEC_TMP ?= .tmp-spec

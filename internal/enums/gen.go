@@ -1,6 +1,6 @@
 //go:build ignore
 
-// gen writes enums_gen.go from the Engine spec's string enums, so validators cannot drift from it.
+// gen writes enums_gen.go from the Engine spec, so validators cannot drift.
 // Run it with: go generate ./internal/enums
 package main
 

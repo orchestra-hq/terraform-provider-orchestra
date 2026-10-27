@@ -89,17 +89,13 @@ jobs:
 
           number=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
 
-          # Someone may already be working on the open pull request. Rebuilding
-          # the branch would erase their commits, so hand them the new report
-          # as a comment and leave the branch alone.
-          git fetch --quiet origin "$BRANCH" 2>/dev/null || true
-          if git rev-parse --verify --quiet "origin/${BRANCH}" > /dev/null; then
-            author=$(git log -1 --format=%an "origin/${BRANCH}")
+          # Human commits on an open pull request are work in progress: comment, don't rebuild.
+          if [ -n "$number" ]; then
+            git fetch --quiet origin "$BRANCH"
+            author=$(git log -1 --format=%an FETCH_HEAD)
             if [ "$author" != "github-actions[bot]" ]; then
-              echo "::notice::${BRANCH} has commits from ${author}; leaving it alone"
-              if [ -n "$number" ]; then
-                gh pr comment "$number" --body-file .tmp-spec/report.md
-              fi
+              echo "::notice::#${number} has commits from ${author}; commenting instead of rebuilding"
+              gh pr comment "$number" --body-file .tmp-spec/report.md
               exit 0
             fi
           fi
@@ -129,7 +125,7 @@ jobs:
               "" \
               "- **Needs attention** is what to decide or fix. Add a resource or validator, or classify the endpoint in \`internal/apicontract/coverage.yaml\` with a reason. The test run on this branch fails until every endpoint is classified." \
               "- **Routine** needs nothing: \`make openapi\` has already regenerated the enums on this branch." \
-              "- Push fixes to this branch. The workflow will not overwrite commits it did not make."
+              "- Push fixes to this branch. While this pull request is open, the workflow will not overwrite commits it did not make."
           } > .tmp-spec/body.md
 
           gh label create spec-sync --force --color 0E8A16 \

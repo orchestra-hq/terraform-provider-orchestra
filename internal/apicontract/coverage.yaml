@@ -117,19 +117,6 @@ engine:
       - "IntegrationAuthRequest.validationParams"
       - "PartialIntegrationAuthRequest.validationParams"
 
-  candidate_pipeline_folder:
-    reason: >-
-      A pipeline's folder is configuration, but not yet modelled. Leaving it
-      out is safe: PUT /pipelines has no folder, so an apply never moves a
-      pipeline someone filed in the UI, and one Terraform creates lands at the
-      root. Building it means an orchestra_pipeline folder attribute sent on
-      create, read from the pipeline response, and changed in place through
-      PUT .../folder.
-    operations:
-      - "PUT /pipelines/{pipeline_id_or_alias}/folder"
-    properties:
-      - "PublicCreatePipelineRequest.folder"
-
   assets:
     reason: >-
       Assets are discovered from integrations rather than declared, and the API

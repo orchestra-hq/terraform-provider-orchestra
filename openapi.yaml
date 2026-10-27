@@ -1155,6 +1155,17 @@ paths:
           title: Name
         description: Filter by a case-insensitive substring match on the incident
           name.
+      - name: created_before
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created Before
+        description: Only incidents created before this time, as an ISO 8601 timestamp
+          with a timezone.
       - name: sort_column
         in: query
         required: false
@@ -1429,10 +1440,16 @@ paths:
       tags:
       - Incidents
       summary: Merge incidents
-      description: Merge the incidents named in the request body into the incident
+      description: 'Merge the incidents named in the request body into the incident
         in the path. Merging is one level deep - merging an incident that already
         has a parent, or naming one that has incidents merged into it, is rejected
         rather than nesting further.
+
+
+        `agentSessionId` is optional, and only Orchestra agent sessions should set
+        it. When set, the merge is attributed to Orchestra AI and linked to that session,
+        and the session may only merge the incident it was started for, into an older
+        incident.'
       parameters:
       - name: incident_id
         in: path
@@ -3599,6 +3616,62 @@ paths:
       - ApiKey: []
       - OAuth:
         - orchestra:write
+  /pipelines/{pipeline_id_or_alias}/folder:
+    put:
+      tags:
+      - Pipelines
+      summary: Move a pipeline to a folder
+      description: Move an Orchestra-backed pipeline to a folder by alias or pipeline
+        ID, leaving its definition and versions as they are. A git-backed pipeline's
+        folder comes from where its YAML file lives, so move the file instead.
+      parameters:
+      - name: pipeline_id_or_alias
+        in: path
+        required: true
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: string
+          title: Pipeline Id Or Alias
+        description: Pipeline ID or alias.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineFolderRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
+      security:
+      - ApiKey: []
+      - OAuth:
+        - orchestra:write
   /pipelines/schema:
     post:
       tags:
@@ -4783,6 +4856,11 @@ components:
           - type: string
           - type: 'null'
           title: Alias
+        folder:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Folder
         latestRunId:
           anyOf:
           - type: string
@@ -5983,6 +6061,11 @@ components:
           - type: string
           - type: 'null'
           title: Alias
+        folder:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Folder
         latestRunId:
           anyOf:
           - type: string
@@ -6255,6 +6338,14 @@ components:
           - type: string
           - type: 'null'
           title: Yamlpath
+        folder:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Folder
+          description: Folder path for an Orchestra-backed pipeline, such as `finance/daily`.
+            Omit it on update to keep the current folder; send null or an empty string
+            to clear it.
         alias:
           anyOf:
           - type: string
@@ -10050,6 +10141,22 @@ components:
       - $ref: '#/components/schemas/ConcurrencyOnLimit'
       - type: string
         pattern: \$\{\{\s*([^}]+?)\s*\}\}
+    PipelineFolderRequest:
+      properties:
+        folder:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Folder
+          description: Folder path to move an Orchestra-backed pipeline to, such as
+            `finance/daily`. Send null or an empty string for no folder.
+      additionalProperties: false
+      type: object
+      required:
+      - folder
+      title: PipelineFolderRequest
+      description: Moves a pipeline to another folder, leaving its definition and
+        versions as they are.
   securitySchemes:
     ApiKey:
       type: http

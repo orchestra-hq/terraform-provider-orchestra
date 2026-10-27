@@ -102,6 +102,47 @@ func TestAccPipeline_lifecycle(t *testing.T) {
 	})
 }
 
+// TestAccPipeline_folder proves a folder survives create, a move and clearing
+// against the real API. The API omits a folder it does not have, so a cleared
+// one shows up here as a non-empty plan if `""` is not held in state.
+func TestAccPipeline_folder(t *testing.T) {
+	preCheck(t)
+	alias := fmt.Sprintf("tf_acc_folder_%d", os.Getpid())
+	folder := "tf_acc/" + alias
+	var versionBeforeMove string
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6,
+		Steps: []resource.TestStep{
+			{
+				Config: pipelineConfig(alias, "abc", fmt.Sprintf("folder = %q", folder), `max_active = "1"`),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("orchestra_pipeline.test", "folder", folder),
+					resource.TestCheckResourceAttrWith("orchestra_pipeline.test", "latest_version_number",
+						func(v string) error { versionBeforeMove = v; return nil }),
+				),
+			},
+			{
+				Config: pipelineConfig(alias, "abc", fmt.Sprintf("folder = %q", folder+"/moved"), `max_active = "1"`),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("orchestra_pipeline.test", "folder", folder+"/moved"),
+					resource.TestCheckResourceAttrWith("orchestra_pipeline.test", "latest_version_number",
+						func(v string) error {
+							if v != versionBeforeMove {
+								return fmt.Errorf("moving saved a new definition version: %s, was %s", v, versionBeforeMove)
+							}
+							return nil
+						}),
+				),
+			},
+			{
+				Config: pipelineConfig(alias, "abc", `folder = ""`, `max_active = "1"`),
+				Check:  resource.TestCheckResourceAttr("orchestra_pipeline.test", "folder", ""),
+			},
+		},
+	})
+}
+
 func pipelineConfig(alias, connector, extra, concurrency string) string {
 	return fmt.Sprintf(`
 resource "orchestra_pipeline" "test" {

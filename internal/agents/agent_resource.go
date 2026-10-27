@@ -65,7 +65,7 @@ type agentModel struct {
 	Integrations   types.Set    `tfsdk:"integrations"`
 }
 
-// wireAgent is the part of components.schemas.AgentResponse the resource reads.
+// wireAgent is the part of components.schemas.PublicAgentResponse the resource reads.
 // `secrets` is left out on purpose: see apply.
 type wireAgent struct {
 	AgentID        string      `json:"agentId"`
@@ -382,7 +382,7 @@ func (r *AgentResource) readAttached(ctx context.Context, m *agentModel, diags *
 	}
 }
 
-// apply copies an AgentResponse onto the model.
+// apply copies a PublicAgentResponse onto the model.
 //
 // `secrets` is not read back. Whether the API returns them in full or masked is
 // not something the spec says, and a masked value would fail every apply, so

@@ -75,6 +75,7 @@ type pipelineResponse struct {
 	Repository             *string         `json:"repository"`
 	DefaultBranch          *string         `json:"defaultBranch"`
 	Alias                  *string         `json:"alias"`
+	Folder                 *string         `json:"folder"`
 	LatestVersionNumber    *int64          `json:"latestVersionNumber"`
 	PublishedVersionNumber *int64          `json:"publishedVersionNumber"`
 	Data                   *wireDefinition `json:"data"`
@@ -185,12 +186,39 @@ func (r *PipelineResource) reconcilePaused(ctx context.Context, plan PipelineMod
 	return nil
 }
 
-// onlyPausedChanged reports whether `data` and `published` are as they were.
+// reconcileFolder moves the pipeline to the plan's folder. PUT /pipelines has
+// no folder, so a change on update is always a second call. On success api is
+// replaced by the move response, which is newer.
+func (r *PipelineResource) reconcileFolder(ctx context.Context, plan PipelineModel, api *pipelineResponse) error {
+	if plan.Folder.IsNull() || plan.Folder.IsUnknown() {
+		return nil // unset: leave it as it is
+	}
+	want := plan.Folder.ValueString()
+	// The API stores "" as no folder and then omits it.
+	if api.Folder == nil && want == "" || api.Folder != nil && *api.Folder == want {
+		return nil
+	}
+	if api.Id == nil {
+		return errors.New("the API did not return a pipeline ID to move")
+	}
+
+	var out pipelineResponse
+	err := r.client.DoJSON(ctx, http.MethodPut, "/pipelines/"+url.PathEscape(*api.Id)+"/folder", nil,
+		map[string]string{"folder": want}, &out)
+	if err != nil {
+		return err
+	}
+	out.Data = api.Data // PipelineResponse carries no definition
+	*api = out
+	return nil
+}
+
+// definitionUnchanged reports whether `data` and `published` are as they were.
 //
 // The framework blanks every Computed attribute that config leaves unset (an
 // anomaly's server-defaulted numerics, say) whenever anything in the resource
 // changes, so the plan's unknowns are filled from state before comparing.
-func onlyPausedChanged(plan, state tftypes.Value) bool {
+func definitionUnchanged(plan, state tftypes.Value) bool {
 	filled, err := tftypes.Transform(plan, func(p *tftypes.AttributePath, v tftypes.Value) (tftypes.Value, error) {
 		if v.IsKnown() {
 			return v, nil
@@ -353,6 +381,9 @@ func (r *PipelineResource) Create(ctx context.Context, req resource.CreateReques
 		if isSet(plan.Alias) {
 			body["alias"] = strValue(plan.Alias)
 		}
+		if isSet(plan.Folder) {
+			body["folder"] = strValue(plan.Folder)
+		}
 
 		if err := r.client.DoJSON(ctx, http.MethodPost, "/pipelines", nil, body, &api); err != nil {
 			resp.Diagnostics.AddError("Cannot create pipeline", err.Error())
@@ -442,14 +473,13 @@ func (r *PipelineResource) Update(ctx context.Context, req resource.UpdateReques
 
 	var api pipelineResponse
 
-	pauseOnly := onlyPausedChanged(req.Plan.Raw, req.State.Raw)
-	if pauseOnly {
-		// Only `paused` changed. Every PUT /pipelines saves a new version of
-		// the definition, so pausing alone should not go through it. State
-		// holds the definition with its server-computed values; the plan has
-		// those as unknown.
+	if definitionUnchanged(req.Plan.Raw, req.State.Raw) {
+		// Only `paused` or `folder` changed. Every PUT /pipelines saves a new
+		// version of the definition, so pausing or moving alone should not go
+		// through it. State holds the definition with its server-computed
+		// values; the plan has those as unknown.
 		plan.Data = state.Data
-		api.Id, api.Paused = state.Id.ValueStringPointer(), state.Paused.ValueBoolPointer()
+		api = responseFrom(state)
 	} else {
 		def := definitionToWire(plan.Data, path.Root("data"), &resp.Diagnostics)
 		if resp.Diagnostics.HasError() {
@@ -481,16 +511,15 @@ func (r *PipelineResource) Update(ctx context.Context, req resource.UpdateReques
 	if err := r.reconcilePaused(ctx, plan, &api); err != nil {
 		resp.Diagnostics.AddAttributeError(path.Root("paused"), "Cannot pause pipeline",
 			"The pipeline's paused flag could not be set: "+err.Error())
-		if pauseOnly {
-			// Nothing changed, and api holds only an ID: keep the prior state.
-			resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-			return
-		}
-		// The definition change above has landed, so state is still saved,
-		// carrying the paused flag as it actually is.
+	}
+	if err := r.reconcileFolder(ctx, plan, &api); err != nil {
+		resp.Diagnostics.AddAttributeError(path.Root("folder"), "Cannot move pipeline",
+			"The pipeline could not be moved to its folder: "+err.Error())
 	}
 
-	// Checked on its own: a failed pause above must still save state.
+	// Checked on its own: a failed pause or move above must still save state.
+	// api holds the paused flag and folder as they actually are, and any
+	// definition change above has landed.
 	var applyDiags diag.Diagnostics
 	r.apply(ctx, &plan, api, &applyDiags)
 	resp.Diagnostics.Append(applyDiags...)
@@ -560,6 +589,7 @@ func (r *PipelineResource) apply(ctx context.Context, m *PipelineModel, api pipe
 	// settle() makes sure an unset one lands in state as null rather than
 	// staying unknown, which Terraform rejects after apply.
 	m.Alias = settle(api.Alias, m.Alias)
+	m.Folder = folderOf(api.Folder, m.Folder)
 
 	// `published` is write-only: PipelineResponse does not carry it, so there is
 	// nothing to refresh from and the configured value stands.
@@ -577,6 +607,26 @@ func (r *PipelineResource) apply(ctx context.Context, m *PipelineModel, api pipe
 	}
 }
 
+// responseFrom is the pipeline as state last saw it, for an update that sends
+// no definition. A pause or move replaces it with the API's response; when
+// neither is needed (a planned "" folder against a null one, say) it is all
+// there is to apply.
+func responseFrom(m PipelineModel) pipelineResponse {
+	return pipelineResponse{
+		Id:                     m.Id.ValueStringPointer(),
+		Name:                   m.Name.ValueStringPointer(),
+		NumTasks:               m.NumTasks.ValueInt64Pointer(),
+		YamlPath:               m.YamlPath.ValueStringPointer(),
+		CreatedAt:              m.CreatedAt.ValueStringPointer(),
+		UpdatedAt:              m.UpdatedAt.ValueStringPointer(),
+		Paused:                 m.Paused.ValueBoolPointer(),
+		Alias:                  m.Alias.ValueStringPointer(),
+		Folder:                 m.Folder.ValueStringPointer(),
+		LatestVersionNumber:    m.LatestVersionNumber.ValueInt64Pointer(),
+		PublishedVersionNumber: m.PublishedVersionNumber.ValueInt64Pointer(),
+	}
+}
+
 // settle resolves an Optional+Computed string: the API's value when it has
 // one, the planned value when that is known, otherwise null.
 func settle(fromAPI *string, planned types.String) types.String {
@@ -584,6 +634,18 @@ func settle(fromAPI *string, planned types.String) types.String {
 		return types.StringValue(*fromAPI)
 	}
 	return known(planned)
+}
+
+// folderOf resolves the Optional+Computed folder. The API omits a pipeline's
+// folder when it has none, which is what a planned "" asks for.
+func folderOf(fromAPI *string, planned types.String) types.String {
+	if fromAPI != nil {
+		return types.StringValue(*fromAPI)
+	}
+	if planned.IsNull() || !planned.IsUnknown() && planned.ValueString() == "" {
+		return planned
+	}
+	return types.StringNull()
 }
 
 // known converts an unknown value to null. An unknown left in state after

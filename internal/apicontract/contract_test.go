@@ -155,12 +155,12 @@ type openAPI struct {
 }
 
 // apiSpec is one OpenAPI spec the provider calls. name is its key in
-// coverage.yaml; file is its committed copy, from the repository root.
+// coverage.yaml; file is its committed copy, in this directory.
 type apiSpec struct{ name, file string }
 
 var (
-	engineAPI = apiSpec{"engine", "openapi.yaml"}
-	agentsAPI = apiSpec{"agents", "openapi-agents.yaml"}
+	engineAPI = apiSpec{"engine", "engine.yaml"}
+	agentsAPI = apiSpec{"agents", "agents.yaml"}
 	apiSpecs  = []apiSpec{engineAPI, agentsAPI}
 )
 
@@ -174,18 +174,17 @@ func (s apiSpec) owns(file string) bool {
 func loadSpec(t *testing.T, s apiSpec) openAPI {
 	t.Helper()
 
-	specPath := filepath.Join("..", "..", s.file)
-	raw, err := os.ReadFile(specPath)
+	raw, err := os.ReadFile(s.file)
 	if err != nil {
-		t.Fatalf("read %s: %v (fetch it with: make openapi)", specPath, err)
+		t.Fatalf("read %s: %v (fetch it with: make openapi)", s.file, err)
 	}
 
 	var spec openAPI
 	if err := yaml.Unmarshal(raw, &spec); err != nil {
-		t.Fatalf("parse %s: %v", specPath, err)
+		t.Fatalf("parse %s: %v", s.file, err)
 	}
 	if len(spec.Paths) == 0 {
-		t.Fatalf("%s declares no paths", specPath)
+		t.Fatalf("%s declares no paths", s.file)
 	}
 	return spec
 }
@@ -296,7 +295,7 @@ func TestGeneratedEnumsMatchSpec(t *testing.T) {
 			sort.Strings(got)
 
 			if strings.Join(want, ",") != strings.Join(got, ",") {
-				t.Errorf("%s is out of date with components.schemas.%s.\nRegenerate with: python3 scripts/generate_enums.py\nmissing: %v\nextra: %v",
+				t.Errorf("%s is out of date with components.schemas.%s.\nRegenerate with: make enums\nmissing: %v\nextra: %v",
 					goName, schemaName, difference(want, got), difference(got, want))
 			}
 		})

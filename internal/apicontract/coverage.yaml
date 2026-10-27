@@ -14,10 +14,11 @@
 # would change it.
 #
 # Top-level keys name a spec:
-#   engine  openapi.yaml, the Engine API
-#   agents  openapi-agents.yaml, the Agents API
+#   engine  engine.yaml, the Engine API
+#   agents  agents.yaml, the Agents API
 #   admin   https://docs.getorchestra.io/api/admin.yaml
-# The first two are committed and checked by TestEverySpecOperationIsClassified.
+# The first two are committed next to this file and checked by
+# TestEverySpecOperationIsClassified.
 # admin is fetched on each scheduled run and checked against its list, so a new
 # endpoint in it is still noticed.
 

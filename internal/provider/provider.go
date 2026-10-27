@@ -24,7 +24,7 @@ import (
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/monitor"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/resources/pipeline"
 
-	"github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/client"
 )
 
 const (

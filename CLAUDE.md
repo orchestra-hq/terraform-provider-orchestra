@@ -19,8 +19,8 @@ reference docs with `make docs`, and refresh the spec with `make openapi`. `make
 
 Everything the provider talks to is described by two Orchestra OpenAPI specs, each with its own base URL:
 
-- **`https://docs.getorchestra.io/api/engine.yaml`**, the Engine API (committed as `openapi.yaml`)
-- **`https://docs.getorchestra.io/api/agents.yaml`**, the Agents API (committed as `openapi-agents.yaml`). Code
+- **`https://docs.getorchestra.io/api/engine.yaml`**, the Engine API (committed as `internal/apicontract/engine.yaml`)
+- **`https://docs.getorchestra.io/api/agents.yaml`**, the Agents API (committed as `internal/apicontract/agents.yaml`). Code
   that calls it lives under `internal/agents/`; the contract tests check calls from there against this spec.
 
 Before adding or changing anything that calls the API, read the spec. Do not infer endpoints, parameter names or
@@ -33,7 +33,7 @@ once targeted endpoints that did not exist, and one of those failed silently.
 
    ```bash
    make spec-drift   # read-only: what changed in the live specs since the committed ones
-   make openapi      # fetches openapi.yaml and openapi-agents.yaml, regenerates internal/enums
+   make openapi      # refreshes both committed specs, regenerates internal/enums
    ```
 
    A weekly workflow opens a **Spec sync** PR with that report. Decide each item with the
@@ -52,7 +52,7 @@ once targeted endpoints that did not exist, and one of those failed silently.
 3. **Implement**, then run `go build ./... && go vet ./... && go test ./...`.
 
 4. **Regenerate docs** with `make docs` if any schema changed. `docs/` is copied from `examples/`, so a stale
-   example becomes published documentation that does not apply; `internal/examplecheck` runs `terraform validate`
+   example becomes published documentation that does not apply; `internal/provider` runs `terraform validate`
    over them as part of `go test ./...`.
 
 ### Useful commands for reading the spec
@@ -60,7 +60,7 @@ once targeted endpoints that did not exist, and one of those failed silently.
 ```bash
 # Every operation, with its tags.
 python3 -c "
-import yaml; s=yaml.safe_load(open('openapi.yaml'))
+import yaml; s=yaml.safe_load(open('internal/apicontract/engine.yaml'))
 for p,i in s['paths'].items():
     for m,o in i.items():
         if m in ('get','post','put','patch','delete'):
@@ -69,7 +69,7 @@ for p,i in s['paths'].items():
 
 # One schema's properties.
 python3 -c "
-import yaml,json; s=yaml.safe_load(open('openapi.yaml'))
+import yaml,json; s=yaml.safe_load(open('internal/apicontract/engine.yaml'))
 d=s['components']['schemas']['PipelineModel']
 print('required:', d.get('required'))
 for k,v in d['properties'].items(): print(f'  {k:24}', json.dumps(v)[:140])
@@ -82,21 +82,20 @@ for k,v in d['properties'].items(): print(f'  {k:24}', json.dumps(v)[:140])
 
 | Path | Contents |
 |---|---|
-| `internal/orchestra/` | HTTP client (package `client`): auth, headers, retries, 404 detection, pagination |
-| `internal/provider/` | Provider schema, configuration, resource and data source registration |
+| `internal/client/` | HTTP client: auth, headers, retries, 404 detection, pagination |
+| `internal/provider/` | Provider schema, configuration, resource and data source registration; tests that every type has an example and that `examples/` pass `terraform validate` |
 | `internal/resources/<name>/` | One package per resource |
 | `internal/agents/` | Agent and skill resources and the skills data source: everything that calls the Agents API |
 | `internal/datasources/<name>/` | One package per data source |
 | `internal/enums/` | Generated from the spec — never edit by hand |
 | `internal/tfconv/` | Shared API-JSON ↔ Terraform value conversion |
-| `internal/apicontract/` | Tests asserting the provider matches the spec, in both directions |
+| `internal/apicontract/` | The committed specs (`engine.yaml`, `agents.yaml`) and tests asserting the provider matches them, in both directions |
 | `internal/apicontract/coverage.yaml` | Every endpoint the provider deliberately leaves alone, and every property it leaves out of a request body it sends, and why. A spec operation neither called nor listed, or a written property neither sent nor listed, fails `go test` |
 | `tools/specdrift/` | `make spec-drift`: structural diff of two specs, run weekly by `.github/workflows/spec-sync.yml` |
 | `.claude/skills/spec-sync/` | How to decide what a spec change means for the provider |
 | `internal/resources/rsapply/` | Tests driving resources through plan/apply against a stub API |
 | `internal/datasources/dsread/` | Tests driving every data source against a stub API |
 | `internal/acctest/` | Acceptance tests against a live workspace, skipped without a key |
-| `internal/examplecheck/` | Tests validating `examples/` against the provider schema and with `terraform validate` |
 | `examples/` | Consumed by `tfplugindocs`; every resource and data source needs one |
 | `docs/` | Generated by `tfplugindocs` — never edit by hand |
 | `templates/guides/` | Registry guides that `tfplugindocs` renders into `docs/guides/`; their configurations live in `examples/guides/` |
@@ -107,8 +106,8 @@ for k,v in d['properties'].items(): print(f'  {k:24}', json.dumps(v)[:140])
 
 ### Generated versus hand-written
 
-`internal/enums/enums_gen.go` is the only generated file. Everything else — every schema, model, wire struct and
-converter — is hand-written.
+`internal/enums/enums_gen.go` is the only generated file, written by `internal/enums/gen.go` (`make enums`).
+Everything else — every schema, model, wire struct and converter — is hand-written.
 
 Do not reintroduce schema codegen. `tfplugingen-openapi` renders a union and an `additionalProperties: true`
 object as an *empty* object, producing attributes that can never hold a value; that is exactly how
@@ -173,4 +172,4 @@ attribute name, a required-but-empty field, a union with no discriminator. Do no
 - Don't read `req.Config` in `Create` or `Update`
 - Don't expose run telemetry (pipeline runs, task runs, logs, incidents) as Terraform state
 - Don't use `connection` as a root attribute name — Terraform reserves it
-- Don't commit an `openapi.yaml` you have not regenerated the enums and docs from
+- Don't commit a spec you have not regenerated the enums and docs from

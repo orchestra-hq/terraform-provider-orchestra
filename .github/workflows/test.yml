@@ -43,9 +43,9 @@ jobs:
         run: go vet ./...
 
       # Includes internal/apicontract, which checks every endpoint and query
-      # parameter the provider uses against the committed openapi.yaml.
-      # internal/examplecheck runs `terraform validate` over examples/ as part
-      # of the unit suite. It would download the CLI itself, but installing it
+      # parameter the provider uses against the committed specs.
+      # internal/provider runs `terraform validate` over examples/ as part of
+      # the unit suite. It would download the CLI itself, but installing it
       # here keeps the run offline and pinned.
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4

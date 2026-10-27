@@ -10,7 +10,7 @@ import (
 // pointers for nullable scalars). They are the payload of the `data` field on
 // POST/PUT /pipelines and the body of GET /pipelines/data.
 //
-// Keep these in sync with components.schemas.PipelineModel in openapi.yaml.
+// Keep these in sync with components.schemas.PipelineModel in the Engine spec.
 
 // WireSchemas pairs the spec schemas this package sends with the types that
 // encode them, for internal/apicontract's property check. The task groups and

@@ -9,7 +9,7 @@ name: Spec sync
 # handled. The judgement itself is .claude/skills/spec-sync; this workflow only
 # makes sure someone is asked.
 #
-# A failure here is a finding too. The docs site once split openapi.yaml into
+# A failure here is a finding too. The docs site once split its one spec into
 # three files, which turned this download into a 404, so every step fails loudly
 # rather than reporting "no changes".
 
@@ -49,11 +49,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
       - name: Fetch the live specs
         run: |
           mkdir -p .tmp-spec
@@ -71,8 +66,8 @@ jobs:
 
           set +e
           .tmp-spec/specdrift -exit-code \
-            -old openapi.yaml -new .tmp-spec/engine.yaml \
-            -compare agents=openapi-agents.yaml,.tmp-spec/agents.yaml -also admin=.tmp-spec/admin.yaml \
+            -old internal/apicontract/engine.yaml -new .tmp-spec/engine.yaml \
+            -compare agents=internal/apicontract/agents.yaml,.tmp-spec/agents.yaml -also admin=.tmp-spec/admin.yaml \
             > .tmp-spec/report.md
           status=$?
           set -e
@@ -113,11 +108,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git switch --create "$BRANCH"
-          cp .tmp-spec/engine.yaml openapi.yaml
-          cp .tmp-spec/agents.yaml openapi-agents.yaml
-          python3 -m pip install --quiet pyyaml
+          cp .tmp-spec/engine.yaml .tmp-spec/agents.yaml internal/apicontract/
           make enums
-          git add openapi.yaml openapi-agents.yaml internal/enums
+          git add internal/apicontract internal/enums
 
           # --allow-empty: a ledger entry gone stale needs a pull request even
           # though no file changed.

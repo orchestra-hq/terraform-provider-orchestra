@@ -23,8 +23,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/client"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/enums"
-	"github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
 )
 
 // singletonID is the only ID this resource has: a workspace has exactly one

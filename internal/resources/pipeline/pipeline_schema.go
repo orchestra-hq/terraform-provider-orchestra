@@ -21,6 +21,11 @@ import (
 // aliasPattern matches the API's constraint on pipeline aliases.
 var aliasPattern = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 
+// folderPattern accepts only folders the API stores as written. It strips
+// leading, trailing and doubled slashes and the spaces around each segment, so
+// "finance/daily/" would come back as "finance/daily" and fail the apply.
+var folderPattern = regexp.MustCompile(`^([^/\s]([^/]*[^/\s])?(/[^/\s]([^/]*[^/\s])?)*)?$`)
+
 func PipelineResourceSchema(ctx context.Context) schema.Schema {
 	_ = ctx
 	return schema.Schema{
@@ -47,6 +52,16 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 				},
 			},
 			"data": definitionAttribute(),
+			"folder": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "The folder the pipeline is filed in, such as finance/daily. Set it to an empty string for no folder. Leave unset to leave it as it is.",
+				MarkdownDescription: "The folder the pipeline is filed in, such as `finance/daily`. Set it to `\"\"` for no folder. Leave unset to leave it as it is, so a pipeline filed in the Orchestra UI is not moved by the next apply. Changing it moves the pipeline without saving a new version of the definition.",
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(folderPattern, "must be a path such as finance/daily, with no leading, trailing or doubled slashes and no spaces around a segment"),
+				},
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+			},
 			"published": schema.BoolAttribute{
 				Optional:            true,
 				Computed:            true,
@@ -109,6 +124,7 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 type PipelineModel struct {
 	Alias     types.String  `tfsdk:"alias"`
 	Data      *definitionTF `tfsdk:"data"`
+	Folder    types.String  `tfsdk:"folder"`
 	Published types.Bool    `tfsdk:"published"`
 	YamlPath  types.String  `tfsdk:"yaml_path"`
 

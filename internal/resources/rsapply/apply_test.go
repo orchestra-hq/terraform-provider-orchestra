@@ -99,6 +99,8 @@ func pipelineStub(t *testing.T) (*stub, string) {
 	// Only the pause endpoint changes this; POST and PUT /pipelines have no
 	// paused field.
 	paused := false
+	// Set by POST /pipelines and the folder endpoint; PUT /pipelines has none.
+	folder := ""
 
 	response := func() map[string]any {
 		out := map[string]any{
@@ -109,6 +111,10 @@ func pipelineStub(t *testing.T) (*stub, string) {
 		}
 		if stored != nil {
 			out["data"] = stored
+		}
+		// The API stores "" as no folder and omits a null one.
+		if folder != "" {
+			out["folder"] = folder
 		}
 		return out
 	}
@@ -124,7 +130,6 @@ func pipelineStub(t *testing.T) (*stub, string) {
 
 	mux.HandleFunc("/pipelines", func(w http.ResponseWriter, r *http.Request) {
 		body := s.record(r)
-		_ = body
 		switch r.Method {
 		case http.MethodPost, http.MethodPut:
 			if raw, ok := rawField(s.last().RawBody, "data"); ok {
@@ -135,6 +140,9 @@ func pipelineStub(t *testing.T) (*stub, string) {
 				if json.Unmarshal(raw, &a) == nil && a != "" {
 					storedAlias = a
 				}
+			}
+			if r.Method == http.MethodPost {
+				folder, _ = body["folder"].(string)
 			}
 			code := http.StatusCreated
 			if r.Method == http.MethodPut {
@@ -165,6 +173,13 @@ func pipelineStub(t *testing.T) (*stub, string) {
 		body := s.record(r)
 		paused, _ = body["paused"].(bool)
 		// PipelineResponse: no definition.
+		out := response()
+		delete(out, "data")
+		write(w, http.StatusOK, out)
+	})
+	mux.HandleFunc("PUT /pipelines/{id}/folder", func(w http.ResponseWriter, r *http.Request) {
+		body := s.record(r)
+		folder, _ = body["folder"].(string)
 		out := response()
 		delete(out, "data")
 		write(w, http.StatusOK, out)
@@ -2542,5 +2557,114 @@ func TestMonitorOrderSurvivesANewMonitor(t *testing.T) {
 	}
 	if len(reorders) != 2 {
 		t.Errorf("want one rejected reorder and one retry, got %d: %v", len(reorders), calls.paths())
+	}
+}
+
+func folderConfig(t *testing.T, objType tftypes.Object, connector string, folder any) tftypes.Value {
+	t.Helper()
+	cfg := map[string]any{
+		"alias":     "daily_sales",
+		"published": true,
+		"data": map[string]any{
+			"name": "Daily sales",
+			"tasks": map[string]any{
+				"ingest": map[string]any{
+					"integration":     "FIVETRAN",
+					"integration_job": "FIVETRAN_SYNC_ALL",
+					"parameters":      `{"connector_id":"` + connector + `"}`,
+				},
+			},
+		},
+	}
+	if folder != nil {
+		cfg["folder"] = folder
+	}
+	return buildValue(t, objType, cfg)
+}
+
+// TestPipelineFolder covers the folder's three paths: POST /pipelines takes it,
+// a change goes through the folder endpoint without saving a new version, and
+// leaving it unset never moves the pipeline. The API omits a folder it does not
+// have, so `folder = ""` must survive that as "".
+func TestPipelineFolder(t *testing.T) {
+	calls, baseURL := pipelineStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	objType := schemaResp.ResourceSchemas["orchestra_pipeline"].ValueType().(tftypes.Object)
+	comp := computedAttrs(schemaResp.ResourceSchemas["orchestra_pipeline"])
+	const move = "/pipelines/33333333-3333-3333-3333-333333333333/folder"
+	moves := func() (n int) {
+		for _, c := range calls.paths() {
+			if c == "PUT "+move {
+				n++
+			}
+		}
+		return n
+	}
+
+	created := planAndApply(t, server, "orchestra_pipeline", objType, tftypes.NewValue(objType, nil),
+		folderConfig(t, objType, "abc", "finance"), comp)
+	if got := calls.find(http.MethodPost, "/pipelines").Body["folder"]; got != "finance" {
+		t.Errorf("create sent folder %#v, want \"finance\"", got)
+	}
+	if moves() != 0 {
+		t.Errorf("create moved the pipeline; POST /pipelines already set its folder")
+	}
+
+	moved := planAndApply(t, server, "orchestra_pipeline", objType, created,
+		folderConfig(t, objType, "abc", "finance/daily"), comp)
+	if calls.find(http.MethodPut, "/pipelines") != nil {
+		t.Errorf("a folder-only change sent PUT /pipelines, saving a new version; calls were %v", calls.paths())
+	}
+	if c := calls.find(http.MethodPut, move); c == nil || c.Body["folder"] != "finance/daily" {
+		t.Fatalf("no move to finance/daily; calls were %v", calls.paths())
+	}
+
+	// Unset, alongside a definition change: the folder is left alone.
+	kept := planAndApply(t, server, "orchestra_pipeline", objType, moved,
+		folderConfig(t, objType, "def", nil), comp)
+	if moves() != 1 {
+		t.Errorf("an unset folder moved the pipeline; calls were %v", calls.paths())
+	}
+	if !strings.Contains(kept.String(), `"folder":tftypes.String<"finance/daily">`) {
+		t.Errorf("state lost the folder: %s", kept)
+	}
+
+	cleared := planAndApply(t, server, "orchestra_pipeline", objType, kept,
+		folderConfig(t, objType, "def", ""), comp)
+	if moves() != 2 {
+		t.Errorf("clearing the folder did not move the pipeline; calls were %v", calls.paths())
+	}
+	if !strings.Contains(cleared.String(), `"folder":tftypes.String<"">`) {
+		t.Errorf("state is not at the root: %s", cleared)
+	}
+}
+
+// TestPipelineEmptyFolderAtRootIsANoOp covers a pipeline at the root, as one
+// created or imported without a folder is, whose config gains `folder = ""`.
+// The plan differs from state (null), but nothing needs moving: no call is made,
+// and the update applies what state already held rather than blanking it.
+func TestPipelineEmptyFolderAtRootIsANoOp(t *testing.T) {
+	calls, baseURL := pipelineStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	objType := schemaResp.ResourceSchemas["orchestra_pipeline"].ValueType().(tftypes.Object)
+	comp := computedAttrs(schemaResp.ResourceSchemas["orchestra_pipeline"])
+
+	created := planAndApply(t, server, "orchestra_pipeline", objType, tftypes.NewValue(objType, nil),
+		folderConfig(t, objType, "abc", nil), comp)
+	if _, sent := calls.find(http.MethodPost, "/pipelines").Body["folder"]; sent {
+		t.Error("an unset folder was sent on create")
+	}
+	before := len(calls.paths())
+
+	// planAndApply fails the test if created_at or name come back changed.
+	state := planAndApply(t, server, "orchestra_pipeline", objType, created,
+		folderConfig(t, objType, "abc", ""), comp)
+	for _, c := range calls.paths()[before:] {
+		if strings.HasPrefix(c, "PUT ") {
+			t.Errorf("a no-op folder change called %s", c)
+		}
+	}
+	if !strings.Contains(state.String(), `"folder":tftypes.String<"">`) {
+		t.Errorf("state is not at the root: %s", state)
 	}
 }

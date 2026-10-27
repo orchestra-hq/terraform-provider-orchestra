@@ -2,6 +2,7 @@
 resource "orchestra_pipeline" "daily_sales" {
   alias     = "daily_sales"
   published = true
+  folder    = "finance/daily"
 
   data = {
     name = "Daily sales"

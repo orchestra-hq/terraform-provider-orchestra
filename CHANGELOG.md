@@ -57,6 +57,9 @@ anyone building from source should expect to rewrite their configuration.
 - `orchestra_pipeline.paused` is settable. Pausing has its own endpoint, so changing only `paused` does not save
   a new version of the definition. Left unset, it is left alone, so a pause made in the Orchestra UI survives the
   next apply.
+- `orchestra_pipeline.folder` files a pipeline in a folder such as `finance/daily`, or at the root with `""`.
+  Moving it has its own endpoint, so changing only `folder` does not save a new version of the definition. Left
+  unset, it is left alone, so a pipeline filed in the Orchestra UI is not moved by the next apply.
 - `orchestra_pipeline.data.configuration.concurrency.on_limit`: skip a run that would exceed `max_active`, queue
   it, or queue only the latest.
 - `orchestra_pipeline.data.inputs.<name>.options`: the fixed list of values a string input may take. A pipeline

@@ -361,3 +361,24 @@ func TestEmptyParametersStillSent(t *testing.T) {
 		t.Errorf("parameters = %#v, want an empty object", params)
 	}
 }
+
+// TestFolderPatternMatchesWhatTheAPIStores pins the folders the API keeps as
+// written. One it would rewrite fails the apply, so it is rejected at plan.
+func TestFolderPatternMatchesWhatTheAPIStores(t *testing.T) {
+	for folder, want := range map[string]bool{
+		"":                 true,
+		"finance":          true,
+		"finance/daily":    true,
+		"finance ops/2026": true,
+		"/finance":         false,
+		"finance/":         false,
+		"finance//daily":   false,
+		" finance":         false,
+		"finance /daily":   false,
+		"finance/ daily":   false,
+	} {
+		if got := folderPattern.MatchString(folder); got != want {
+			t.Errorf("%q: matched %v, want %v", folder, got, want)
+		}
+	}
+}

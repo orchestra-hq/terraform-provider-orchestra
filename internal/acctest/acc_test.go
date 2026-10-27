@@ -24,7 +24,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 
-	client "github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/client"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/provider"
 )
 

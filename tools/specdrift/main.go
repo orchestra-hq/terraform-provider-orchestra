@@ -3,7 +3,7 @@
 // the difference.
 //
 //	specdrift -new engine.yaml
-//	specdrift -new engine.yaml -compare agents=openapi-agents.yaml,agents.yaml -also admin=admin.yaml -exit-code
+//	specdrift -new engine.yaml -compare agents=internal/apicontract/agents.yaml,agents.yaml -also admin=admin.yaml -exit-code
 //
 // With -exit-code the status is 0 for no findings, 1 when something needs
 // attention, 3 when there are only routine or optional findings, and 2 on error.
@@ -39,12 +39,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("specdrift", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 
-	oldPath := fs.String("old", "openapi.yaml", "the spec the provider was built against")
+	oldPath := fs.String("old", "internal/apicontract/engine.yaml", "the spec the provider was built against")
 	newPath := fs.String("new", "", "the spec to compare it with (required)")
 	ledgerPath := fs.String("coverage", "internal/apicontract/coverage.yaml", "the ledger of operations the provider leaves alone")
 	exitCode := fs.Bool("exit-code", false, "exit 1 when something needs attention, 3 when there are only routine or optional findings")
 	compared := map[string][2]string{}
-	fs.Func("compare", "NAME=OLD,NEW: another spec the provider calls, committed and published, such as agents=openapi-agents.yaml,agents.yaml (repeatable)", func(s string) error {
+	fs.Func("compare", "NAME=OLD,NEW: another spec the provider calls, committed and published, such as agents=internal/apicontract/agents.yaml,agents.yaml (repeatable)", func(s string) error {
 		name, files, ok := strings.Cut(s, "=")
 		oldFile, newFile, ok2 := strings.Cut(files, ",")
 		if !ok || !ok2 || name == "" || oldFile == "" || newFile == "" {

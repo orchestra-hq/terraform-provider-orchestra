@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/client"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/tfconv"
 )
 

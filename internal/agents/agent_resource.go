@@ -1,6 +1,6 @@
 // Package agents holds everything that calls the Agents API, which has its own
-// spec (openapi-agents.yaml) and base URL. The contract tests check calls from
-// this directory against that spec.
+// spec (internal/apicontract/agents.yaml) and base URL. The contract tests
+// check calls from this directory against that spec.
 package agents
 
 import (
@@ -25,7 +25,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	client "github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/client"
 )
 
 // llmKeyTypes are the discriminator values of the spec's llmKeyType union

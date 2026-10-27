@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	client "github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/client"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/tfconv"
 )
 

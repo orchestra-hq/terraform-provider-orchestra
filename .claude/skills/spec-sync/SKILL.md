@@ -13,13 +13,13 @@ It never merges. This skill is the judgement it cannot make.
 
 - A Spec sync PR carries it as the description, or
 - run `make spec-drift`. It is read-only: it fetches the live `engine`, `agents` and
-  `admin` specs and compares the first two with the committed `openapi.yaml` and
-  `openapi-agents.yaml`. `admin` is only checked for new endpoints.
+  `admin` specs and compares the first two with the committed copies in
+  `internal/apicontract/`. `admin` is only checked for new endpoints.
 
 It sorts findings into **Needs attention**, **Worth a look** and **Routine**.
 Routine needs nothing: `make openapi` already regenerated the enums.
 
-If the fetch fails, the spec has moved. The docs site once split `openapi.yaml` into
+If the fetch fails, the spec has moved. The docs site once split its one spec into
 `engine.yaml`, `agents.yaml` and `admin.yaml`. The docs MCP's `/openapi/api/` listing
 names the current files; fix `SPEC_BASE` in the Makefile and the URLs in the workflow.
 

@@ -19,7 +19,7 @@ import (
 const defaultBaseURL = "https://app.getorchestra.io/api/engine/public"
 
 // The Agents API is a sibling of the Engine API on the same host, with its own
-// spec (openapi-agents.yaml) and base path.
+// spec (internal/apicontract/agents.yaml) and base path.
 const (
 	enginePath = "/api/engine/public"
 	agentsPath = "/api/ai/v1"

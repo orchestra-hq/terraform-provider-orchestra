@@ -141,13 +141,12 @@ TMPDIR=/tmp/tfdocs make docs
 |---|---|
 | `internal/apicontract` | Every `(method, path)` and query parameter in the provider's source exists in the committed spec it targets, and the generated enums match the spec. Both directions are checked: call sites are discovered by scanning `internal/`, so calling something unlisted fails the build. Every spec operation is either called by the provider or classified in `coverage.yaml`, so a new endpoint cannot pass unnoticed, and so is every property of a request body the provider sends. |
 | `tools/specdrift` | The tool behind `make spec-drift`: structural comparison of two specs, ignoring prose, with exit statuses the scheduled workflow branches on. |
-| `internal/orchestra` | Auth and account headers, 404 detection, retry and backoff, pagination across both list shapes. |
-| `internal/provider` | Provider schema validity, resource and data source registration, configure-time errors. |
+| `internal/client` | Auth and account headers, 404 detection, retry and backoff, pagination across both list shapes. |
+| `internal/provider` | Provider schema validity, resource and data source registration, configure-time errors. Every type has an example, and `terraform validate` passes over `examples/` against a locally built provider; that needs the Terraform CLI, which it downloads if absent, and no API key. |
 | `internal/resources/pipeline` | Definition round-trip through the wire format, the task-group union split, and JSON encoding edge cases. |
 | `internal/resources/rsapply` | Drives resources through plan and apply against a stub API. Asserts the requests sent, that no unknown survives apply, that every known planned value equals the applied one, and that an in-place update never plans a replacement. |
 | `internal/datasources/dsread` | Drives every data source through the provider server against a stub API. |
 | `internal/acctest` | Real plan/apply cycles against a live workspace. Skipped without a key. |
-| `internal/examplecheck` | Every example parses, names a registered type and uses only attributes that exist; every type has one; and `terraform validate` passes against a locally built provider. Needs the Terraform CLI, which it downloads if absent. No API key. |
 
 The contract tests exist because the provider previously called `PUT /pipelines/{alias}`,
 `DELETE /pipelines/{alias}` and `GET /pipelines?alias=…`, none of which exist. The first two failed loudly; the
@@ -170,7 +169,7 @@ TF_ACC=1 ORCHESTRA_API_KEY=... go test ./... -run '^TestAcc' -v -timeout 30m
 Only one thing is generated: `internal/enums/enums_gen.go`, the validator lists for the spec's enums.
 
 ```bash
-make openapi   # refresh openapi.yaml and openapi-agents.yaml, then regenerate the enums
+make openapi   # refresh the committed specs, then regenerate the enums
 make docs      # regenerate docs/ from the schemas and examples/
 ```
 
@@ -189,9 +188,9 @@ schemas are safe to regenerate.
 ## Keeping up with the API
 
 The docs site publishes three specs, each a different API at its own base URL. The
-provider talks to two of them, committed as `openapi.yaml` (`engine.yaml`, the Engine
-API) and `openapi-agents.yaml` (`agents.yaml`, the Agents API). `admin.yaml` is only
-checked for new endpoints.
+provider talks to two of them, `engine.yaml` (the Engine API) and `agents.yaml` (the
+Agents API), committed under `internal/apicontract/` next to the tests that read them.
+`admin.yaml` is only checked for new endpoints.
 
 ```bash
 make spec-drift   # read-only: what changed in the live specs since the committed ones

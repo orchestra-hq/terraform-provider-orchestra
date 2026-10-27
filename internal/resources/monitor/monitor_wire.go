@@ -8,7 +8,7 @@ import (
 )
 
 // Wire types mirror components.schemas.MonitorDefinition and MonitorResponse.
-// Keep them in sync with openapi.yaml.
+// Keep them in sync with the Engine spec.
 
 // WireSchemas pairs the spec schemas this package sends with the types that
 // encode them, for internal/apicontract: a schema property that none of their

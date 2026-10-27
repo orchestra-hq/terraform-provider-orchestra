@@ -65,7 +65,7 @@ type specDoc struct {
 }
 
 func checkProperties(t *testing.T, s apiSpec, ledger map[string]coverageCategory, registry map[string]reflect.Type, used map[string]bool) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", s.file))
+	raw, err := os.ReadFile(s.file)
 	if err != nil {
 		t.Fatalf("read %s: %v", s.file, err)
 	}

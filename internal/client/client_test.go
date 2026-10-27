@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	client "github.com/orchestra-hq/terraform-provider-orchestra/internal/orchestra"
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/client"
 )
 
 func newClient(t *testing.T, handler http.Handler, opts ...client.Option) *client.Client {

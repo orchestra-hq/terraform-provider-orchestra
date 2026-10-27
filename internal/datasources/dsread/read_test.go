@@ -25,7 +25,7 @@ import (
 )
 
 // stubAPI answers each endpoint with a minimal but realistic payload, using
-// the property names and response shapes from openapi.yaml.
+// the property names and response shapes from the Engine spec.
 func stubAPI(t *testing.T) *httptest.Server {
 	t.Helper()
 

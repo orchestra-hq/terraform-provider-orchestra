@@ -1,10 +1,11 @@
-package examplecheck
+package provider_test
 
 import (
 	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -13,7 +14,46 @@ import (
 	"github.com/hashicorp/hc-install/product"
 	"github.com/hashicorp/hc-install/releases"
 	"github.com/hashicorp/terraform-exec/tfexec"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/provider"
 )
+
+func examplesDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.Abs(filepath.Join("..", "..", "examples"))
+	if err != nil {
+		t.Fatalf("resolve examples dir: %v", err)
+	}
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatalf("examples dir: %v", err)
+	}
+	return dir
+}
+
+// TestEveryTypeHasAnExample keeps the registry docs complete: tfplugindocs
+// renders an empty example section for anything missing one.
+func TestEveryTypeHasAnExample(t *testing.T) {
+	ctx := context.Background()
+	p := provider.New("test")()
+	root := examplesDir(t)
+
+	for _, f := range p.Resources(ctx) {
+		var md resource.MetadataResponse
+		f().Metadata(ctx, resource.MetadataRequest{ProviderTypeName: "orchestra"}, &md)
+		if _, err := os.Stat(filepath.Join(root, "resources", md.TypeName, "resource.tf")); err != nil {
+			t.Errorf("resource %s has no examples/resources/%s/resource.tf", md.TypeName, md.TypeName)
+		}
+	}
+	for _, f := range p.DataSources(ctx) {
+		var md datasource.MetadataResponse
+		f().Metadata(ctx, datasource.MetadataRequest{ProviderTypeName: "orchestra"}, &md)
+		if _, err := os.Stat(filepath.Join(root, "data-sources", md.TypeName, "data-source.tf")); err != nil {
+			t.Errorf("data source %s has no examples/data-sources/%s/data-source.tf", md.TypeName, md.TypeName)
+		}
+	}
+}
 
 // terraformBinary finds the Terraform CLI, preferring one already on PATH and
 // falling back to a download. CI installs it, so the download path is only for
@@ -56,8 +96,8 @@ func buildProvider(t *testing.T, dir string) string {
 // TestExamplesValidate runs `terraform validate` over every example.
 //
 // tfplugindocs copies these files verbatim into docs/, so a broken example is
-// published documentation nobody can apply. Terraform catches what the schema
-// check in examples_test.go cannot: bad enum values, missing required
+// published documentation nobody can apply. Validate catches an unregistered
+// type or an unknown attribute, and also bad enum values, missing required
 // attributes, and type errors inside nested objects. An earlier version of
 // examples/resources/orchestra_pipeline used integration_job =
 // "FIVETRAN_RUN_SYNC", which no validator in the repo rejected but Terraform
@@ -69,9 +109,6 @@ func TestExamplesValidate(t *testing.T) {
 
 	work := t.TempDir()
 	binDir := buildProvider(t, filepath.Join(work, "bin"))
-	if err := os.MkdirAll(binDir, 0o755); err != nil {
-		t.Fatalf("create bin dir: %v", err)
-	}
 
 	// dev_overrides lets Terraform load the freshly built provider without a
 	// registry round trip, and makes `terraform init` unnecessary.
@@ -96,7 +133,7 @@ func TestExamplesValidate(t *testing.T) {
 	}
 
 	for _, dir := range dirs {
-		name := rel(root, dir)
+		name, _ := filepath.Rel(filepath.Dir(root), dir)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -139,7 +176,7 @@ func TestExamplesValidate(t *testing.T) {
 					where := ""
 					if d.Range != nil {
 						where = filepath.Base(d.Range.Filename) + ":" +
-							itoa(d.Range.Start.Line) + ": "
+							strconv.Itoa(d.Range.Start.Line) + ": "
 					}
 					t.Errorf("%s%s: %s", where, d.Summary, d.Detail)
 				}
@@ -201,16 +238,4 @@ func declaresProvider(dir string) bool {
 		}
 	}
 	return false
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var b []byte
-	for n > 0 {
-		b = append([]byte{byte('0' + n%10)}, b...)
-		n /= 10
-	}
-	return string(b)
 }

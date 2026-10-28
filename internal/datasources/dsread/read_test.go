@@ -77,7 +77,6 @@ func stubAPI(t *testing.T) *httptest.Server {
 	mux.HandleFunc("/assets", func(w http.ResponseWriter, r *http.Request) {
 		write(w, paginated([]any{asset}))
 	})
-	mux.HandleFunc("/assets/", func(w http.ResponseWriter, r *http.Request) { write(w, asset) })
 	mux.HandleFunc("/pipelines", func(w http.ResponseWriter, r *http.Request) {
 		write(w, paginated([]any{pipeline}))
 	})
@@ -86,34 +85,11 @@ func stubAPI(t *testing.T) *httptest.Server {
 		write(w, []any{environment})
 	})
 	mux.HandleFunc("/environments/", func(w http.ResponseWriter, r *http.Request) { write(w, environment) })
-	mux.HandleFunc("/integrations/", func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case strings.HasSuffix(r.URL.Path, "/jobs"):
-			write(w, []any{map[string]any{
-				"id": "DBT_CORE_EXECUTE", "displayName": "Execute", "description": "Run dbt",
-				"integration": "DBT_CORE", "type": "TRANSFORM", "status": "RELEASE",
-				"jobSchema": []any{}, "isDataQualityTest": false, "outputKeys": []string{"run_results"},
-			}})
-		case strings.HasSuffix(r.URL.Path, "/connections"):
-			write(w, []any{map[string]any{
-				"integration": "SNOWFLAKE", "authStatus": "SUCCEEDED",
-				"connectionId": "name_ABCD", "connectionName": "Prod", "isDefault": true,
-				"createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-02T00:00:00Z",
-			}})
-		default:
-			write(w, []any{map[string]any{
-				"id": "SNOWFLAKE", "displayName": "Snowflake", "authSchema": []any{},
-				"status": "RELEASE", "setupGuideUrl": nil, "setupDocsUrl": nil,
-				"supportedAssetFeatures": []string{"LINEAGE"}, "priority": 1, "top": true,
-				"jobTypes": []string{"QUERY"}, "supportedAssetTypes": []string{"TABLE"},
-			}})
-		}
-	})
-	mux.HandleFunc("/sensor_checks/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/integrations/connections", func(w http.ResponseWriter, r *http.Request) {
 		write(w, []any{map[string]any{
-			"id": "SNOWFLAKE_QUERY", "displayName": "Snowflake query", "description": "Poll a query",
-			"integration": "SNOWFLAKE", "status": "RELEASE", "sensorSchema": []any{},
-			"outputKeys": []string{"rows"},
+			"integration": "SNOWFLAKE", "authStatus": "SUCCEEDED",
+			"connectionId": "name_ABCD", "connectionName": "Prod", "isDefault": true,
+			"createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-02T00:00:00Z",
 		}})
 	})
 	mux.HandleFunc("/monitors", func(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +123,6 @@ func stubAPI(t *testing.T) *httptest.Server {
 // requiredValues supplies a value for each data source's required selector;
 // everything else is left null, as it is in a real config.
 var requiredValues = map[string]map[string]string{
-	"orchestra_asset":       {"asset_id": "11111111-1111-1111-1111-111111111111"},
 	"orchestra_environment": {"id": "44444444-4444-4444-4444-444444444444"},
 	"orchestra_pipeline":    {"alias": "daily_sales"},
 }
@@ -218,17 +193,13 @@ func assertPopulated(t *testing.T, typeName string, state tftypes.Value) {
 
 	markers := map[string][]string{
 		"orchestra_assets":                      {"max_age_hours", "gold", "orders"},
-		"orchestra_asset":                       {"max_age_hours", "gold", "orders"},
 		"orchestra_pipelines":                   {"run_ingest", "daily_sales"},
 		"orchestra_pipeline":                    {"run_ingest", "daily_sales"},
 		"orchestra_environment":                 {"COMPUTE_WH", "500", "true"},
 		"orchestra_environments":                {"production"},
-		"orchestra_integrations":                {"Snowflake"},
-		"orchestra_integration_jobs":            {"DBT_CORE_EXECUTE"},
 		"orchestra_integration_connections":     {"name_ABCD"},
 		"orchestra_monitors":                    {`"id":tftypes.String<"first">`, "Warehouse failures", "dbt and Snowflake"},
 		"orchestra_skills":                      {"identify-long-running-dbt-tasks", `"orchestra_managed":tftypes.Bool<"true">`},
-		"orchestra_sensor_checks":               {"SNOWFLAKE_QUERY"},
 		"orchestra_azure_federated_credentials": {"orchestra:workspace:abc", "api://AzureADTokenExchange"},
 	}
 

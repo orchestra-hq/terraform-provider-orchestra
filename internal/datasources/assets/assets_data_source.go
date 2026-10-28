@@ -184,8 +184,7 @@ type assetsModel struct {
 	Results              []AssetTF    `tfsdk:"results"`
 }
 
-// AssetTF is components.schemas.AssetResponse in Terraform types. It is shared
-// with the orchestra_asset resource and data source.
+// AssetTF is components.schemas.AssetResponse in Terraform types.
 type AssetTF struct {
 	AssetId                  types.String         `tfsdk:"asset_id"`
 	AccountId                types.String         `tfsdk:"account_id"`

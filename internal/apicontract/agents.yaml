@@ -419,14 +419,17 @@ paths:
       description: 'Stream an agent session as Server-Sent Events: the last three
         turns are replayed, including any turn still in progress, then new messages
         are sent as the session produces them. The stream closes after ten minutes
-        without a new message. Every message carries a `sequenceId` of the form `<unix-milliseconds>-<counter>`,
-        and sequence IDs order as strings. To read a session''s replies without holding
-        a connection open, use `GET /sessions/{session_id}/history/messages`. Returns
-        404 for a session the caller cannot see, and 403 for one whose agent the caller
-        cannot view. A session started by a user in the Orchestra UI is visible to
-        that user alone, so an API key never sees one. Sessions started for a task
-        run or an incident are visible to everyone in the workspace who can view the
-        agent.'
+        without a new message. With `poll=true` the response ends as soon as the events
+        available now are sent, for networks whose proxies hold back a response until
+        it finishes. Poll again with `after_sequence_id` set to the last `sequenceId`
+        received to read only newer events. Every message carries a `sequenceId` of
+        the form `<unix-milliseconds>-<counter>`, and sequence IDs order as strings.
+        To read a session''s replies without holding a connection open, use `GET /sessions/{session_id}/history/messages`.
+        Returns 404 for a session the caller cannot see, and 403 for one whose agent
+        the caller cannot view. A session started by a user in the Orchestra UI is
+        visible to that user alone, so an API key never sees one. Sessions started
+        for a task run or an incident are visible to everyone in the workspace who
+        can view the agent.'
       parameters:
       - name: session_id
         in: path
@@ -437,6 +440,30 @@ paths:
           description: Agent session ID.
           title: Session Id
         description: Agent session ID.
+      - name: poll
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Send the events available now, without waiting for new ones,
+            then end the response. Defaults to false.
+          default: false
+          title: Poll
+        description: Send the events available now, without waiting for new ones,
+          then end the response. Defaults to false.
+      - name: after_sequence_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^[0-9]{1,20}(-[0-9]{1,20})?$
+          - type: 'null'
+          description: Send only the events after this sequence ID, skipping the replay.
+            Requires `poll=true`.
+          title: After Sequence Id
+        description: Send only the events after this sequence ID, skipping the replay.
+          Requires `poll=true`.
       - name: X-Orchestra-Account-Id
         in: header
         required: false

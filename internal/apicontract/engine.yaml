@@ -2001,9 +2001,8 @@ paths:
       - Integration Connections
       summary: Delete an integration connection
       description: Delete an integration connection from the workspace the credential
-        resolves to, along with any asset configurations and agent integration mappings
-        that use it. The default connection cannot be deleted while the integration
-        has other connections.
+        resolves to, along with any agent integration mappings that use it. The default
+        connection cannot be deleted while the integration has other connections.
       parameters:
       - name: integration
         in: path
@@ -4369,11 +4368,6 @@ components:
           anyOf:
           - $ref: '#/components/schemas/IntegrationsEnum'
           - type: 'null'
-        lastSuccessfulRun:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Lastsuccessfulrun
         upstreamDependencies:
           anyOf:
           - items:

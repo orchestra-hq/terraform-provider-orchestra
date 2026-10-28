@@ -71,7 +71,6 @@ Read-Only:
 - `integration` (String) Integration the asset came from.
 - `integration_account_id` (String) Account ID within the integration.
 - `integration_asset_type` (String) The integration's own name for this asset type.
-- `last_successful_run` (String) When the asset was last successfully produced.
 - `last_updated_in_integration` (String) When the asset was last updated in the source system.
 - `last_viewed` (String) When the asset was last viewed.
 - `meta` (String) Arbitrary asset metadata, as JSON. The API declares this free-form.

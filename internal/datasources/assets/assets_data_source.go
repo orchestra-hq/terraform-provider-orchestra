@@ -157,7 +157,6 @@ func assetAttributes() map[string]schema.Attribute {
 		"updated_at":                  str("When Orchestra last updated the asset."),
 		"created_in_integration":      str("When the asset was created in the source system."),
 		"last_updated_in_integration": str("When the asset was last updated in the source system."),
-		"last_successful_run":         str("When the asset was last successfully produced."),
 		"last_viewed":                 str("When the asset was last viewed."),
 		"row_count":                   num("Row count."),
 		"bytes":                       num("Size in bytes."),
@@ -214,7 +213,6 @@ type AssetTF struct {
 	UpdatedAt                types.String         `tfsdk:"updated_at"`
 	CreatedInIntegration     types.String         `tfsdk:"created_in_integration"`
 	LastUpdatedInIntegration types.String         `tfsdk:"last_updated_in_integration"`
-	LastSuccessfulRun        types.String         `tfsdk:"last_successful_run"`
 	LastViewed               types.String         `tfsdk:"last_viewed"`
 	RowCount                 types.Int64          `tfsdk:"row_count"`
 	Bytes                    types.Int64          `tfsdk:"bytes"`
@@ -254,7 +252,6 @@ type AssetResponse struct {
 	UpdatedAt                *string        `json:"updatedAt"`
 	CreatedInIntegration     *string        `json:"createdInIntegration"`
 	LastUpdatedInIntegration *string        `json:"lastUpdatedInIntegration"`
-	LastSuccessfulRun        *string        `json:"lastSuccessfulRun"`
 	LastViewed               *string        `json:"lastViewed"`
 	RowCount                 *int64         `json:"rowCount"`
 	Bytes                    *int64         `json:"bytes"`
@@ -295,7 +292,6 @@ func (a AssetResponse) ToTF() AssetTF {
 		UpdatedAt:                tfconv.String(a.UpdatedAt),
 		CreatedInIntegration:     tfconv.String(a.CreatedInIntegration),
 		LastUpdatedInIntegration: tfconv.String(a.LastUpdatedInIntegration),
-		LastSuccessfulRun:        tfconv.String(a.LastSuccessfulRun),
 		LastViewed:               tfconv.String(a.LastViewed),
 		RowCount:                 tfconv.Int64(a.RowCount),
 		Bytes:                    tfconv.Int64(a.Bytes),

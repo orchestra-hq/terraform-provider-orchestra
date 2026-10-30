@@ -22,29 +22,29 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.1.0
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v6.5.0
         with:
           go-version-file: go.mod
 
       - name: Setup Terraform CLI
-        uses: hashicorp/setup-terraform@v4
+        uses: hashicorp/setup-terraform@v4.0.1
 
+      # No API key: tfplugindocs never configures the provider, and this job runs PR code.
       - name: Generate provider docs (tfplugindocs)
-        env:
-          # tfplugindocs/terraform may initialize the provider; keep it non-empty in case init reads it.
-          ORCHESTRA_API_KEY: ${{ secrets.ORCHESTRA_API_KEY }}
         run: make docs
 
       - name: Commit updated docs/
         env:
           # Used by `git push` after we create a commit.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Branch names may contain shell syntax; never interpolate them into the script.
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           set -euo pipefail
 
@@ -59,5 +59,5 @@ jobs:
           git commit -m "chore: update generated Terraform docs" || exit 0
 
           # Push back to the PR branch.
-          git push origin "HEAD:${{ github.head_ref }}"
+          git push origin "HEAD:refs/heads/${HEAD_REF}"
 

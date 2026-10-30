@@ -92,3 +92,50 @@ func TestProviderConfigureRequiresAPIKey(t *testing.T) {
 		t.Errorf("expected a missing-API-key error, got %#v", resp.Diagnostics)
 	}
 }
+
+// TestProviderConfigureRejectsInsecureBaseURL checks that the API key is never
+// sent in clear text to anything but a local stub.
+func TestProviderConfigureRejectsInsecureBaseURL(t *testing.T) {
+	cases := map[string]bool{
+		"https://app.getorchestra.io/api/engine/public": false,
+		"http://127.0.0.1:8080":                         false,
+		"http://[::1]:8080":                             false,
+		"http://localhost:8080/api":                     false,
+		"http://app.getorchestra.io/api/engine/public":  true,
+		"http://localhost.evil.example":                 true,
+		"ftp://app.getorchestra.io":                     true,
+		"app.getorchestra.io":                           true,
+	}
+
+	for baseURL, wantErr := range cases {
+		t.Run(baseURL, func(t *testing.T) {
+			t.Setenv("ORCHESTRA_API_KEY", "test")
+			t.Setenv("ORCHESTRA_BASE_URL", baseURL)
+
+			ctx := context.Background()
+			server := providerserver.NewProtocol6(provider.New("test")())()
+			schemaResp, err := server.GetProviderSchema(ctx, &tfprotov6.GetProviderSchemaRequest{})
+			if err != nil {
+				t.Fatalf("GetProviderSchema: %v", err)
+			}
+			config, err := tfprotov6.NewDynamicValue(schemaResp.Provider.ValueType(), nullProviderConfig(schemaResp))
+			if err != nil {
+				t.Fatalf("build config: %v", err)
+			}
+			resp, err := server.ConfigureProvider(ctx, &tfprotov6.ConfigureProviderRequest{Config: &config})
+			if err != nil {
+				t.Fatalf("ConfigureProvider: %v", err)
+			}
+
+			var gotErr bool
+			for _, d := range resp.Diagnostics {
+				if d.Severity == tfprotov6.DiagnosticSeverityError && d.Summary == "Insecure Orchestra base URL" {
+					gotErr = true
+				}
+			}
+			if gotErr != wantErr {
+				t.Errorf("insecure-URL error = %v, want %v (diagnostics %#v)", gotErr, wantErr, resp.Diagnostics)
+			}
+		})
+	}
+}

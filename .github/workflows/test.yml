@@ -22,10 +22,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.1.0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v6.5.0
         with:
           # Match the Go version declared in this repo's go.mod.
           go-version-file: go.mod
@@ -48,7 +48,7 @@ jobs:
       # the unit suite. It would download the CLI itself, but installing it
       # here keeps the run offline and pinned.
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v4
+        uses: hashicorp/setup-terraform@v4.0.1
         with:
           terraform_version: "1.14.3"
           terraform_wrapper: false
@@ -56,10 +56,28 @@ jobs:
       - name: Run unit tests
         run: go test ./...
 
-      # Acceptance tests hit the real API, so they only run when a key is
-      # available — never on a fork's pull request.
+  # Its own job so the live key can sit behind a protected environment without gating unit tests.
+  acceptance:
+    needs: test
+    # Never on a fork's pull request.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.1.0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6.5.0
+        with:
+          go-version-file: go.mod
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: "1.14.3"
+          terraform_wrapper: false
+
       - name: Run acceptance tests
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         env:
           TF_ACC: "1"
           ORCHESTRA_API_KEY: ${{ secrets.ORCHESTRA_API_KEY }}

@@ -40,4 +40,4 @@ variable "orchestra_api_key" {
 
 - `account_id` (String) Act on this account rather than the one the credential resolves to, sent as the `X-Orchestra-Account-Id` header. Falls back to the `ORCHESTRA_ACCOUNT_ID` environment variable. An API key is issued to a single account, so it may only name that account.
 - `api_key` (String, Sensitive) Orchestra workspace API key. Falls back to the `ORCHESTRA_API_KEY` environment variable. Find it under [Settings → API Keys](https://app.getorchestra.io/settings/workspace).
-- `base_url` (String) Base URL for the Orchestra API server. Falls back to the `ORCHESTRA_BASE_URL` environment variable, then `https://app.getorchestra.io/api/engine/public`. Agents and skills use the Agents API beside it, at `/api/ai/v1` on the same host.
+- `base_url` (String) Base URL for the Orchestra API server. Falls back to the `ORCHESTRA_BASE_URL` environment variable, then `https://app.getorchestra.io/api/engine/public`. Must use `https://`. Agents and skills use the Agents API beside it, at `/api/ai/v1` on the same host.

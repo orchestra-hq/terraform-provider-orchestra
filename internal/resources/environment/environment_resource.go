@@ -13,7 +13,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -83,12 +84,14 @@ func (r *EnvironmentResource) Schema(ctx context.Context, _ resource.SchemaReque
 					},
 				},
 			},
+			// No client-side default: Orchestra makes a workspace's first
+			// environment the default, so a planned false would drift.
 			"default_env": schema.BoolAttribute{
 				Optional:            true,
 				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-				Description:         "Whether this is the workspace's default environment.",
-				MarkdownDescription: "Whether this is the workspace's default environment. Only one environment can be the default; promoting one demotes the other outside Terraform's view.",
+				Description:         "Whether this is the workspace's default environment. Leave unset to keep Orchestra's choice; it makes a workspace's first environment the default.",
+				MarkdownDescription: "Whether this is the workspace's default environment. Leave unset to keep Orchestra's choice; it makes a workspace's first environment the default. Set `true` to promote this one. Only one environment can be the default; promoting one demotes the other outside Terraform's view.",
+				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 
 			"id": schema.StringAttribute{
@@ -97,17 +100,20 @@ func (r *EnvironmentResource) Schema(ctx context.Context, _ resource.SchemaReque
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"account_id": schema.StringAttribute{
-				Computed:    true,
-				Description: "Account the environment belongs to.",
+				Computed:      true,
+				Description:   "Account the environment belongs to.",
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"allowed_branches": schema.ListAttribute{
-				Computed:    true,
-				ElementType: types.StringType,
-				Description: "Branches allowed to run against this environment. Managed in the Orchestra UI.",
+				Computed:      true,
+				ElementType:   types.StringType,
+				Description:   "Branches allowed to run against this environment. Managed in the Orchestra UI.",
+				PlanModifiers: []planmodifier.List{listplanmodifier.UseStateForUnknown()},
 			},
 			"allow_unpublished_pipelines": schema.BoolAttribute{
-				Computed:    true,
-				Description: "Whether unpublished pipelines may run against this environment. Managed in the Orchestra UI.",
+				Computed:      true,
+				Description:   "Whether unpublished pipelines may run against this environment. Managed in the Orchestra UI.",
+				PlanModifiers: []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 			"created_at": schema.StringAttribute{
 				Computed:      true,

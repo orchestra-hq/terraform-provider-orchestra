@@ -19,9 +19,12 @@ First release of the Orchestra provider, published as `orchestra-hq/orchestra`.
   trigger events, alerts, anomalies, inputs and configuration), validated at plan time against the API's own
   schema. `paused` and `folder` (such as `finance/daily`) have their own endpoints, so changing only those does
   not save a new version, and either one left unset is left alone, so a pause or folder set in the Orchestra UI
-  survives an apply. Changing `alias` replaces the pipeline. Pipelines whose definition lives in a git repository
+  survives an apply. `published` chooses between publishing a change and saving it as a draft that leaves the
+  published version running; an imported pipeline keeps the state it had in Orchestra. Changing `alias` replaces
+  the pipeline. Pipelines whose definition lives in a git repository
   are not managed here; Orchestra's git sync owns them.
 - `orchestra_environment`: a named set of values that pipeline runs resolve variables and credentials from.
+  Leaving `default_env` unset keeps Orchestra's choice, which makes a workspace's first environment the default.
 - `orchestra_monitor`: which failures group into one incident and how it alerts. `match` picks the events a
   monitor claims, `group_by` and `group_by_labels` decide what makes two of them one incident, `trigger` makes it a
   threshold monitor, and `action` says what happens when one opens. A monitor update replaces the whole
@@ -49,3 +52,10 @@ First release of the Orchestra provider, published as `orchestra-hq/orchestra`.
 - `orchestra_assets`
 - `orchestra_azure_federated_credentials`, for granting Orchestra access to Azure compute
 - `orchestra_skills`, including the ones Orchestra publishes, so an agent can use them by ID
+
+### Guides
+
+- Creating a pipeline from an Orchestra pipeline YAML file
+- Templating pipeline YAML with placeholders, loops and Orchestra's own `${{ }}` expressions
+- Setting the connection each task runs with, including adopting a pipeline built in the Orchestra UI
+- Connecting a dbt Core project from GitHub

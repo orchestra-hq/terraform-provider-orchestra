@@ -31,6 +31,7 @@ engine:
       dlt or the Snowflake app instead.
     operations:
       - "GET /pipeline_runs"
+      - "GET /pipeline_runs/{pipeline_run_id}"
       - "GET /pipeline_runs/{pipeline_run_id}/status"
       - "GET /pipeline_runs/{pipeline_run_id}/task_runs"
       - "GET /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/artifacts"
@@ -38,6 +39,7 @@ engine:
       - "GET /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/logs"
       - "GET /pipeline_runs/{pipeline_run_id}/task_runs/{task_run_id}/logs/download"
       - "GET /task_runs"
+      - "GET /task_runs/{task_run_id}"
       - "GET /operations"
       - "GET /audit_events"
       - "GET /state/{integration}"

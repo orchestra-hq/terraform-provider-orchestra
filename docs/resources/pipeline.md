@@ -56,7 +56,7 @@ resource "orchestra_pipeline" "daily_sales" {
             })
 
             configuration = {
-              retries     = 2
+              retries     = "2"
               retry_delay = 60
               timeout     = 3600
             }
@@ -202,7 +202,7 @@ Optional:
 Optional:
 
 - `concurrency` (Attributes) Concurrency limits. (see [below for nested schema](#nestedatt--data--configuration--concurrency))
-- `retries` (Number) Number of times to retry on failure.
+- `retries` (String) Number of times to retry on failure. The API accepts an integer or a `${{ }}` template, so Terraform carries both as a string (for example `"2"`).
 - `retry_delay` (Number) Seconds to wait between retries.
 - `timeout` (Number) Timeout in seconds, from 0 to 259200 (72 hours).
 
@@ -422,7 +422,7 @@ Optional:
 Optional:
 
 - `concurrency` (Attributes) Concurrency limits. (see [below for nested schema](#nestedatt--data--task_groups--tasks--configuration--concurrency))
-- `retries` (Number) Number of times to retry on failure.
+- `retries` (String) Number of times to retry on failure. The API accepts an integer or a `${{ }}` template, so Terraform carries both as a string (for example `"2"`).
 - `retry_delay` (Number) Seconds to wait between retries.
 - `timeout` (Number) Timeout in seconds, from 0 to 259200 (72 hours).
 
@@ -560,7 +560,7 @@ Optional:
 Optional:
 
 - `concurrency` (Attributes) Concurrency limits. (see [below for nested schema](#nestedatt--data--tasks--configuration--concurrency))
-- `retries` (Number) Number of times to retry on failure.
+- `retries` (String) Number of times to retry on failure. The API accepts an integer or a `${{ }}` template, so Terraform carries both as a string (for example `"2"`).
 - `retry_delay` (Number) Seconds to wait between retries.
 - `timeout` (Number) Timeout in seconds, from 0 to 259200 (72 hours).
 

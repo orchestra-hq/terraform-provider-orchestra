@@ -41,7 +41,7 @@ func sampleDefinition() *definitionTF {
 						Condition:      types.StringNull(),
 						Meta:           jsontypes.NewNormalizedNull(),
 						Configuration: &configurationTF{
-							Retries:     types.Int64Value(2),
+							Retries:     types.StringValue("${{ inputs.retries }}"),
 							RetryDelay:  types.Int64Value(60),
 							Timeout:     types.Int64Value(3600),
 							Concurrency: &concurrencyTF{MaxActive: types.StringValue("3")},
@@ -145,7 +145,7 @@ func sampleDefinition() *definitionTF {
 			RunInputs: jsontypes.NewNormalizedValue(`{"source":"api"}`),
 		},
 		Configuration: &configurationTF{
-			Retries:     types.Int64Value(1),
+			Retries:     types.StringValue("1"),
 			RetryDelay:  types.Int64Null(),
 			Timeout:     types.Int64Value(7200),
 			Concurrency: &concurrencyTF{MaxActive: types.StringValue("1")},

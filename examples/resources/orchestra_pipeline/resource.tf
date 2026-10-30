@@ -38,7 +38,7 @@ resource "orchestra_pipeline" "daily_sales" {
             })
 
             configuration = {
-              retries     = 2
+              retries     = "2"
               retry_delay = 60
               timeout     = 3600
             }

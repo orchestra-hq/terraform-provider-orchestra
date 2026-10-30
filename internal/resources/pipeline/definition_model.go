@@ -120,7 +120,8 @@ type operationMetadataTF struct {
 }
 
 type configurationTF struct {
-	Retries     types.Int64    `tfsdk:"retries"`
+	// Retries is ParameterizedIntStr; see concurrencyTF.MaxActive.
+	Retries     types.String   `tfsdk:"retries"`
 	RetryDelay  types.Int64    `tfsdk:"retry_delay"`
 	Timeout     types.Int64    `tfsdk:"timeout"`
 	Concurrency *concurrencyTF `tfsdk:"concurrency"`

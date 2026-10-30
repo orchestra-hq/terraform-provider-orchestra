@@ -1,0 +1,93 @@
+---
+page_title: "Setting connections on pipeline tasks"
+subcategory: ""
+description: |-
+  Choose the integration connection each pipeline task runs with, whether Terraform creates the connection or it was made in the Orchestra UI.
+---
+
+# Setting connections on pipeline tasks
+
+A task's `connection` is the ID of the [connection](https://docs.getorchestra.io/docs/core-concepts/tasks/connections)
+it runs with, such as `snowflake_production_48213`. A task that sets none uses its integration's default connection.
+
+This guide covers the ways to set it:
+
+| Where the connection comes from | Set `connection` to |
+|---|---|
+| An `orchestra_integration_connection` in the same configuration | `orchestra_integration_connection.<name>.id` |
+| A connection made in the Orchestra UI | its ID, looked up with `orchestra_integration_connections` |
+| The environment the pipeline runs in | `"$${{ "{{" }} ENV.<VARIABLE> }}"` |
+| The integration's default connection | nothing |
+
+The same choices apply to a pipeline written in YAML, where Terraform can fill in each task's connection by its
+integration.
+
+## Connections in the pipeline definition
+
+{{ tffile "examples/guides/connections-in-pipeline-tasks/main.tf" }}
+
+- **`check_orders`** references a connection that Terraform creates. Terraform creates the connection first, and a
+  change that replaces it updates the task too. Until the connection exists, Orchestra's check during the plan cannot
+  see it, so the first plan may warn that the task has no connection.
+- **`ingest`** uses a connection made in the Orchestra UI. Integrations that sign in through a browser (OAuth) can only
+  be connected there. `orchestra_integration_connections` lists the connections for an integration, and the map in
+  `locals` picks one by its name. The plan fails if no connection has that name, or if more than one does, so a
+  renamed connection cannot leave the task silently using the default.
+
+## Connections from the environment
+
+A task can name an environment variable instead of a connection. Orchestra resolves it when the pipeline runs, from
+the [environment](https://docs.getorchestra.io/docs/core-concepts/environments) the run is in, so the same pipeline
+runs against staging credentials in staging and production credentials in production.
+
+{{ tffile "examples/guides/connections-in-pipeline-tasks/environment.tf" }}
+
+Add the same variable to every environment, each naming its own connection. Terraform reads `${` as the start of an
+interpolation, so write Orchestra's `${{ "{{" }} ... }}` expressions as `$${{ "{{" }} ... }}` in HCL.
+
+## Connections for a pipeline written in YAML
+
+When the pipeline definition lives in a YAML file, as in
+[Creating a pipeline from a YAML file](pipeline-from-yaml), leave connections out of the YAML and have Terraform set
+them while it converts the file:
+
+{{ codefile "yaml" "examples/guides/connections-in-pipeline-tasks/orders.yml" }}
+
+{{ tffile "examples/guides/connections-in-pipeline-tasks/from_yaml.tf" }}
+
+`local.connections` maps an integration to the connection its tasks use, so the YAML holds no workspace-specific IDs
+and the same file works in any workspace. To set connections task by task instead, put placeholders in the YAML; see
+[Templating pipeline YAML](templating-pipeline-yaml).
+
+## The default connection
+
+Set `is_default = true` on an `orchestra_integration_connection` and leave `connection` out of the tasks. Every task
+for that integration that names no connection uses it. This suits a workspace with one connection per integration,
+but it is implicit: making another connection the default changes which one those tasks use, without a Terraform plan.
+
+## Changing the connection of a pipeline Terraform does not manage
+
+There is no way to change only the connection of one task in a pipeline whose definition Terraform does not manage.
+Orchestra's update endpoint replaces the whole definition, so whatever sends the new connection sends every other
+task too, and the `orchestra_pipeline` data source returns a summary of the pipeline rather than its tasks.
+
+To manage such a pipeline from Terraform, import it, and let Terraform write its configuration:
+
+```terraform
+import {
+  to = orchestra_pipeline.daily_sales
+  id = "daily_sales" # the pipeline's alias or ID
+}
+```
+
+```shell
+terraform plan -generate-config-out=daily_sales.tf
+```
+
+Review `daily_sales.tf`, change the task's `connection` to reference a connection as above, and run `terraform apply`
+to import the pipeline and update it in one step. The `import` block can be removed after that. The generated
+`published` is `true` when the pipeline's latest version is its published one. Leave it `true` for the change to take
+effect on schedule: with `false`, the apply saves the change as a draft and the published version keeps running.
+
+A pipeline whose definition lives in a git repository is managed by Orchestra's git sync. Change its connections in
+the YAML in the repository, using `${{ "{{" }} ENV.<VARIABLE> }}` to vary them by environment.

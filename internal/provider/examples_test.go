@@ -206,13 +206,15 @@ func exampleDirs(root string) ([]string, error) {
 	return out, err
 }
 
+// copyTF copies every file, not only .tf: the guides read pipeline YAML and
+// templates with file() and templatefile(), which validate evaluates.
 func copyTF(src, dst string) error {
 	entries, err := os.ReadDir(src)
 	if err != nil {
 		return err
 	}
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".tf") {
+		if e.IsDir() {
 			continue
 		}
 		b, err := os.ReadFile(filepath.Join(src, e.Name()))

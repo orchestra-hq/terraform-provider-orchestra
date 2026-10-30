@@ -591,10 +591,11 @@ func (r *PipelineResource) apply(ctx context.Context, m *PipelineModel, api pipe
 	m.Alias = settle(api.Alias, m.Alias)
 	m.Folder = folderOf(api.Folder, m.Folder)
 
-	// `published` is write-only: PipelineResponse does not carry it, so there is
-	// nothing to refresh from and the configured value stands.
+	// PipelineResponse has no published flag: keep the configured one, or infer it after an import.
+	latestIsPublished := api.LatestVersionNumber != nil && api.PublishedVersionNumber != nil &&
+		*api.LatestVersionNumber == *api.PublishedVersionNumber
 	if m.Published.IsNull() || m.Published.IsUnknown() {
-		m.Published = types.BoolValue(false)
+		m.Published = types.BoolValue(latestIsPublished)
 	}
 
 	if api.Data != nil {

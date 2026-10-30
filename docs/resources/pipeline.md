@@ -101,7 +101,7 @@ resource "orchestra_pipeline" "daily_sales" {
 - `data` (Attributes) The pipeline definition: its tasks, schedule, sensors and alerts. (see [below for nested schema](#nestedatt--data))
 - `folder` (String) The folder the pipeline is filed in, such as `finance/daily`. Set it to `""` for no folder. Leave unset to leave it as it is, so a pipeline filed in the Orchestra UI is not moved by the next apply. Changing it moves the pipeline without saving a new version of the definition.
 - `paused` (Boolean) Whether the pipeline is paused. A paused pipeline's schedules, sensors, trigger events and API starts do not start new runs. Leave unset to leave it as it is, so a pause made in the Orchestra UI is not undone by the next apply.
-- `published` (Boolean) Whether the pipeline is published and can be triggered.
+- `published` (Boolean) Whether to publish the definition. Every change to `data` saves a new version of the pipeline: `true` publishes it, `false` saves it as a draft and leaves the published version running. Only the published version runs on a schedule.
 
 ### Read-Only
 

@@ -65,8 +65,8 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 			"published": schema.BoolAttribute{
 				Optional:            true,
 				Computed:            true,
-				Description:         "Whether the pipeline is published and can be triggered.",
-				MarkdownDescription: "Whether the pipeline is published and can be triggered. ",
+				Description:         "Whether to publish the definition. Every change to data saves a new version of the pipeline: true publishes it, false saves it as a draft and leaves the published version running. Only the published version runs on a schedule.",
+				MarkdownDescription: "Whether to publish the definition. Every change to `data` saves a new version of the pipeline: `true` publishes it, `false` saves it as a draft and leaves the published version running. Only the published version runs on a schedule.",
 			},
 			"yaml_path": schema.StringAttribute{
 				Computed:            true,

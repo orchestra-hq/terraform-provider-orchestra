@@ -1102,7 +1102,7 @@ func TestPipelineServerDefaultsDoNotBreakApply(t *testing.T) {
 				map[string]any{"type": "pipeline_duration_above_baseline"},
 			},
 			// A limit with no on_limit, which the API returns as SKIP.
-			"configuration": map[string]any{"retries": 1, "concurrency": map[string]any{"max_active": "2"}},
+			"configuration": map[string]any{"retries": "1", "concurrency": map[string]any{"max_active": "2"}},
 		},
 	})
 

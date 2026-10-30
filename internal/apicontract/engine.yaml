@@ -2773,6 +2773,49 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
       x-orchestra-mcp: true
+  /pipeline_runs/{pipeline_run_id}:
+    get:
+      tags:
+      - Pipeline Runs
+      summary: Get a pipeline run
+      description: Retrieve a single [pipeline run](/docs/core-concepts/pipelines/pipeline-runs)
+        by ID, including its status, however long ago it ran.
+      parameters:
+      - name: pipeline_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Pipeline Run Id
+        description: Pipeline run ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineRunResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
   /pipeline_runs/{pipeline_run_id}/status:
     get:
       tags:
@@ -2822,7 +2865,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-      x-orchestra-mcp: true
   /pipeline_runs:
     get:
       tags:
@@ -4171,6 +4213,49 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
       x-orchestra-mcp: true
+  /task_runs/{task_run_id}:
+    get:
+      tags:
+      - Task Runs
+      summary: Get a task run
+      description: Retrieve a single [task run](/docs/core-concepts/tasks/task-runs)
+        by ID, however long ago it ran, without needing its pipeline run ID.
+      parameters:
+      - name: task_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid4
+          title: Task Run Id
+        description: Task run ID.
+      - name: X-Orchestra-Account-Id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid4
+          - type: 'null'
+          title: X-Orchestra-Account-Id
+        description: Act on this account rather than the one the credential resolves
+          to. Omit it to use the credential's own account. An API key is issued to
+          a single account, so it may only name that account; an OAuth token may name
+          any account its grant covers.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskRunResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-orchestra-mcp: true
   /task_runs/{task_run_id}/outputs:
     post:
       tags:
@@ -4593,9 +4678,8 @@ components:
       properties:
         retries:
           anyOf:
-          - type: integer
+          - $ref: '#/components/schemas/ParameterizedIntStr'
           - type: 'null'
-          title: Retries
         retryDelay:
           anyOf:
           - type: integer
@@ -7751,6 +7835,12 @@ components:
         displayName:
           type: string
           title: Displayname
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: A one-sentence summary of what the integration does in Orchestra
         baseLogoUrl:
           anyOf:
           - type: string
@@ -10177,8 +10267,7 @@ components:
       description: The request was not authorized. Check the API key and `Authorization`
         header.
     Forbidden:
-      description: The request was forbidden, or the Metadata API is not enabled for
-        this workspace.
+      description: The request was forbidden.
     NotFound:
       description: The requested resource was not found.
     Conflict:

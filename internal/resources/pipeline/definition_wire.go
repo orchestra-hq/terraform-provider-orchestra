@@ -126,7 +126,8 @@ type wireOperationMetadata struct {
 }
 
 type wireConfiguration struct {
-	Retries     *int64           `json:"retries,omitempty"`
+	// Retries is ParameterizedIntStr: an integer or a ${{ }} template.
+	Retries     *json.RawMessage `json:"retries,omitempty"`
 	RetryDelay  *int64           `json:"retryDelay,omitempty"`
 	Timeout     *int64           `json:"timeout,omitempty"`
 	Concurrency *wireConcurrency `json:"concurrency,omitempty"`

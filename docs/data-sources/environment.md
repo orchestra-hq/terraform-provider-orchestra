@@ -3,12 +3,12 @@
 page_title: "orchestra_environment Data Source - orchestra"
 subcategory: ""
 description: |-
-  A single environment, including its values. Values are marked sensitive because they can carry integration credentials.
+  A single environment, including its values.
 ---
 
 # orchestra_environment (Data Source)
 
-A single environment, including its values. Values are marked sensitive because they can carry integration credentials.
+A single environment, including its values.
 
 ## Example Usage
 
@@ -19,9 +19,8 @@ data "orchestra_environment" "production" {
   id = "11111111-2222-3333-4444-555555555555"
 }
 
-# The values are sensitive, so reference them rather than printing them.
-output "production_default" {
-  value = data.orchestra_environment.production.default_env
+output "production_values" {
+  value = data.orchestra_environment.production.values
 }
 ```
 
@@ -41,7 +40,7 @@ output "production_default" {
 - `default_env` (Boolean) Whether this is the default environment.
 - `name` (String) Environment name.
 - `updated_at` (String) When the environment was last updated.
-- `values` (Attributes Map, Sensitive) Environment values keyed by variable name. (see [below for nested schema](#nestedatt--values))
+- `values` (Attributes Map) Environment values keyed by variable name. (see [below for nested schema](#nestedatt--values))
 
 <a id="nestedatt--values"></a>
 ### Nested Schema for `values`

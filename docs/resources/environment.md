@@ -42,7 +42,7 @@ resource "orchestra_environment" "production" {
 ### Required
 
 - `name` (String) Environment name.
-- `values` (Attributes Map, Sensitive) Environment values keyed by variable name. The whole map is marked sensitive because `integration_credential` entries carry secrets. (see [below for nested schema](#nestedatt--values))
+- `values` (Attributes Map) Environment values keyed by variable name. (see [below for nested schema](#nestedatt--values))
 
 ### Optional
 

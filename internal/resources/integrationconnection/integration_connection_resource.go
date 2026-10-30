@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/client"
@@ -43,6 +44,8 @@ type connectionModel struct {
 	Integration     types.String         `tfsdk:"integration"`
 	Name            types.String         `tfsdk:"name"`
 	Parameters      jsontypes.Normalized `tfsdk:"parameters"`
+	ParametersWO    jsontypes.Normalized `tfsdk:"parameters_wo"`
+	ParametersWOVer types.Int64          `tfsdk:"parameters_wo_version"`
 	CredentialStore types.String         `tfsdk:"credential_store"`
 	IsDefault       types.Bool           `tfsdk:"is_default"`
 	AuthStatus      types.String         `tfsdk:"auth_status"`
@@ -93,14 +96,31 @@ func (r *IntegrationConnectionResource) Schema(_ context.Context, _ resource.Sch
 			},
 			"parameters": schema.StringAttribute{
 				CustomType: jsontypes.NormalizedType{},
-				Required:   true,
+				Optional:   true,
 				Sensitive:  true,
 				Description: "Auth parameters as a JSON object, keyed by the field IDs in the integration's documentation. " +
+					"Stored in Terraform state; use parameters_wo to keep secrets out of it. Exactly one of the two is required. " +
 					"Orchestra masks secrets when it returns them, so this is never read back: a change made in the UI is not detected.",
 				MarkdownDescription: "Auth parameters as a JSON object, keyed by the field IDs listed under *Authentication parameters* " +
 					"on the integration's [documentation page](https://docs.getorchestra.io/docs/integrations). Use `jsonencode({...})`. " +
+					"Stored in Terraform state; use `parameters_wo` to keep secrets out of it. Exactly one of the two is required. " +
 					"Orchestra masks secrets when it returns them, so this is never read back: a change made in the UI is not detected. " +
 					"Changing it re-authenticates the connection.",
+			},
+			"parameters_wo": schema.StringAttribute{
+				CustomType: jsontypes.NormalizedType{},
+				Optional:   true,
+				Sensitive:  true,
+				WriteOnly:  true,
+				Description: "parameters, write-only: sent to Orchestra but never stored in Terraform state or plan. " +
+					"Requires Terraform 1.11 or later. Terraform cannot see a change to it, so bump parameters_wo_version to send new values.",
+				MarkdownDescription: "`parameters`, write-only: sent to Orchestra but never stored in Terraform state or plan. " +
+					"Requires Terraform 1.11 or later. Terraform cannot see a change to it, so bump `parameters_wo_version` to send new values.",
+			},
+			"parameters_wo_version": schema.Int64Attribute{
+				Optional:            true,
+				Description:         "Any number; changing it re-sends parameters_wo and re-authenticates the connection.",
+				MarkdownDescription: "Any number; changing it re-sends `parameters_wo` and re-authenticates the connection.",
 			},
 			"credential_store": schema.StringAttribute{
 				Optional: true,
@@ -132,6 +152,14 @@ func (r *IntegrationConnectionResource) Schema(_ context.Context, _ resource.Sch
 // ValidateConfig rejects is_default = false. The API can only promote a
 // connection, so an apply asking for false could never be met.
 func (r *IntegrationConnectionResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var params, paramsWO jsontypes.Normalized
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("parameters"), &params)...)
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("parameters_wo"), &paramsWO)...)
+	if params.IsNull() == paramsWO.IsNull() && !params.IsUnknown() && !paramsWO.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(path.Root("parameters"), "Set exactly one of parameters and parameters_wo",
+			"Both carry the connection's auth parameters. Use parameters_wo to keep secrets out of Terraform state, or parameters on Terraform older than 1.11.")
+	}
+
 	var isDefault types.Bool
 	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("is_default"), &isDefault)...)
 	if !isDefault.IsNull() && !isDefault.IsUnknown() && !isDefault.ValueBool() {
@@ -161,7 +189,7 @@ func (r *IntegrationConnectionResource) Create(ctx context.Context, req resource
 
 	body := map[string]any{
 		"connectionName": plan.Name.ValueString(),
-		"parameters":     tfconv.JSONObject(plan.Parameters, path.Root("parameters"), &resp.Diagnostics),
+		"parameters":     parameters(ctx, req.Config, plan, &resp.Diagnostics),
 	}
 	if !plan.CredentialStore.IsUnknown() {
 		body["credentialStore"] = plan.CredentialStore.ValueString()
@@ -215,7 +243,7 @@ func (r *IntegrationConnectionResource) Read(ctx context.Context, req resource.R
 	state.Name = types.StringValue(api.ConnectionName)
 	state.IsDefault = types.BoolValue(api.IsDefault)
 	state.CredentialStore = tfconv.String(api.CredentialStore)
-	if state.Parameters.IsNull() {
+	if state.Name.IsNull() {
 		// Only after an import. The masked secrets will not match the
 		// configuration, so the next apply sends the real ones.
 		state.Parameters = tfconv.RawJSON(api.Parameters)
@@ -242,8 +270,9 @@ func (r *IntegrationConnectionResource) Update(ctx context.Context, req resource
 	if !plan.Name.Equal(state.Name) {
 		patches = append(patches, map[string]any{"connectionName": plan.Name.ValueString()})
 	}
-	if !plan.Parameters.Equal(state.Parameters) || !plan.CredentialStore.Equal(state.CredentialStore) {
-		body := map[string]any{"parameters": tfconv.JSONObject(plan.Parameters, path.Root("parameters"), &resp.Diagnostics)}
+	if !plan.Parameters.Equal(state.Parameters) || !plan.ParametersWOVer.Equal(state.ParametersWOVer) ||
+		!plan.CredentialStore.Equal(state.CredentialStore) {
+		body := map[string]any{"parameters": parameters(ctx, req.Config, plan, &resp.Diagnostics)}
 		if !plan.CredentialStore.IsUnknown() {
 			body["credentialStore"] = plan.CredentialStore.ValueString()
 		}
@@ -263,6 +292,18 @@ func (r *IntegrationConnectionResource) Update(ctx context.Context, req resource
 	}
 	applyConnection(&plan, api, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+// parameters is the auth parameters to send, from whichever attribute holds
+// them. A write-only value is null in the plan by design, so it can only be
+// read from the config.
+func parameters(ctx context.Context, config tfsdk.Config, plan connectionModel, diags *diag.Diagnostics) json.RawMessage {
+	if !plan.Parameters.IsNull() {
+		return tfconv.JSONObject(plan.Parameters, path.Root("parameters"), diags)
+	}
+	var wo jsontypes.Normalized
+	diags.Append(config.GetAttribute(ctx, path.Root("parameters_wo"), &wo)...)
+	return tfconv.JSONObject(wo, path.Root("parameters_wo"), diags)
 }
 
 func (r *IntegrationConnectionResource) patch(ctx context.Context, integration, id string, body map[string]any, api *wireConnection, diags *diag.Diagnostics) {

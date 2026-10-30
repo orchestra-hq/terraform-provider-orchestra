@@ -25,7 +25,10 @@ resource "orchestra_integration_connection" "snowflake" {
   name        = "Snowflake production"
   is_default  = true
 
-  parameters = jsonencode({
+  # Write-only: sent to Orchestra, never stored in state. Bump the version to
+  # send changed values.
+  parameters_wo_version = 1
+  parameters_wo         = jsonencode({
     snowflake_auth_type = "USERNAME_PASSWORD"
     snowflake_user      = "ORCHESTRA_SVC"
     snowflake_password  = var.snowflake_password
@@ -47,12 +50,16 @@ resource "orchestra_integration_connection" "snowflake" {
 
 - `integration` (String) The integration, e.g. SNOWFLAKE.
 - `name` (String) Display name.
-- `parameters` (String, Sensitive) Auth parameters as a JSON object, keyed by the field IDs listed under *Authentication parameters* on the integration's [documentation page](https://docs.getorchestra.io/docs/integrations). Use `jsonencode({...})`. Orchestra masks secrets when it returns them, so this is never read back: a change made in the UI is not detected. Changing it re-authenticates the connection.
 
 ### Optional
 
+> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
+
 - `credential_store` (String) Where the secrets live: ORCHESTRA stores them encrypted in Orchestra; an external store takes that store's reference parameters in parameters instead.
 - `is_default` (Boolean) Whether tasks that name no connection use this one. Can only be set to true: making another connection the default is what clears it.
+- `parameters` (String, Sensitive) Auth parameters as a JSON object, keyed by the field IDs listed under *Authentication parameters* on the integration's [documentation page](https://docs.getorchestra.io/docs/integrations). Use `jsonencode({...})`. Stored in Terraform state; use `parameters_wo` to keep secrets out of it. Exactly one of the two is required. Orchestra masks secrets when it returns them, so this is never read back: a change made in the UI is not detected. Changing it re-authenticates the connection.
+- `parameters_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) `parameters`, write-only: sent to Orchestra but never stored in Terraform state or plan. Requires Terraform 1.11 or later. Terraform cannot see a change to it, so bump `parameters_wo_version` to send new values.
+- `parameters_wo_version` (Number) Any number; changing it re-sends `parameters_wo` and re-authenticates the connection.
 
 ### Read-Only
 

@@ -164,3 +164,67 @@ func TestIntegrationConnectionOAuthIsUndone(t *testing.T) {
 		t.Errorf("the half-made connection was not deleted; calls were %v", calls.paths())
 	}
 }
+
+// parameters_wo reaches the API but never state, and a version bump re-sends
+// it: Terraform cannot diff a value it does not keep.
+func TestIntegrationConnectionWriteOnlyParameters(t *testing.T) {
+	calls, baseURL := connectionStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	const name = "orchestra_integration_connection"
+	objType := schemaResp.ResourceSchemas[name].ValueType().(tftypes.Object)
+	comp := computedAttrs(schemaResp.ResourceSchemas[name])
+	config := func(token string, version int) tftypes.Value {
+		return buildValue(t, objType, map[string]any{
+			"integration": "HTTP", "name": "API", "parameters_wo_version": version,
+			"parameters_wo": `{"base_url":"https://example.com","auth_type":"BEARER_TOKEN","bearer_token":"` + token + `"}`,
+		})
+	}
+
+	created := planAndApply(t, server, name, objType, tftypes.NewValue(objType, nil), config("s3cret", 1), comp)
+	if p := calls.find(http.MethodPost, "/integrations/HTTP/auth"); p == nil || !strings.Contains(p.RawBody, "s3cret") {
+		t.Errorf("create did not send the write-only parameters: %+v", p)
+	}
+	if s := created.String(); strings.Contains(s, "s3cret") {
+		t.Errorf("the write-only secret reached state:\n%s", s)
+	}
+
+	updated := planAndApply(t, server, name, objType, created, config("n3w", 2), comp)
+	if p := calls.find(http.MethodPatch, "/integrations/HTTP/auth/http_api_1"); p == nil || !strings.Contains(p.RawBody, "n3w") {
+		t.Errorf("a version bump did not re-send the write-only parameters: %+v", p)
+	}
+	if s := updated.String(); strings.Contains(s, "n3w") {
+		t.Errorf("the write-only secret reached state:\n%s", s)
+	}
+}
+
+func TestIntegrationConnectionNeedsExactlyOneParameters(t *testing.T) {
+	_, baseURL := connectionStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	objType := schemaResp.ResourceSchemas["orchestra_integration_connection"].ValueType().(tftypes.Object)
+
+	for desc, tc := range map[string]struct {
+		data    map[string]any
+		wantErr bool
+	}{
+		"neither":    {map[string]any{"integration": "HTTP", "name": "API"}, true},
+		"both":       {map[string]any{"integration": "HTTP", "name": "API", "parameters": `{}`, "parameters_wo": `{}`}, true},
+		"parameters": {map[string]any{"integration": "HTTP", "name": "API", "parameters": `{}`}, false},
+		"write-only": {map[string]any{"integration": "HTTP", "name": "API", "parameters_wo": `{}`}, false},
+	} {
+		configDV, _ := tfprotov6.NewDynamicValue(objType, buildValue(t, objType, tc.data))
+		resp, err := server.ValidateResourceConfig(context.Background(), &tfprotov6.ValidateResourceConfigRequest{
+			TypeName: "orchestra_integration_connection", Config: &configDV,
+			ClientCapabilities: &tfprotov6.ValidateResourceConfigClientCapabilities{WriteOnlyAttributesAllowed: true},
+		})
+		if err != nil {
+			t.Fatalf("ValidateResourceConfig: %v", err)
+		}
+		gotErr := false
+		for _, d := range resp.Diagnostics {
+			gotErr = gotErr || d.Severity == tfprotov6.DiagnosticSeverityError
+		}
+		if gotErr != tc.wantErr {
+			t.Errorf("%s: got diagnostics %+v, want error %v", desc, resp.Diagnostics, tc.wantErr)
+		}
+	}
+}

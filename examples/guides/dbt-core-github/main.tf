@@ -1,10 +1,18 @@
 # Connect a dbt Core project in GitHub to Orchestra.
 
+variable "snowflake_password" {
+  type      = string
+  sensitive = true
+}
+
 resource "orchestra_integration_connection" "dbt" {
   integration = "DBT_CORE"
   name        = "dbt (GitHub)"
 
-  parameters = jsonencode({
+  # Write-only: sent to Orchestra, never stored in state. Bump the version to
+  # send changed values.
+  parameters_wo_version = 1
+  parameters_wo         = jsonencode({
     repo_source = "GITHUB"
     repo_path   = "my-org/dbt-project"
 
@@ -21,7 +29,7 @@ resource "orchestra_integration_connection" "dbt" {
             type: snowflake
             account: xy12345.eu-west-1
             user: DBT_SVC
-            password: "<your Snowflake password>"
+            password: "${var.snowflake_password}"
             role: TRANSFORMER
             warehouse: TRANSFORMING
             database: ANALYTICS

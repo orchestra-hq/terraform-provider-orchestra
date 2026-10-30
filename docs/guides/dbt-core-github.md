@@ -27,11 +27,19 @@ connection.
 ```terraform
 # Connect a dbt Core project in GitHub to Orchestra.
 
+variable "snowflake_password" {
+  type      = string
+  sensitive = true
+}
+
 resource "orchestra_integration_connection" "dbt" {
   integration = "DBT_CORE"
   name        = "dbt (GitHub)"
 
-  parameters = jsonencode({
+  # Write-only: sent to Orchestra, never stored in state. Bump the version to
+  # send changed values.
+  parameters_wo_version = 1
+  parameters_wo         = jsonencode({
     repo_source = "GITHUB"
     repo_path   = "my-org/dbt-project"
 
@@ -48,7 +56,7 @@ resource "orchestra_integration_connection" "dbt" {
             type: snowflake
             account: xy12345.eu-west-1
             user: DBT_SVC
-            password: "<your Snowflake password>"
+            password: "${var.snowflake_password}"
             role: TRANSFORMER
             warehouse: TRANSFORMING
             database: ANALYTICS
@@ -70,9 +78,12 @@ Replace `my-org/dbt-project` with your repository, the warehouse details in `pro
 
 ## Credentials in `profiles.yml`
 
-Orchestra stores `profiles.yml` encrypted and masks it when returning the connection, so credentials can go in it
-directly. Terraform treats `parameters` as sensitive, so `profiles.yml` stays out of plan and apply output. Like every
-sensitive value, it is still written to the Terraform state, so keep the state somewhere secure.
+Orchestra stores `profiles.yml` encrypted and masks it when returning the connection, so credentials can go in it;
+pass them in as sensitive variables rather than writing them into the configuration. `parameters_wo` is write-only
+(Terraform 1.11 or later): Terraform sends it to Orchestra but keeps it out of plan output and the state file. Because
+Terraform keeps no copy to compare, bump `parameters_wo_version` whenever `profiles.yml` changes so the new one is
+sent. On older Terraform, use `parameters` instead: it is sensitive, so it stays out of plan output, but it is written
+to the state.
 
 ## Using the connection
 
@@ -82,5 +93,5 @@ by setting its `connection` to the `dbt_connection_id` output. That page lists t
 
 ## Notes
 
-- Terraform never reads `parameters` back, because Orchestra masks secrets when it returns a connection. A change made
+- Terraform never reads the parameters back, because Orchestra masks secrets when it returns a connection. A change made
   to the connection in the Orchestra UI is not detected.

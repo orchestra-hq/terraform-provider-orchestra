@@ -48,8 +48,12 @@ resource "orchestra_pipeline" "daily_sales" {
 ```
 
 Full reference documentation, including every attribute and worked examples, lives in [`docs/`](docs/) and is
-rendered on the Terraform Registry. For a complete setup, see the guide to
-[connecting a dbt Core project from GitHub](docs/guides/dbt-core-github.md).
+rendered on the Terraform Registry. The guides cover complete setups:
+
+- [Connecting a dbt Core project from GitHub](docs/guides/dbt-core-github.md)
+- [Creating a pipeline from a YAML file](docs/guides/pipeline-from-yaml.md)
+- [Setting connections on pipeline tasks](docs/guides/connections-in-pipeline-tasks.md)
+- [Templating pipeline YAML](docs/guides/templating-pipeline-yaml.md)
 
 ## Provider configuration
 

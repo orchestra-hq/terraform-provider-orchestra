@@ -1,0 +1,29 @@
+version: v1
+name: ${jsonencode(name)}
+
+schedule:
+  - cron: ${jsonencode(cron)}
+    timezone: Europe/London
+
+pipeline:
+  ingest:
+    name: Ingest
+    tasks:
+%{ for connector in connectors ~}
+      sync_${connector}:
+        integration: FIVETRAN
+        integration_job: FIVETRAN_SYNC_ALL
+        connection: ${fivetran_connection}
+        parameters:
+          connector_id: ${connector}
+%{ endfor ~}
+
+  transform:
+    name: Transform
+    depends_on: [ingest]
+    tasks:
+      dbt_build:
+        integration: DBT_CORE
+        integration_job: DBT_CORE_EXECUTE
+        parameters:
+          commands: dbt build --select tag:${region} --target $${{ ENV.DBT_TARGET }}

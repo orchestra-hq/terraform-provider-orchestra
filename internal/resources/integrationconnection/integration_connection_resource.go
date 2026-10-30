@@ -294,9 +294,8 @@ func (r *IntegrationConnectionResource) Update(ctx context.Context, req resource
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
-// parameters is the auth parameters to send, from whichever attribute holds
-// them. A write-only value is null in the plan by design, so it can only be
-// read from the config.
+// parameters reads parameters_wo from the config: a write-only value is always
+// null in the plan.
 func parameters(ctx context.Context, config tfsdk.Config, plan connectionModel, diags *diag.Diagnostics) json.RawMessage {
 	if !plan.Parameters.IsNull() {
 		return tfconv.JSONObject(plan.Parameters, path.Root("parameters"), diags)

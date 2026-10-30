@@ -112,7 +112,7 @@ func (p *orchestraProvider) Configure(ctx context.Context, req tfprovider.Config
 			path.Root("base_url"),
 			"Insecure Orchestra base URL",
 			"The API key is sent as a bearer token with every request, so `base_url` (or "+envBaseURL+") must be an "+
-				"https:// URL. Plain http:// is accepted only for localhost.",
+				"https:// URL.",
 		)
 		return
 	}

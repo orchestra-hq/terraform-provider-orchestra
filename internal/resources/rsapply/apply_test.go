@@ -1279,11 +1279,9 @@ func TestEnvironmentServerPromotedDefaultDoesNotBreakApply(t *testing.T) {
 	planAndApply(t, server, "orchestra_environment", objType, tftypes.NewValue(objType, nil), config, comp)
 }
 
-// TestEnvironmentUnsetDefaultEnvKeepsOrchestrasValue covers an environment
-// created without `default_env` in an empty workspace, which Orchestra makes
-// the default. The next plan must accept that rather than plan it back to
-// false, and an unrelated edit must neither demote the environment nor show
-// attributes the edit cannot change as "known after apply".
+// TestEnvironmentUnsetDefaultEnvKeepsOrchestrasValue covers an environment created without
+// `default_env` in an empty workspace, which Orchestra makes the default: neither the next plan
+// nor an unrelated edit may plan it back to false or show unchanging attributes as unknown.
 func TestEnvironmentUnsetDefaultEnvKeepsOrchestrasValue(t *testing.T) {
 	_, baseURL := environmentStub(t, true)
 	server, schemaResp := newServer(t, baseURL)
@@ -1356,8 +1354,7 @@ func TestEnvironmentUnsetDefaultEnvKeepsOrchestrasValue(t *testing.T) {
 		}
 	}
 
-	// PATCH sends the planned default_env, so planning anything but the current
-	// value would demote the environment.
+	// PATCH sends the planned default_env, so any other value would demote the environment.
 	edited := plan(environmentValue(t, objType, "production", "1000"))
 	for _, name := range []string{"default_env", "account_id", "allowed_branches", "allow_unpublished_pipelines"} {
 		if !edited[name].Equal(prior[name]) {

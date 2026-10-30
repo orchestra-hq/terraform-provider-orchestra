@@ -84,8 +84,7 @@ func (r *EnvironmentResource) Schema(ctx context.Context, _ resource.SchemaReque
 					},
 				},
 			},
-			// No client-side default: Orchestra makes a workspace's first
-			// environment the default, so a planned false would drift.
+			// No client-side Default: Orchestra makes a workspace's first environment the default.
 			"default_env": schema.BoolAttribute{
 				Optional:            true,
 				Computed:            true,
@@ -335,7 +334,7 @@ func (r *EnvironmentResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	// Create has no defaultEnv field; apply it with a follow-up patch when set.
+	// Create has no defaultEnv field; apply it with a follow-up patch when true.
 	if plan.DefaultEnv.ValueBool() {
 		if err := r.patch(ctx, derefString(api.EnvironmentId), plan, &api, &resp.Diagnostics); err != nil {
 			resp.Diagnostics.AddError("Cannot set environment as default", err.Error())

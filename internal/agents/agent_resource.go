@@ -10,6 +10,7 @@ import (
 	"net/url"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -23,6 +24,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/client"
@@ -60,6 +62,8 @@ type agentModel struct {
 	DefaultEffort  types.String `tfsdk:"default_effort"`
 	GitEnabled     types.Bool   `tfsdk:"git_enabled"`
 	Secrets        types.Map    `tfsdk:"secrets"`
+	SecretsWO      types.Map    `tfsdk:"secrets_wo"`
+	SecretsWOVer   types.Int64  `tfsdk:"secrets_wo_version"`
 	LLMKey         types.Object `tfsdk:"llm_key"`
 	SkillIds       types.Set    `tfsdk:"skill_ids"`
 	Integrations   types.Set    `tfsdk:"integrations"`
@@ -159,7 +163,26 @@ func (r *AgentResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				ElementType: types.StringType,
 				Optional:    true,
 				Sensitive:   true,
-				Description: "Secret environment variables available to the agent at runtime. Written but never read back, so a change made outside Terraform is not detected.",
+				Description: "Secret environment variables available to the agent at runtime. Written but never read back, so a change made outside Terraform is not detected. " +
+					"Stored in Terraform state; use secrets_wo to keep them out of it.",
+				MarkdownDescription: "Secret environment variables available to the agent at runtime. Written but never read back, so a change made outside Terraform is not detected. " +
+					"Stored in Terraform state; use `secrets_wo` to keep them out of it.",
+			},
+			"secrets_wo": schema.MapAttribute{
+				ElementType: types.StringType,
+				Optional:    true,
+				Sensitive:   true,
+				WriteOnly:   true,
+				Description: "secrets, write-only: sent to Orchestra but never stored in Terraform state or plan. " +
+					"Requires Terraform 1.11 or later. Terraform cannot see a change to it, so bump secrets_wo_version to send new values.",
+				MarkdownDescription: "`secrets`, write-only: sent to Orchestra but never stored in Terraform state or plan. " +
+					"Requires Terraform 1.11 or later. Terraform cannot see a change to it, so bump `secrets_wo_version` to send new values.",
+				Validators: []validator.Map{mapvalidator.ConflictsWith(path.MatchRoot("secrets"))},
+			},
+			"secrets_wo_version": schema.Int64Attribute{
+				Optional:            true,
+				Description:         "Any number; changing it re-sends secrets_wo.",
+				MarkdownDescription: "Any number; changing it re-sends `secrets_wo`.",
 			},
 			"llm_key": schema.SingleNestedAttribute{
 				Optional:    true,
@@ -202,7 +225,7 @@ func (r *AgentResource) Configure(_ context.Context, req resource.ConfigureReque
 func (r *AgentResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan agentModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	body := agentBody(ctx, plan, &resp.Diagnostics)
+	body := agentBody(ctx, plan, req.Config, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -248,7 +271,7 @@ func (r *AgentResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	var plan, state agentModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	body := agentBody(ctx, plan, &resp.Diagnostics)
+	body := agentBody(ctx, plan, req.Config, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -283,7 +306,7 @@ func (r *AgentResource) ImportState(ctx context.Context, req resource.ImportStat
 // agentBody builds a CreateAgentRequest or PatchAgentRequest. An optional
 // string left unset is sent as null, which clears it; a server-defaulted one
 // still unknown at create is left out, so the server picks.
-func agentBody(ctx context.Context, m agentModel, diags *diag.Diagnostics) map[string]any {
+func agentBody(ctx context.Context, m agentModel, config tfsdk.Config, diags *diag.Diagnostics) map[string]any {
 	body := map[string]any{"name": m.Name.ValueString(), "gitEnabled": m.GitEnabled.ValueBool()}
 	for field, v := range map[string]types.String{
 		"description": m.Description, "systemPrompt": m.SystemPrompt, "responsePrompt": m.ResponsePrompt,
@@ -298,9 +321,14 @@ func agentBody(ctx context.Context, m agentModel, diags *diag.Diagnostics) map[s
 	diags.Append(m.SamplePrompts.ElementsAs(ctx, &prompts, false)...)
 	body["samplePrompts"] = prompts
 
-	var secrets map[string]string
-	diags.Append(m.Secrets.ElementsAs(ctx, &secrets, false)...)
-	body["secrets"] = secrets
+	// secrets_wo is null in the plan, yet every PATCH must carry it or the secrets clear.
+	secrets := m.Secrets
+	if secrets.IsNull() {
+		diags.Append(config.GetAttribute(ctx, path.Root("secrets_wo"), &secrets)...)
+	}
+	var values map[string]string
+	diags.Append(secrets.ElementsAs(ctx, &values, false)...)
+	body["secrets"] = values
 
 	if !m.LLMKey.IsNull() && !m.LLMKey.IsUnknown() {
 		a := m.LLMKey.Attributes()

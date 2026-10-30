@@ -217,3 +217,31 @@ func TestSkillLifecycle(t *testing.T) {
 		t.Errorf("a git skill's synced document leaked into markdown: %s", refreshed)
 	}
 }
+
+// secrets_wo reaches the API but never state, and an unrelated update still
+// sends it: every PATCH carries secrets, so a missing value would clear them.
+func TestAgentWriteOnlySecrets(t *testing.T) {
+	calls, baseURL := agentsStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	const name = "orchestra_agent"
+	objType := schemaResp.ResourceSchemas[name].ValueType().(tftypes.Object)
+	comp := computedAttrs(schemaResp.ResourceSchemas[name])
+	config := func(agentName string) tftypes.Value {
+		return buildValue(t, objType, map[string]any{
+			"name": agentName, "secrets_wo": map[string]any{"TOKEN": "s3cret"}, "secrets_wo_version": 1,
+		})
+	}
+
+	created := planAndApply(t, server, name, objType, tftypes.NewValue(objType, nil), config("Triage"), comp)
+	if p := calls.find(http.MethodPost, "/agents"); p == nil || !strings.Contains(p.RawBody, `"TOKEN":"s3cret"`) {
+		t.Errorf("create did not send the write-only secrets: %+v", p)
+	}
+	if s := created.String(); strings.Contains(s, "s3cret") {
+		t.Errorf("the write-only secret reached state:\n%s", s)
+	}
+
+	planAndApply(t, server, name, objType, created, config("Triage v2"), comp)
+	if p := calls.find(http.MethodPatch, "/agents/aaaaaaaa-0000-0000-0000-000000000001"); p == nil || !strings.Contains(p.RawBody, `"TOKEN":"s3cret"`) {
+		t.Errorf("a rename did not re-send the write-only secrets, which would clear them: %+v", p)
+	}
+}

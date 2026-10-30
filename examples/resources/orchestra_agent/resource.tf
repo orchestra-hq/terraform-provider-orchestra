@@ -20,7 +20,10 @@ resource "orchestra_agent" "triage" {
   default_model_id = "claude-opus-5"
   default_effort   = "high"
 
-  secrets = {
+  # Write-only: sent to Orchestra, never stored in state. Bump the version to
+  # send changed values.
+  secrets_wo_version = 1
+  secrets_wo         = {
     PAGERDUTY_TOKEN = var.pagerduty_token
   }
 }

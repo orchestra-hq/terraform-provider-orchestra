@@ -35,7 +35,10 @@ resource "orchestra_agent" "triage" {
   default_model_id = "claude-opus-5"
   default_effort   = "high"
 
-  secrets = {
+  # Write-only: sent to Orchestra, never stored in state. Bump the version to
+  # send changed values.
+  secrets_wo_version = 1
+  secrets_wo         = {
     PAGERDUTY_TOKEN = var.pagerduty_token
   }
 }
@@ -55,6 +58,8 @@ variable "pagerduty_token" {
 
 ### Optional
 
+> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
+
 - `avatar_path` (String) The agent's image, from Orchestra's avatar catalogue.
 - `default_effort` (String) How much reasoning the agent spends: low, medium, high, xhigh or max. Unset uses the model's default. Not every model supports every level.
 - `default_model_id` (String) The model the agent runs on, such as claude-opus-5. Unset uses Orchestra's default. Orchestra moves an agent off a retired model.
@@ -64,7 +69,9 @@ variable "pagerduty_token" {
 - `llm_key` (Attributes) Which API key pays for the agent's runs. Defaults to the workspace's choice. (see [below for nested schema](#nestedatt--llm_key))
 - `response_prompt` (String) How the agent should format its answers.
 - `sample_prompts` (List of String) Up to five example questions, each up to 500 characters, shown above the agent's chat box.
-- `secrets` (Map of String, Sensitive) Secret environment variables available to the agent at runtime. Written but never read back, so a change made outside Terraform is not detected.
+- `secrets` (Map of String, Sensitive) Secret environment variables available to the agent at runtime. Written but never read back, so a change made outside Terraform is not detected. Stored in Terraform state; use `secrets_wo` to keep them out of it.
+- `secrets_wo` (Map of String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) `secrets`, write-only: sent to Orchestra but never stored in Terraform state or plan. Requires Terraform 1.11 or later. Terraform cannot see a change to it, so bump `secrets_wo_version` to send new values.
+- `secrets_wo_version` (Number) Any number; changing it re-sends `secrets_wo`.
 - `skill_ids` (Set of String) Skills the agent can use, by ID: `orchestra_skill.<name>.id`, or a built-in one from the `orchestra_skills` data source. Unset leaves them as they are.
 - `system_prompt` (String) Who the agent is and how it should approach its work.
 

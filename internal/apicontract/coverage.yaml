@@ -19,8 +19,8 @@
 #   admin   https://docs.getorchestra.io/api/admin.yaml
 # The first two are committed next to this file and checked by
 # TestEverySpecOperationIsClassified.
-# admin is fetched on each scheduled run and checked against its list, so a new
-# endpoint in it is still noticed.
+# admin is not committed: the provider does not call it. Its list is kept so a
+# new endpoint in it is still a decision rather than a surprise.
 
 engine:
   run_history:

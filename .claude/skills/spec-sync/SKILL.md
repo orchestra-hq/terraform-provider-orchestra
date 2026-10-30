@@ -1,27 +1,22 @@
 ---
 name: spec-sync
-description: Use when the Orchestra API may have changed — a "Spec sync" pull request is open, `make spec-drift` reports something, TestEverySpecOperationIsClassified or TestEveryWrittenPropertyIsClassified fails, or you are asked whether the API has new resources, data sources or parameters to add. Decides what each change means for the provider and applies it.
+description: Use when the Orchestra API may have changed — you have been told the specs drifted, `make openapi` changed a committed spec, TestEverySpecOperationIsClassified or TestEveryWrittenPropertyIsClassified fails, or you are asked whether the API has new resources, data sources or parameters to add. Decides what each change means for the provider and applies it.
 ---
 
 # Keeping the provider in step with the API
 
-A weekly workflow (`.github/workflows/spec-sync.yml`) compares the live specs with
-the committed ones and opens a **Spec sync** pull request when something changed.
-It never merges. This skill is the judgement it cannot make.
+When the published Orchestra API changes, this skill decides what that means for the
+provider.
 
-## 1. Get the report
+## 1. See what changed
 
-- A Spec sync PR carries it as the description, or
-- run `make spec-drift`. It is read-only: it fetches the live `engine`, `agents` and
-  `admin` specs and compares the first two with the committed copies in
-  `internal/apicontract/`. `admin` is only checked for new endpoints.
-
-It sorts findings into **Needs attention**, **Worth a look** and **Routine**.
-Routine needs nothing: `make openapi` already regenerated the enums.
+Run `make openapi` and read `git diff internal/apicontract`, then `go test ./internal/apicontract/`.
+The classification tests name every new endpoint and every new property of a request body the
+provider sends. Prose changes need nothing; enum changes are already regenerated.
 
 If the fetch fails, the spec has moved. The docs site once split its one spec into
 `engine.yaml`, `agents.yaml` and `admin.yaml`. The docs MCP's `/openapi/api/` listing
-names the current files; fix `SPEC_BASE` in the Makefile and the URLs in the workflow.
+names the current files; fix `SPEC_BASE` in the Makefile.
 
 ## 2. Decide each item
 
@@ -79,7 +74,6 @@ Follow the workflow in CLAUDE.md. These each cost a CI round-trip before:
 ```bash
 go build ./... && go vet ./... && go test ./...
 make docs
-make spec-drift     # should now report "Nothing the provider models has changed"
 ```
 
 Add a CHANGELOG entry for anything a user can see.

@@ -37,11 +37,13 @@ First release of the Orchestra provider, published as `orchestra-hq/orchestra`.
   budget. It is a workspace singleton, so settings left unset keep their current value and destroying it only
   removes it from state.
 - `orchestra_integration_connection`: an integration's credentials, which tasks reference by ID. Secrets come back
-  masked, so `parameters` is written but never refreshed. Integrations that sign in through a browser (OAuth) are
+  masked, so `parameters` is written but never refreshed; `parameters_wo` (Terraform 1.11+) keeps them out of
+  state, with `parameters_wo_version` to send new values. Integrations that sign in through a browser (OAuth) are
   set up in the Orchestra UI instead.
 - `orchestra_agent` and `orchestra_skill`: AI agents and the skills they use. A skill is markdown held in
   Terraform, or a file in a connected repository that Orchestra keeps in sync. An agent's `secrets` are written
-  but never read back.
+  but never read back; `secrets_wo` (Terraform 1.11+) keeps them out of state, with `secrets_wo_version` to send
+  new values.
 
 ### Data sources
 

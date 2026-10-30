@@ -10,7 +10,10 @@ resource "orchestra_integration_connection" "snowflake" {
   integration = "SNOWFLAKE"
   name        = "Snowflake production"
 
-  parameters = jsonencode({
+  # Write-only: sent to Orchestra, never stored in state. Bump the version to
+  # send changed values.
+  parameters_wo_version = 1
+  parameters_wo         = jsonencode({
     snowflake_auth_type = "USERNAME_PASSWORD"
     snowflake_user      = "ORCHESTRA_SVC"
     snowflake_password  = var.snowflake_password

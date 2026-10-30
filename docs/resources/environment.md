@@ -46,7 +46,7 @@ resource "orchestra_environment" "production" {
 
 ### Optional
 
-- `default_env` (Boolean) Whether this is the workspace's default environment. Only one environment can be the default; promoting one demotes the other outside Terraform's view.
+- `default_env` (Boolean) Whether this is the workspace's default environment. Leave unset to keep Orchestra's choice; it makes a workspace's first environment the default. Set `true` to promote this one. Only one environment can be the default; promoting one demotes the other outside Terraform's view.
 
 ### Read-Only
 

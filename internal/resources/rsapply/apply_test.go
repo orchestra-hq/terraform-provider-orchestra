@@ -1269,9 +1269,98 @@ func TestEnvironmentServerPromotedDefaultDoesNotBreakApply(t *testing.T) {
 	objType := schemaResp.ResourceSchemas["orchestra_environment"].ValueType().(tftypes.Object)
 	comp := computedAttrs(schemaResp.ResourceSchemas["orchestra_environment"])
 
-	// default_env defaults to false, so the plan is false while the API says true.
-	planAndApply(t, server, "orchestra_environment", objType,
-		tftypes.NewValue(objType, nil), environmentValue(t, objType, "production", "500"), comp)
+	config := buildValue(t, objType, map[string]any{
+		"name":        "production",
+		"default_env": false,
+		"values": map[string]any{
+			"WAREHOUSE": map[string]any{"type": "string", "value": "COMPUTE_WH"},
+		},
+	})
+	planAndApply(t, server, "orchestra_environment", objType, tftypes.NewValue(objType, nil), config, comp)
+}
+
+// TestEnvironmentUnsetDefaultEnvKeepsOrchestrasValue covers an environment created without
+// `default_env` in an empty workspace, which Orchestra makes the default: neither the next plan
+// nor an unrelated edit may plan it back to false or show unchanging attributes as unknown.
+func TestEnvironmentUnsetDefaultEnvKeepsOrchestrasValue(t *testing.T) {
+	_, baseURL := environmentStub(t, true)
+	server, schemaResp := newServer(t, baseURL)
+	ctx := context.Background()
+
+	objType := schemaResp.ResourceSchemas["orchestra_environment"].ValueType().(tftypes.Object)
+	comp := computedAttrs(schemaResp.ResourceSchemas["orchestra_environment"])
+	config := environmentValue(t, objType, "production", "500")
+
+	created := planAndApply(t, server, "orchestra_environment", objType, tftypes.NewValue(objType, nil), config, comp)
+
+	createdDV, err := tfprotov6.NewDynamicValue(objType, created)
+	if err != nil {
+		t.Fatalf("created state: %v", err)
+	}
+	readResp, err := server.ReadResource(ctx, &tfprotov6.ReadResourceRequest{
+		TypeName: "orchestra_environment", CurrentState: &createdDV,
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	failOnError(t, "read", readResp.Diagnostics)
+	refreshed, err := readResp.NewState.Unmarshal(objType)
+	if err != nil {
+		t.Fatalf("unmarshal refreshed state: %v", err)
+	}
+	var prior map[string]tftypes.Value
+	if err := refreshed.As(&prior); err != nil {
+		t.Fatalf("decode refreshed state: %v", err)
+	}
+	if !prior["default_env"].Equal(tftypes.NewValue(tftypes.Bool, true)) {
+		t.Fatalf("default_env is %s after refresh, want Orchestra's true", prior["default_env"])
+	}
+
+	plan := func(config tftypes.Value) map[string]tftypes.Value {
+		t.Helper()
+		priorDV, err := tfprotov6.NewDynamicValue(objType, refreshed)
+		if err != nil {
+			t.Fatalf("prior state: %v", err)
+		}
+		configDV, err := tfprotov6.NewDynamicValue(objType, config)
+		if err != nil {
+			t.Fatalf("config: %v", err)
+		}
+		proposedDV, err := tfprotov6.NewDynamicValue(objType, proposedNew(refreshed, config, comp))
+		if err != nil {
+			t.Fatalf("proposed state: %v", err)
+		}
+		planResp, err := server.PlanResourceChange(ctx, &tfprotov6.PlanResourceChangeRequest{
+			TypeName: "orchestra_environment", PriorState: &priorDV, ProposedNewState: &proposedDV, Config: &configDV,
+		})
+		if err != nil {
+			t.Fatalf("PlanResourceChange: %v", err)
+		}
+		failOnError(t, "plan", planResp.Diagnostics)
+		planned, err := planResp.PlannedState.Unmarshal(objType)
+		if err != nil {
+			t.Fatalf("unmarshal planned state: %v", err)
+		}
+		var attrs map[string]tftypes.Value
+		if err := planned.As(&attrs); err != nil {
+			t.Fatalf("decode planned state: %v", err)
+		}
+		return attrs
+	}
+
+	for name, got := range plan(config) {
+		if !got.Equal(prior[name]) {
+			t.Errorf("unchanged configuration plans %s: %s -> %s", name, prior[name], got)
+		}
+	}
+
+	// PATCH sends the planned default_env, so any other value would demote the environment.
+	edited := plan(environmentValue(t, objType, "production", "1000"))
+	for _, name := range []string{"default_env", "account_id", "allowed_branches", "allow_unpublished_pipelines"} {
+		if !edited[name].Equal(prior[name]) {
+			t.Errorf("editing values plans %s: %s -> %s", name, prior[name], edited[name])
+		}
+	}
 }
 
 // TestEnvironmentUpdateReadAndDelete exercises the half of the lifecycle that

@@ -63,10 +63,8 @@ func (r *EnvironmentResource) Schema(ctx context.Context, _ resource.SchemaReque
 				Description: "Environment name.",
 			},
 			"values": schema.MapNestedAttribute{
-				Required:            true,
-				Sensitive:           true,
-				Description:         "Environment values keyed by variable name. Marked sensitive because integration_credential entries carry secrets.",
-				MarkdownDescription: "Environment values keyed by variable name. The whole map is marked sensitive because `integration_credential` entries carry secrets.",
+				Required:    true,
+				Description: "Environment values keyed by variable name.",
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"type": schema.StringAttribute{

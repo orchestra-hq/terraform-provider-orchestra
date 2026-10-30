@@ -162,8 +162,7 @@ func (d *EnvironmentDataSource) Configure(ctx context.Context, req datasource.Co
 func (d *EnvironmentDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	_ = ctx
 	resp.Schema = schema.Schema{
-		Description:         "A single environment, including its values.",
-		MarkdownDescription: "A single environment, including its values. Values are marked sensitive because they can carry integration credentials.",
+		Description: "A single environment, including its values.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Required:    true,
@@ -185,7 +184,6 @@ func (d *EnvironmentDataSource) Schema(ctx context.Context, _ datasource.SchemaR
 			"updated_at": schema.StringAttribute{Computed: true, Description: "When the environment was last updated."},
 			"values": schema.MapNestedAttribute{
 				Computed:    true,
-				Sensitive:   true,
 				Description: "Environment values keyed by variable name.",
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{

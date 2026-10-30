@@ -28,3 +28,13 @@ cover.out
 
 # make spec-drift
 .tmp-spec/
+
+# Terraform working files; state and tfvars can hold secrets.
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+.env

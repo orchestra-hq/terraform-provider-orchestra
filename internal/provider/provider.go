@@ -2,6 +2,8 @@ package provider
 
 import (
 	"context"
+	"net"
+	"net/url"
 	"os"
 	"strings"
 
@@ -105,6 +107,16 @@ func (p *orchestraProvider) Configure(ctx context.Context, req tfprovider.Config
 		return
 	}
 
+	if baseURL != "" && !secureBaseURL(baseURL) {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("base_url"),
+			"Insecure Orchestra base URL",
+			"The API key is sent as a bearer token with every request, so `base_url` (or "+envBaseURL+") must be an "+
+				"https:// URL. Plain http:// is accepted only for localhost.",
+		)
+		return
+	}
+
 	c := client.New(
 		apiKey,
 		baseURL,
@@ -115,6 +127,27 @@ func (p *orchestraProvider) Configure(ctx context.Context, req tfprovider.Config
 	// Expose the shared API client to all datasources and resources.
 	resp.DataSourceData = c
 	resp.ResourceData = c
+}
+
+// secureBaseURL reports whether the API key may be sent to raw: over https, or
+// over plain http to a loopback address such as a local stub.
+func secureBaseURL(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	switch u.Scheme {
+	case "https":
+		return true
+	case "http":
+		host := u.Hostname()
+		if host == "localhost" {
+			return true
+		}
+		ip := net.ParseIP(host)
+		return ip != nil && ip.IsLoopback()
+	}
+	return false
 }
 
 func firstNonEmpty(values ...string) string {

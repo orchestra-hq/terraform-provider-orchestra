@@ -26,9 +26,6 @@ cover.out
 # Local credentials for acceptance tests. Never committed.
 .env.local
 
-# make spec-drift
-.tmp-spec/
-
 # Terraform working files; state and tfvars can hold secrets.
 .terraform/
 .terraform.lock.hcl

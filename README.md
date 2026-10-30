@@ -144,7 +144,6 @@ TMPDIR=/tmp/tfdocs make docs
 | Package | Covers |
 |---|---|
 | `internal/apicontract` | Every `(method, path)` and query parameter in the provider's source exists in the committed spec it targets, and the generated enums match the spec. Both directions are checked: call sites are discovered by scanning `internal/`, so calling something unlisted fails the build. Every spec operation is either called by the provider or classified in `coverage.yaml`, so a new endpoint cannot pass unnoticed, and so is every property of a request body the provider sends. |
-| `tools/specdrift` | The tool behind `make spec-drift`: structural comparison of two specs, ignoring prose, with exit statuses the scheduled workflow branches on. |
 | `internal/client` | Auth and account headers, 404 detection, retry and backoff, pagination across both list shapes. |
 | `internal/provider` | Provider schema validity, resource and data source registration, configure-time errors. Every type has an example, and `terraform validate` passes over `examples/` against a locally built provider; that needs the Terraform CLI, which it downloads if absent, and no API key. |
 | `internal/resources/pipeline` | Definition round-trip through the wire format, the task-group union split, and JSON encoding edge cases. |
@@ -194,21 +193,11 @@ schemas are safe to regenerate.
 The docs site publishes three specs, each a different API at its own base URL. The
 provider talks to two of them, `engine.yaml` (the Engine API) and `agents.yaml` (the
 Agents API), committed under `internal/apicontract/` next to the tests that read them.
-`admin.yaml` is only checked for new endpoints.
+The provider does not call the third, `admin.yaml`.
 
 ```bash
-make spec-drift   # read-only: what changed in the live specs since the committed ones
+make openapi   # refreshes both committed specs, regenerates internal/enums
 ```
-
-It compares structure and ignores prose, because a refresh once rewrote ~1300 lines
-of descriptions and none of it mattered. What does matter it sorts into *needs
-attention* (a new endpoint, a tightened constraint, a changed shape), *worth a look*
-and *routine*.
-
-A weekly workflow (`.github/workflows/spec-sync.yml`) runs the same comparison and
-opens a single **Spec sync** pull request when something matters. It never merges,
-and it opens nothing when nothing the provider models has changed. A failed download
-fails the run instead of reporting "no changes": the spec has moved once already.
 
 `internal/apicontract/coverage.yaml` records every endpoint the provider chooses not
 to implement, with the reason. An endpoint that is neither implemented nor listed

@@ -40,8 +40,8 @@ func loadCoverage(t *testing.T) map[string]map[string]coverageCategory {
 	return out
 }
 
-// TestEverySpecOperationIsClassified checks each committed spec. A spec that is
-// only inventoried, like admin, is checked by the weekly drift report instead.
+// TestEverySpecOperationIsClassified checks each committed spec. admin is not
+// committed, so its entries in coverage.yaml are not checked here.
 func TestEverySpecOperationIsClassified(t *testing.T) {
 	coverage := loadCoverage(t)
 	for _, s := range apiSpecs {

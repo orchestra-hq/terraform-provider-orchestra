@@ -25,6 +25,9 @@ This guide renders one pipeline per region from a single template. It builds on
 `templatefile` renders the template once for each region, `yamldecode` parses the result, and `for_each` creates a
 pipeline from each, with an alias of `sales_eu` or `sales_us`. Adding a region to `local.regions` adds a pipeline.
 
+Replace the connection IDs and connectors in `local.regions` with your own. The plan has Orchestra check each
+rendered pipeline, and warns about a connection that does not exist in the workspace.
+
 ## Template syntax
 
 - **`${name}`** inserts a value passed to `templatefile`. Any Terraform expression works, such as `${upper(region)}`.

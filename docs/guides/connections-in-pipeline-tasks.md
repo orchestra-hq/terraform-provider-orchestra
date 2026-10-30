@@ -89,7 +89,8 @@ resource "orchestra_pipeline" "daily_sales" {
 ```
 
 - **`check_orders`** references a connection that Terraform creates. Terraform creates the connection first, and a
-  change that replaces it updates the task too.
+  change that replaces it updates the task too. Until the connection exists, Orchestra's check during the plan cannot
+  see it, so the first plan may warn that the task has no connection.
 - **`ingest`** uses a connection made in the Orchestra UI. Integrations that sign in through a browser (OAuth) can only
   be connected there. `orchestra_integration_connections` lists the connections for an integration, and the map in
   `locals` picks one by its name. The plan fails if no connection has that name, or if more than one does, so a

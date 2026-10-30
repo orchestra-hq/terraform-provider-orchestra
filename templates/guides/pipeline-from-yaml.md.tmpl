@@ -25,8 +25,11 @@ sync, not by Terraform.
 {{ tffile "examples/guides/pipeline-from-yaml/main.tf" }}
 
 Run `terraform apply`. From then on, a change to the YAML file shows up in `terraform plan` as a change to the
-pipeline's `data`. The plan also has Orchestra check the definition, and warns with Orchestra's reasons if it would
-be rejected.
+pipeline's `data`.
+
+The plan also has Orchestra check the definition, and shows what it finds as warnings, such as a task whose
+connection does not exist. The example's tasks set no `connection`, so they use the workspace's default Fivetran and
+dbt Core connections, and Orchestra warns *No default connection was found* for an integration that has none.
 
 ## How the YAML maps to `data`
 

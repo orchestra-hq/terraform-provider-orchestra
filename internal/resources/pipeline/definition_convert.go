@@ -368,7 +368,7 @@ func configurationToWire(c *configurationTF) *wireConfiguration {
 		return nil
 	}
 	out := &wireConfiguration{
-		Retries:    int64PtrOrNil(c.Retries),
+		Retries:    parameterizedIntStr(c.Retries),
 		RetryDelay: int64PtrOrNil(c.RetryDelay),
 		Timeout:    int64PtrOrNil(c.Timeout),
 	}
@@ -622,7 +622,7 @@ func configurationFromWire(c *wireConfiguration) *configurationTF {
 		return nil
 	}
 	out := &configurationTF{
-		Retries:    tfInt64(c.Retries),
+		Retries:    tfParameterizedIntStr(c.Retries),
 		RetryDelay: tfInt64(c.RetryDelay),
 		Timeout:    tfInt64(c.Timeout),
 	}

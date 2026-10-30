@@ -499,9 +499,10 @@ func operationMetadataSchema() schema.NestedAttributeObject {
 
 func configurationAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"retries": schema.Int64Attribute{
-			Optional:    true,
-			Description: "Number of times to retry on failure.",
+		"retries": schema.StringAttribute{
+			Optional:            true,
+			Description:         "Number of times to retry on failure, as a number or a template expression.",
+			MarkdownDescription: "Number of times to retry on failure. The API accepts an integer or a `${{ }}` template, so Terraform carries both as a string (for example `\"2\"`).",
 		},
 		"retry_delay": schema.Int64Attribute{
 			Optional:    true,

@@ -101,13 +101,17 @@ func pipelineStub(t *testing.T) (*stub, string) {
 	paused := false
 	// Set by POST /pipelines and the folder endpoint; PUT /pipelines has none.
 	folder := ""
+	// Every save is a new version, published only when the request says so.
+	latestVersion := 0
+	var publishedVersion *int
 
 	response := func() map[string]any {
 		out := map[string]any{
 			"id": "33333333-3333-3333-3333-333333333333", "name": "daily_sales",
 			"yamlPath": "", "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-02T00:00:00Z",
 			"paused": paused, "numTasks": 1, "alias": storedAlias,
-			"storageProvider": "ORCHESTRA", "latestVersionNumber": 1, "publishedVersionNumber": 1,
+			"storageProvider": "ORCHESTRA", "latestVersionNumber": latestVersion,
+			"publishedVersionNumber": publishedVersion,
 		}
 		if stored != nil {
 			out["data"] = stored
@@ -143,6 +147,11 @@ func pipelineStub(t *testing.T) (*stub, string) {
 			}
 			if r.Method == http.MethodPost {
 				folder, _ = body["folder"].(string)
+			}
+			latestVersion++
+			if body["published"] == true {
+				v := latestVersion
+				publishedVersion = &v
 			}
 			code := http.StatusCreated
 			if r.Method == http.MethodPut {
@@ -1594,74 +1603,80 @@ func TestPipelineValidateConfig(t *testing.T) {
 	})
 }
 
-// TestPipelineImport checks that importing by alias produces a state the next
-// plan can work from, including the definition, which lives behind a second
-// request to GET /pipelines/data.
+// TestPipelineImport checks an import by alias gives a state the next plan can use, including the
+// definition, fetched by a second request, and `published`, which the API does not return.
 func TestPipelineImport(t *testing.T) {
-	calls, baseURL := pipelineStub(t)
-	server, schemaResp := newServer(t, baseURL)
-	ctx := context.Background()
+	for name, published := range map[string]bool{"published": true, "draft": false} {
+		t.Run(name, func(t *testing.T) {
+			calls, baseURL := pipelineStub(t)
+			server, schemaResp := newServer(t, baseURL)
+			ctx := context.Background()
 
-	objType := schemaResp.ResourceSchemas["orchestra_pipeline"].ValueType().(tftypes.Object)
+			objType := schemaResp.ResourceSchemas["orchestra_pipeline"].ValueType().(tftypes.Object)
 
-	// Create first so the stub holds a definition to hand back.
-	config := buildValue(t, objType, map[string]any{
-		"alias": "importable", "published": true,
-		"data": map[string]any{
-			"name": "importable",
-			"tasks": map[string]any{"t1": map[string]any{
-				"integration":     "FIVETRAN",
-				"integration_job": "FIVETRAN_SYNC_ALL",
-				"parameters":      `{"connector_id":"x"}`,
-			}},
-		},
-	})
-	planAndApply(t, server, "orchestra_pipeline", objType, tftypes.NewValue(objType, nil), config,
-		computedAttrs(schemaResp.ResourceSchemas["orchestra_pipeline"]))
+			// Create first so the stub holds a definition to hand back.
+			config := buildValue(t, objType, map[string]any{
+				"alias": "importable", "published": published,
+				"data": map[string]any{
+					"name": "importable",
+					"tasks": map[string]any{"t1": map[string]any{
+						"integration":     "FIVETRAN",
+						"integration_job": "FIVETRAN_SYNC_ALL",
+						"parameters":      `{"connector_id":"x"}`,
+					}},
+				},
+			})
+			planAndApply(t, server, "orchestra_pipeline", objType, tftypes.NewValue(objType, nil), config,
+				computedAttrs(schemaResp.ResourceSchemas["orchestra_pipeline"]))
 
-	importResp, err := server.ImportResourceState(ctx, &tfprotov6.ImportResourceStateRequest{
-		TypeName: "orchestra_pipeline", ID: "importable",
-	})
-	if err != nil {
-		t.Fatalf("ImportResourceState: %v", err)
-	}
-	failOnError(t, "import", importResp.Diagnostics)
-	if len(importResp.ImportedResources) != 1 {
-		t.Fatalf("got %d imported resources, want 1", len(importResp.ImportedResources))
-	}
+			importResp, err := server.ImportResourceState(ctx, &tfprotov6.ImportResourceStateRequest{
+				TypeName: "orchestra_pipeline", ID: "importable",
+			})
+			if err != nil {
+				t.Fatalf("ImportResourceState: %v", err)
+			}
+			failOnError(t, "import", importResp.Diagnostics)
+			if len(importResp.ImportedResources) != 1 {
+				t.Fatalf("got %d imported resources, want 1", len(importResp.ImportedResources))
+			}
 
-	imported, err := importResp.ImportedResources[0].State.Unmarshal(objType)
-	if err != nil {
-		t.Fatalf("unmarshal imported state: %v", err)
-	}
+			imported, err := importResp.ImportedResources[0].State.Unmarshal(objType)
+			if err != nil {
+				t.Fatalf("unmarshal imported state: %v", err)
+			}
 
-	importedDV, err := tfprotov6.NewDynamicValue(objType, imported)
-	if err != nil {
-		t.Fatalf("imported state: %v", err)
-	}
-	readResp, err := server.ReadResource(ctx, &tfprotov6.ReadResourceRequest{
-		TypeName: "orchestra_pipeline", CurrentState: &importedDV,
-	})
-	if err != nil {
-		t.Fatalf("ReadResource after import: %v", err)
-	}
-	failOnError(t, "read after import", readResp.Diagnostics)
+			importedDV, err := tfprotov6.NewDynamicValue(objType, imported)
+			if err != nil {
+				t.Fatalf("imported state: %v", err)
+			}
+			readResp, err := server.ReadResource(ctx, &tfprotov6.ReadResourceRequest{
+				TypeName: "orchestra_pipeline", CurrentState: &importedDV,
+			})
+			if err != nil {
+				t.Fatalf("ReadResource after import: %v", err)
+			}
+			failOnError(t, "read after import", readResp.Diagnostics)
 
-	refreshed, err := readResp.NewState.Unmarshal(objType)
-	if err != nil {
-		t.Fatalf("unmarshal refreshed state: %v", err)
-	}
-	var attrs map[string]tftypes.Value
-	if err := refreshed.As(&attrs); err != nil {
-		t.Fatalf("decode refreshed state: %v", err)
-	}
-	for _, field := range []string{"id", "alias", "data", "name"} {
-		if attrs[field].IsNull() {
-			t.Errorf("%s is null after import+refresh; the next plan would not be empty", field)
-		}
-	}
-	if calls.find(http.MethodGet, "/pipelines/data") == nil {
-		t.Errorf("import+refresh never fetched the definition; calls were %v", calls.paths())
+			refreshed, err := readResp.NewState.Unmarshal(objType)
+			if err != nil {
+				t.Fatalf("unmarshal refreshed state: %v", err)
+			}
+			var attrs map[string]tftypes.Value
+			if err := refreshed.As(&attrs); err != nil {
+				t.Fatalf("decode refreshed state: %v", err)
+			}
+			for _, field := range []string{"id", "alias", "data", "name"} {
+				if attrs[field].IsNull() {
+					t.Errorf("%s is null after import+refresh; the next plan would not be empty", field)
+				}
+			}
+			if got := attrs["published"]; !got.Equal(tftypes.NewValue(tftypes.Bool, published)) {
+				t.Errorf("published is %s after import, want %t", got, published)
+			}
+			if calls.find(http.MethodGet, "/pipelines/data") == nil {
+				t.Errorf("import+refresh never fetched the definition; calls were %v", calls.paths())
+			}
+		})
 	}
 }
 

@@ -1,0 +1,103 @@
+---
+page_title: "Connection credentials in AWS Secrets Manager"
+subcategory: ""
+description: |-
+  Connect Orchestra to AWS Secrets Manager, then create a connection whose credentials Orchestra reads from a secret there.
+---
+
+# Connection credentials in AWS Secrets Manager
+
+Orchestra can read a connection's credentials from
+[AWS Secrets Manager](https://docs.getorchestra.io/docs/integrations/aws_secrets_manager) rather than storing them
+itself. This guide creates the connection to Secrets Manager, then a Snowflake connection that reads its credentials
+from a secret through it. No credential passes through Terraform or its state.
+
+## Before you start
+
+- An IAM role that Orchestra can assume, with `secretsmanager:GetSecretValue` on the secret. The
+  [AWS Secrets Manager page](https://docs.getorchestra.io/docs/integrations/aws_secrets_manager) gives the trust policy
+  and permissions. An IAM user also works: set `aws_auth_type = "IAM_USER"` with `aws_access_key_id` and
+  `aws_secret_access_key`, and pass them through `parameters_wo`.
+- A secret whose value is a JSON object holding the connection's parameters, keyed by the field IDs under
+  **Authentication parameters** on the integration's documentation page. For
+  [Snowflake](https://docs.getorchestra.io/docs/integrations/snowflake), for example:
+
+  ```json
+  {
+    "snowflake_auth_type": "USERNAME_PASSWORD",
+    "snowflake_user": "ORCHESTRA_SVC",
+    "snowflake_password": "...",
+    "snowflake_account": "xy12345.eu-west-1",
+    "snowflake_role": "TRANSFORMER",
+    "snowflake_warehouse": "TRANSFORMING",
+    "snowflake_database": "ANALYTICS",
+    "snowflake_schema": "PUBLIC"
+  }
+  ```
+
+## Configuration
+
+```terraform
+# Keep a Snowflake connection's credentials in AWS Secrets Manager, where
+# Orchestra reads them each time it uses the connection.
+
+variable "orchestra_role_arn" {
+  type        = string
+  description = "IAM role Orchestra assumes; it needs secretsmanager:GetSecretValue on the secret."
+}
+
+variable "snowflake_secret_arn" {
+  type        = string
+  description = "ARN of the secret holding the Snowflake connection's parameters as JSON."
+}
+
+# The connection to Secrets Manager itself. An IAM role means no AWS secret ever
+# passes through Terraform.
+resource "orchestra_integration_connection" "secrets_manager" {
+  integration = "AWS_SECRETS_MANAGER"
+  name        = "AWS Secrets Manager"
+
+  parameters = jsonencode({
+    aws_auth_type = "IAM_ROLE"
+    aws_role_arn  = var.orchestra_role_arn
+    aws_region    = "eu-west-1"
+  })
+}
+
+# Snowflake, with its credentials read from the secret. The parameters say where
+# the secret is, not what is in it, so they hold nothing sensitive.
+resource "orchestra_integration_connection" "snowflake" {
+  integration      = "SNOWFLAKE"
+  name             = "Snowflake production"
+  credential_store = "AWS_SECRETS_MANAGER"
+
+  parameters = jsonencode({
+    connection_id = orchestra_integration_connection.secrets_manager.id
+    secret_arn    = var.snowflake_secret_arn
+  })
+}
+```
+
+Set `orchestra_role_arn` and `snowflake_secret_arn`, and `aws_region` to the region your secrets are in, then run
+`terraform apply`.
+
+## How it fits together
+
+With `credential_store = "AWS_SECRETS_MANAGER"`, a connection's `parameters` stop being its credentials and instead
+say where to find them:
+
+- `connection_id`: the Secrets Manager connection to read the secret with.
+- `secret_arn`: the secret holding the credentials.
+
+Orchestra reads the secret when the connection is created and rejects the connection if it can't read it or the JSON
+does not match the integration's parameters. After that it reads the latest version each time the connection is used,
+so rotating the secret in AWS needs no change in Orchestra or Terraform.
+
+Any integration can read its credentials this way: change `integration` and put that integration's parameters in the
+secret. One Secrets Manager connection can serve them all, as long as its role can read each secret.
+
+## Notes
+
+- The AWS Secrets Manager integration is in beta, and may not be visible to every workspace yet.
+- Tasks reference the Snowflake connection by `orchestra_integration_connection.snowflake.id` as with any other
+  connection.

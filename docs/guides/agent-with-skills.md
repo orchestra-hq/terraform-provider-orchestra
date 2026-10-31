@@ -13,8 +13,9 @@ uses both.
 
 ## Before you start
 
-- For the Git-backed skill, a [Git connection](https://docs.getorchestra.io/docs/git-control-and-ci-cd/) to the
-  repository holding it, and the skill file committed on its default branch.
+- For the Git-backed skill, a [Git connection](https://docs.getorchestra.io/docs/git-control-and-ci-cd/) that can
+  read [orchestra-hq/orchestra-skills](https://github.com/orchestra-hq/orchestra-skills), or your own repository
+  holding the skill.
 
 ## Configuration
 
@@ -29,13 +30,13 @@ resource "orchestra_skill" "triage" {
   markdown = file("${path.module}/triage.md")
 }
 
-# Synced from Git: Orchestra keeps it up to date with the branch, so a merge
-# changes what the agent knows without a Terraform apply.
-resource "orchestra_skill" "dbt_conventions" {
+# Synced from Orchestra's public skills repository: Orchestra keeps it up to
+# date with the branch, so a merge changes what the agent knows without an apply.
+resource "orchestra_skill" "fix_dbt_task" {
   git = {
-    repository     = "acme/analytics"
+    repository     = "orchestra-hq/orchestra-skills"
     default_branch = "main"
-    path           = "skills/dbt-conventions.md"
+    path           = "skills/orchestra/skills/fix-pipeline-dbt-task/SKILL.md"
   }
 }
 
@@ -48,7 +49,7 @@ resource "orchestra_agent" "triage" {
 
   skill_ids = [
     orchestra_skill.triage.id,
-    orchestra_skill.dbt_conventions.id,
+    orchestra_skill.fix_dbt_task.id,
   ]
 }
 ```
@@ -68,20 +69,19 @@ description: Find why a pipeline failed and who owns the fix. Use when asked abo
 3. Say what broke, why, and which team owns it.
 ```
 
-Replace `acme/analytics` and the path with your repository and skill file, then run `terraform apply`.
+The Git-backed skill is `fix-pipeline-dbt-task` from Orchestra's public skills repository. To use your own, point
+`repository` and `path` at it. Then run `terraform apply`.
 
 ## How it fits together
 
 - **`orchestra_skill.triage`** holds its document in the configuration, read from `triage.md`. Edit the file and apply
   to update it.
-- **`orchestra_skill.dbt_conventions`** is synced from a file in the repository. Orchestra keeps it up to date with
+- **`orchestra_skill.fix_dbt_task`** is synced from a file in the repository. Orchestra keeps it up to date with
   the branch, so merging a change to the file updates the skill without an apply. Changing `git` replaces the skill.
 - **`orchestra_agent.triage`** lists both in `skill_ids`. Orchestra's own skills can be added alongside them by ID,
   using the `orchestra_skills` data source.
 
 ## Notes
 
-- Replacing a skill detaches it from its agents. Because the agent references the skill's `id`, the same apply
-  attaches the new one.
 - Leaving `skill_ids` unset leaves the agent's skills as they are, so skills attached in the Orchestra UI are kept.
   Once set, Terraform manages the whole list.

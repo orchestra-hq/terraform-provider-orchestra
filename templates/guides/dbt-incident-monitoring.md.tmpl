@@ -15,8 +15,8 @@ plus a second monitor for dbt runs that fail before any model runs.
 
 {{ tffile "examples/guides/dbt-incident-monitoring/main.tf" }}
 
-Set `production_environment_id` to your production environment's ID (the `orchestra_environments` data source lists
-them), change the Slack channel, then run `terraform apply`.
+Change `"production"` to the name of your production environment, or match on `e.default_env` to use the workspace's
+default environment. Change the Slack channel, then run `terraform apply`.
 
 ## How it fits together
 

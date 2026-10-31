@@ -6,13 +6,13 @@ resource "orchestra_skill" "triage" {
   markdown = file("${path.module}/triage.md")
 }
 
-# Synced from Git: Orchestra keeps it up to date with the branch, so a merge
-# changes what the agent knows without a Terraform apply.
-resource "orchestra_skill" "dbt_conventions" {
+# Synced from Orchestra's public skills repository: Orchestra keeps it up to
+# date with the branch, so a merge changes what the agent knows without an apply.
+resource "orchestra_skill" "fix_dbt_task" {
   git = {
-    repository     = "acme/analytics"
+    repository     = "orchestra-hq/orchestra-skills"
     default_branch = "main"
-    path           = "skills/dbt-conventions.md"
+    path           = "skills/orchestra/skills/fix-pipeline-dbt-task/SKILL.md"
   }
 }
 
@@ -25,6 +25,6 @@ resource "orchestra_agent" "triage" {
 
   skill_ids = [
     orchestra_skill.triage.id,
-    orchestra_skill.dbt_conventions.id,
+    orchestra_skill.fix_dbt_task.id,
   ]
 }

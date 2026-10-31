@@ -98,6 +98,5 @@ secret. One Secrets Manager connection can serve them all, as long as its role c
 
 ## Notes
 
-- The AWS Secrets Manager integration is in beta, and may not be visible to every workspace yet.
 - Tasks reference the Snowflake connection by `orchestra_integration_connection.snowflake.id` as with any other
   connection.

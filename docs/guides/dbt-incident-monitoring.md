@@ -17,9 +17,13 @@ plus a second monitor for dbt runs that fail before any model runs.
 # Raise incidents for dbt failures, one per broken model and what it breaks
 # downstream, and alert the analytics engineers.
 
-variable "production_environment_id" {
-  type        = string
-  description = "Only failures in this environment raise incidents."
+data "orchestra_environments" "all" {}
+
+locals {
+  # By name; to use the workspace's default environment instead, match on e.default_env.
+  production_environment_id = one([
+    for e in data.orchestra_environments.all.environments : e.id if e.name == "production"
+  ])
 }
 
 # One per workspace. Settings left out keep their current value.
@@ -28,7 +32,7 @@ resource "orchestra_incident_settings" "this" {
   auto_resolve_on_success = true
   auto_diagnose_incidents = true
 
-  environment_ids = [var.production_environment_id]
+  environment_ids = [local.production_environment_id]
 
   # Runs on a feature branch shouldn't page anyone.
   require_default_branch_or_published_version = true
@@ -96,8 +100,8 @@ resource "orchestra_monitor_order" "this" {
 }
 ```
 
-Set `production_environment_id` to your production environment's ID (the `orchestra_environments` data source lists
-them), change the Slack channel, then run `terraform apply`.
+Change `"production"` to the name of your production environment, or match on `e.default_env` to use the workspace's
+default environment. Change the Slack channel, then run `terraform apply`.
 
 ## How it fits together
 

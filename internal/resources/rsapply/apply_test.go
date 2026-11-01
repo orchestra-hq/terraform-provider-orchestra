@@ -2772,3 +2772,49 @@ func TestPipelineEmptyFolderAtRootIsANoOp(t *testing.T) {
 		t.Errorf("state is not at the root: %s", state)
 	}
 }
+
+// TestPipelineImportRefusesGitBacked: git sync owns the file, so the next apply
+// would be a second writer to it.
+func TestPipelineImportRefusesGitBacked(t *testing.T) {
+	s := &stub{}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /pipeline", func(w http.ResponseWriter, r *http.Request) {
+		s.record(r)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"77777777-7777-7777-7777-777777777777","name":"synced","alias":"synced",
+			"storageProvider":"GITHUB","repository":"acme/pipelines","defaultBranch":"main"}`))
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		s.record(r)
+		t.Errorf("unexpected request to %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	server, _ := newServer(t, srv.URL)
+	ctx := context.Background()
+
+	importResp, err := server.ImportResourceState(ctx, &tfprotov6.ImportResourceStateRequest{
+		TypeName: "orchestra_pipeline", ID: "synced",
+	})
+	if err != nil {
+		t.Fatalf("ImportResourceState: %v", err)
+	}
+	failOnError(t, "import", importResp.Diagnostics)
+
+	imported := importResp.ImportedResources[0].State
+	readResp, err := server.ReadResource(ctx, &tfprotov6.ReadResourceRequest{
+		TypeName: "orchestra_pipeline", CurrentState: imported,
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	var refused bool
+	for _, d := range readResp.Diagnostics {
+		refused = refused || (d.Severity == tfprotov6.DiagnosticSeverityError && d.Summary == "Git-backed pipeline")
+	}
+	if !refused {
+		t.Errorf("importing a GITHUB pipeline was not refused; diagnostics were %v", readResp.Diagnostics)
+	}
+}

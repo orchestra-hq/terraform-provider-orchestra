@@ -438,6 +438,15 @@ func (r *PipelineResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
+	// Git sync owns a git-backed pipeline; Read runs after every import, so this refuses those too.
+	if api.StorageProvider != nil && *api.StorageProvider != "ORCHESTRA" {
+		resp.Diagnostics.AddError("Git-backed pipeline",
+			fmt.Sprintf("Pipeline %s is stored in %s and kept in sync by Orchestra, so Terraform cannot manage it. "+
+				"Change it in its repository. To refer to it from Terraform, use the orchestra_pipeline data source; "+
+				"if it is already in state, remove it with `terraform state rm`.", s, *api.StorageProvider))
+		return
+	}
+
 	def, err := r.getDefinition(ctx, s)
 	if err != nil {
 		if !errors.Is(err, client.ErrNotFound) {
@@ -570,7 +579,7 @@ func (r *PipelineResource) ImportState(ctx context.Context, req resource.ImportS
 }
 
 // apply copies an API response onto the model, leaving configured-only fields
-// (published, working_branch) as the caller set them.
+// (published) as the caller set them.
 func (r *PipelineResource) apply(ctx context.Context, m *PipelineModel, api pipelineResponse, diags *diag.Diagnostics) {
 	_ = ctx
 

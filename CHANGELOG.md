@@ -28,6 +28,9 @@ anyone building from source should expect to rewrite their configuration.
 - A paginated read could loop without bound against a server reporting a `total` it never delivered.
 - An `orchestra_monitor` declared without an `action` block aborted the apply: the API returns a default action
   for every monitor, so the plan's null never matched.
+- `orchestra_pipeline` accepted an import of a git-backed pipeline, after which every apply wrote to a definition
+  Orchestra's git sync owns. Importing or refreshing one now fails and points at the `orchestra_pipeline` data
+  source.
 
 ### Added
 

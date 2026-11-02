@@ -322,7 +322,9 @@ func (r *PipelineResource) ModifyPlan(ctx context.Context, req resource.ModifyPl
 		var state PipelineModel
 		if diags := req.State.Get(ctx, &state); !diags.HasError() {
 			keepUnchangedComputed(&plan, state)
-			resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("name"), plan.Name)...)
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("num_tasks"), plan.NumTasks)...)
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("published_version_number"), plan.PublishedVersionNumber)...)
 		}
 	}
 

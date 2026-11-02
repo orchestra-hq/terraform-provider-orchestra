@@ -34,7 +34,9 @@ resource "orchestra_monitor" "flaky_ingestion" {
     operation_failures_only = true
   }
 
-  group_by = ["connection"]
+  # A threshold monitor counts events across the whole monitor, so the API
+  # requires it to group by monitor.
+  group_by = ["monitor"]
 
   trigger = {
     count  = 5

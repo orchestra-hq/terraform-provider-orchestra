@@ -67,7 +67,7 @@ resource "orchestra_pipeline" "daily_sales" {
 
     schedule = [{
       name     = "nightly"
-      cron     = "cron(0 2 * * ? *)"
+      cron     = "0 2 * * ? *"
       timezone = "Europe/London"
     }]
 

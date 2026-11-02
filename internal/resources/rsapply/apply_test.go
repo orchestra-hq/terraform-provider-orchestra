@@ -2397,6 +2397,52 @@ func TestPipelinePauseOnlySkipsDefinitionUpdate(t *testing.T) {
 	}
 }
 
+// A schedule-only edit cannot change name or num_tasks, so neither may plan as unknown.
+func TestPipelineCronChangeKeepsUnaffectedComputedValues(t *testing.T) {
+	_, baseURL := pipelineStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	objType := schemaResp.ResourceSchemas["orchestra_pipeline"].ValueType().(tftypes.Object)
+	comp := computedAttrs(schemaResp.ResourceSchemas["orchestra_pipeline"])
+
+	config := func(cron string) tftypes.Value {
+		return buildValue(t, objType, map[string]any{
+			"alias":     "daily_sales",
+			"published": true,
+			"data": map[string]any{
+				"name": "Daily sales",
+				"tasks": map[string]any{
+					"ingest": map[string]any{"integration": "FIVETRAN", "integration_job": "FIVETRAN_SYNC_ALL", "parameters": `{"connector_id":"abc"}`},
+				},
+				"schedule": []any{map[string]any{"name": "nightly", "cron": cron, "timezone": "Europe/London"}},
+			},
+		})
+	}
+	created := planAndApply(t, server, "orchestra_pipeline", objType, tftypes.NewValue(objType, nil), config("0 2 * * ? *"), comp)
+
+	priorDV, _ := tfprotov6.NewDynamicValue(objType, created)
+	configDV, _ := tfprotov6.NewDynamicValue(objType, config("0 3 * * ? *"))
+	proposedDV, _ := tfprotov6.NewDynamicValue(objType, proposedNew(created, config("0 3 * * ? *"), comp))
+	planResp, err := server.PlanResourceChange(context.Background(), &tfprotov6.PlanResourceChangeRequest{
+		TypeName: "orchestra_pipeline", PriorState: &priorDV, ProposedNewState: &proposedDV, Config: &configDV,
+	})
+	if err != nil {
+		t.Fatalf("PlanResourceChange: %v", err)
+	}
+	failOnError(t, "plan", planResp.Diagnostics)
+	planned, err := planResp.PlannedState.Unmarshal(objType)
+	if err != nil {
+		t.Fatalf("unmarshal planned state: %v", err)
+	}
+	for _, name := range []string{"name", "num_tasks"} {
+		v, _, _ := tftypes.WalkAttributePath(planned, tftypes.NewAttributePath().WithAttributeName(name))
+		if !v.(tftypes.Value).IsKnown() {
+			t.Errorf("%s is planned as unknown for a cron-only change", name)
+		}
+	}
+
+	planAndApply(t, server, "orchestra_pipeline", objType, created, config("0 3 * * ? *"), comp)
+}
+
 // incidentSettingsStub is a workspace that already has incident settings, some
 // of them away from the spec's defaults. PATCH merges, as the spec says: an
 // omitted setting keeps its stored value.

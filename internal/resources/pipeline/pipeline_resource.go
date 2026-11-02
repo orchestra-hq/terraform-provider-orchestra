@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -302,8 +304,8 @@ func (r *PipelineResource) ValidateConfig(ctx context.Context, req resource.Vali
 // naming an environment created in the same apply would otherwise fail a plan
 // that is actually fine — and there would be no way to opt out.
 func (r *PipelineResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
-	if r.client == nil || req.Plan.Raw.IsNull() {
-		// No client during early validation; a null plan means destroy.
+	if req.Plan.Raw.IsNull() {
+		// Destroy.
 		return
 	}
 
@@ -313,6 +315,21 @@ func (r *PipelineResource) ModifyPlan(ctx context.Context, req resource.ModifyPl
 		return
 	}
 	if plan.Data == nil {
+		return
+	}
+
+	if !req.State.Raw.IsNull() {
+		var state PipelineModel
+		if diags := req.State.Get(ctx, &state); !diags.HasError() {
+			keepUnchangedComputed(&plan, state)
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("name"), plan.Name)...)
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("num_tasks"), plan.NumTasks)...)
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("published_version_number"), plan.PublishedVersionNumber)...)
+		}
+	}
+
+	if r.client == nil {
+		// No client during early validation.
 		return
 	}
 
@@ -344,6 +361,37 @@ func (r *PipelineResource) ModifyPlan(ctx context.Context, req resource.ModifyPl
 			apiErr.StatusCode, strings.TrimSpace(apiErr.Body),
 		),
 	)
+}
+
+// keepUnchangedComputed keeps computed values whose inputs are unchanged, which
+// the framework would otherwise plan as unknown on every update. The version
+// numbers, updated_at and yaml_path really do change with each saved version.
+func keepUnchangedComputed(plan *PipelineModel, state PipelineModel) {
+	if state.Data == nil {
+		return
+	}
+	if plan.Name.IsUnknown() && plan.Data.Name.Equal(state.Data.Name) {
+		plan.Name = state.Name
+	}
+	if plan.NumTasks.IsUnknown() && slices.Equal(taskIDs(plan.Data), taskIDs(state.Data)) {
+		plan.NumTasks = state.NumTasks
+	}
+	// A draft save leaves the published version where it was.
+	if plan.PublishedVersionNumber.IsUnknown() && !plan.Published.IsUnknown() && !plan.Published.ValueBool() {
+		plan.PublishedVersionNumber = state.PublishedVersionNumber
+	}
+}
+
+// taskIDs lists every task in a definition, grouped or not, sorted.
+func taskIDs(d *definitionTF) []string {
+	ids := slices.Collect(maps.Keys(d.Tasks))
+	for g, group := range d.TaskGroups {
+		for id := range group.Tasks {
+			ids = append(ids, g+"/"+id)
+		}
+	}
+	slices.Sort(ids)
+	return ids
 }
 
 // ---------- CRUD ----------

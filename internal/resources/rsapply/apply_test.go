@@ -2840,7 +2840,9 @@ func gitPipelineStub(t *testing.T) (*stub, string) {
 			"latestVersionNumber": 1, "publishedVersionNumber": 1,
 		}
 		if provider != "ORCHESTRA" {
+			// The API derives the folder from the repository and the path's directory.
 			out["repository"], out["defaultBranch"] = repo, branch
+			out["folder"] = repo + "/" + yamlPath[:strings.LastIndex(yamlPath, "/")]
 		} else if folder != "" {
 			out["folder"] = folder
 		}

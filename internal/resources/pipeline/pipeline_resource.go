@@ -333,9 +333,13 @@ func (r *PipelineResource) ModifyPlan(ctx context.Context, req resource.ModifyPl
 		return
 	}
 	if plan.Git != nil {
-		// Moving an Orchestra-stored pipeline into git would otherwise carry
-		// its folder forward, which the API drops.
-		resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("folder"), types.StringNull())...)
+		// The API derives a git-backed pipeline's folder from the repository
+		// and path, so a new link means a new folder. UseStateForUnknown would
+		// otherwise carry the old one forward.
+		var state PipelineModel
+		if req.State.Raw.IsNull() || req.State.Get(ctx, &state).HasError() || state.Git == nil || *state.Git != *plan.Git {
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("folder"), types.StringUnknown())...)
+		}
 		return
 	}
 	if plan.Data == nil {

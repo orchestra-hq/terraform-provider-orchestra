@@ -57,8 +57,8 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 			"data": definitionAttribute(),
 			"git": schema.SingleNestedAttribute{
 				Optional:            true,
-				Description:         "Sync the definition from a YAML file in a connected repository. Terraform manages the link, not the file: changes merged to the file are picked up by Orchestra and are not drift. Removing it replaces the pipeline.",
-				MarkdownDescription: "Sync the definition from a YAML file in a connected repository. Terraform manages the link, not the file: changes merged to the file are picked up by Orchestra and are not drift. Changing it updates the link in place. Removing it replaces the pipeline, since the API cannot move a pipeline back into Orchestra storage.",
+				Description:         "Sync the definition from a YAML file in a connected repository. The file must already exist on default_branch. Terraform manages the link, not the file: changes merged to the file are picked up by Orchestra and are not drift. Removing it replaces the pipeline.",
+				MarkdownDescription: "Sync the definition from a YAML file in a connected repository. The file must already exist on `default_branch`. Terraform manages the link, not the file: changes merged to the file are picked up by Orchestra and are not drift. Changing it updates the link in place. Removing it replaces the pipeline, since the API cannot move a pipeline back into Orchestra storage.",
 				PlanModifiers: []planmodifier.Object{
 					objectplanmodifier.RequiresReplaceIf(func(ctx context.Context, req planmodifier.ObjectRequest, resp *objectplanmodifier.RequiresReplaceIfFuncResponse) {
 						resp.RequiresReplace = !req.StateValue.IsNull() && req.PlanValue.IsNull()
@@ -81,8 +81,8 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 			"folder": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				Description:         "The folder the pipeline is filed in, such as finance/daily. Set it to an empty string for no folder. Leave unset to leave it as it is.",
-				MarkdownDescription: "The folder the pipeline is filed in, such as `finance/daily`. Set it to `\"\"` for no folder. Leave unset to leave it as it is, so a pipeline filed in the Orchestra UI is not moved by the next apply. Changing it moves the pipeline without saving a new version of the definition.",
+				Description:         "The folder the pipeline is filed in, such as finance/daily. Set it to an empty string for no folder. Leave unset to leave it as it is. A git-backed pipeline's folder is derived from its repository and path.",
+				MarkdownDescription: "The folder the pipeline is filed in, such as `finance/daily`. Set it to `\"\"` for no folder. Leave unset to leave it as it is, so a pipeline filed in the Orchestra UI is not moved by the next apply. Changing it moves the pipeline without saving a new version of the definition. A git-backed pipeline's folder is derived from its repository and path, and cannot be set.",
 				Validators: []validator.String{
 					stringvalidator.RegexMatches(folderPattern, "must be a path such as finance/daily, with no leading, trailing or doubled slashes and no spaces around a segment"),
 				},

@@ -2123,6 +2123,39 @@ func TestMonitorLifecycle(t *testing.T) {
 	}
 }
 
+// An update keeps the monitor's place, so order may not plan as unknown.
+func TestMonitorUpdateKeepsOrder(t *testing.T) {
+	_, baseURL := monitorStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	objType := schemaResp.ResourceSchemas["orchestra_monitor"].ValueType().(tftypes.Object)
+	comp := computedAttrs(schemaResp.ResourceSchemas["orchestra_monitor"])
+
+	created := planAndApply(t, server, "orchestra_monitor", objType,
+		tftypes.NewValue(objType, nil), monitorValue(t, objType, "warehouse", "#a"), comp)
+
+	config := monitorValue(t, objType, "warehouse", "#b")
+	priorDV, _ := tfprotov6.NewDynamicValue(objType, created)
+	configDV, _ := tfprotov6.NewDynamicValue(objType, config)
+	proposedDV, _ := tfprotov6.NewDynamicValue(objType, proposedNew(created, config, comp))
+	planResp, err := server.PlanResourceChange(context.Background(), &tfprotov6.PlanResourceChangeRequest{
+		TypeName: "orchestra_monitor", PriorState: &priorDV, ProposedNewState: &proposedDV, Config: &configDV,
+	})
+	if err != nil {
+		t.Fatalf("PlanResourceChange: %v", err)
+	}
+	failOnError(t, "plan", planResp.Diagnostics)
+	planned, err := planResp.PlannedState.Unmarshal(objType)
+	if err != nil {
+		t.Fatalf("unmarshal planned state: %v", err)
+	}
+	v, _, _ := tftypes.WalkAttributePath(planned, tftypes.NewAttributePath().WithAttributeName("order"))
+	if !v.(tftypes.Value).IsKnown() {
+		t.Error("order is planned as unknown for an update")
+	}
+
+	planAndApply(t, server, "orchestra_monitor", objType, created, config, comp)
+}
+
 // TestMonitorRejectsEmptyMatch covers the rule the schema cannot express: a
 // monitor naming no dimension would claim every event on the account.
 func TestMonitorRejectsEmptyMatch(t *testing.T) {

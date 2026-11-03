@@ -12,9 +12,9 @@ This guide keeps a pipeline's definition in that format, in a file next to your 
 Terraform create and update the pipeline from it. You can copy the YAML from the Orchestra pipeline editor, or write
 it by hand.
 
-To have Orchestra read the YAML from a git repository instead, use
-[git-backed pipelines](https://docs.getorchestra.io/docs/git-control-and-ci-cd/). Those are managed by Orchestra's git
-sync, not by Terraform.
+To have Orchestra read the YAML from a git repository instead, set `git` on `orchestra_pipeline` rather than `data`.
+That makes it a [git-backed pipeline](https://docs.getorchestra.io/docs/git-control-and-ci-cd/): Terraform creates and
+deletes it, and Orchestra's git sync keeps it up to date with the branch.
 
 ## The pipeline YAML
 

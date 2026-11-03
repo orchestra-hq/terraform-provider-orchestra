@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -2819,27 +2820,193 @@ func TestPipelineEmptyFolderAtRootIsANoOp(t *testing.T) {
 	}
 }
 
-// TestPipelineImportRefusesGitBacked: git sync owns the file, so the next apply
-// would be a second writer to it.
-func TestPipelineImportRefusesGitBacked(t *testing.T) {
+// gitPipelineStub answers the endpoints a git-backed pipeline uses. It starts
+// Orchestra-stored when POST /pipelines creates it, so a move into git can be
+// driven. GET /pipelines/data is a failure once the pipeline is in git: its
+// definition belongs to the repository.
+func gitPipelineStub(t *testing.T) (*stub, string) {
+	t.Helper()
 	s := &stub{}
+	provider, repo, branch, yamlPath := "ORCHESTRA", "", "", "orchestra/pipelines/1.yaml"
+	paused, folder := false, ""
+	data := json.RawMessage(`{"version":"v1","name":"synced","pipeline":{"t":{"integration":"FIVETRAN",` +
+		`"integration_job":"FIVETRAN_SYNC_ALL","parameters":{"connector_id":"x"},"name":"","depends_on":[]}}}`)
+
+	response := func(withData bool) map[string]any {
+		out := map[string]any{
+			"id": "77777777-7777-7777-7777-777777777777", "name": "synced", "alias": "synced",
+			"yamlPath": yamlPath, "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-02T00:00:00Z",
+			"paused": paused, "numTasks": 1, "storageProvider": provider,
+			"latestVersionNumber": 1, "publishedVersionNumber": 1,
+		}
+		if provider != "ORCHESTRA" {
+			// The API derives the folder from the repository and the path's directory.
+			out["repository"], out["defaultBranch"] = repo, branch
+			out["folder"] = repo + "/" + yamlPath[:strings.LastIndex(yamlPath, "/")]
+		} else if folder != "" {
+			out["folder"] = folder
+		}
+		// CreateOrUpdatePipelineResponse always carries the definition, git-backed or not.
+		if withData {
+			out["data"] = data
+		}
+		return out
+	}
+	write := func(w http.ResponseWriter, code int, body any) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(code)
+		if body != nil {
+			_ = json.NewEncoder(w).Encode(body)
+		}
+	}
+	setGit := func(body map[string]any, pathKey string) {
+		provider, _ = body["storageProvider"].(string)
+		repo, _ = body["repository"].(string)
+		branch, _ = body["defaultBranch"].(string)
+		yamlPath, _ = body[pathKey].(string)
+	}
+
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /pipelines", func(w http.ResponseWriter, r *http.Request) {
+		folder, _ = s.record(r)["folder"].(string)
+		if raw, ok := rawField(s.last().RawBody, "data"); ok {
+			data = applyServerDefaults(raw)
+		}
+		write(w, http.StatusCreated, response(true))
+	})
+	mux.HandleFunc("POST /pipelines/import", func(w http.ResponseWriter, r *http.Request) {
+		setGit(s.record(r), "yamlPath")
+		write(w, http.StatusCreated, response(true))
+	})
+	mux.HandleFunc("PATCH /pipelines/storage-settings", func(w http.ResponseWriter, r *http.Request) {
+		setGit(s.record(r), "path")
+		write(w, http.StatusOK, response(true))
+	})
+	mux.HandleFunc("PUT /pipelines/{id}/pause", func(w http.ResponseWriter, r *http.Request) {
+		paused, _ = s.record(r)["paused"].(bool)
+		write(w, http.StatusOK, response(false))
+	})
 	mux.HandleFunc("GET /pipeline", func(w http.ResponseWriter, r *http.Request) {
 		s.record(r)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"77777777-7777-7777-7777-777777777777","name":"synced","alias":"synced",
-			"storageProvider":"GITHUB","repository":"acme/pipelines","defaultBranch":"main"}`))
+		write(w, http.StatusOK, response(false))
+	})
+	mux.HandleFunc("GET /pipelines/data", func(w http.ResponseWriter, r *http.Request) {
+		s.record(r)
+		if provider != "ORCHESTRA" {
+			t.Errorf("read the definition of a git-backed pipeline")
+		}
+		write(w, http.StatusOK, data)
+	})
+	mux.HandleFunc("POST /pipelines/schema", func(w http.ResponseWriter, r *http.Request) {
+		s.record(r)
+		write(w, http.StatusOK, map[string]any{"message": "Pipeline schema is valid"})
+	})
+	mux.HandleFunc("DELETE /pipelines", func(w http.ResponseWriter, r *http.Request) {
+		s.record(r)
+		write(w, http.StatusNoContent, nil)
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		s.record(r)
 		t.Errorf("unexpected request to %s %s", r.Method, r.URL.Path)
-		w.WriteHeader(http.StatusNotFound)
+		write(w, http.StatusNotFound, nil)
 	})
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
+	return s, srv.URL
+}
 
-	server, _ := newServer(t, srv.URL)
+func gitConfig(branch string) map[string]any {
+	return map[string]any{
+		"alias": "synced",
+		"git": map[string]any{
+			"provider": "GITHUB", "repository": "acme/pipelines",
+			"default_branch": branch, "path": "pipelines/synced.yaml",
+		},
+	}
+}
+
+// TestPipelineGitLifecycle: Terraform manages the link to the file, never the
+// file's contents.
+func TestPipelineGitLifecycle(t *testing.T) {
+	calls, baseURL := gitPipelineStub(t)
+	server, schemaResp := newServer(t, baseURL)
 	ctx := context.Background()
+	objType := schemaResp.ResourceSchemas["orchestra_pipeline"].ValueType().(tftypes.Object)
+	computed := computedAttrs(schemaResp.ResourceSchemas["orchestra_pipeline"])
+
+	created := planAndApply(t, server, "orchestra_pipeline", objType, tftypes.NewValue(objType, nil),
+		buildValue(t, objType, gitConfig("main")), computed)
+
+	imp := calls.find(http.MethodPost, "/pipelines/import")
+	if imp == nil {
+		t.Fatalf("no POST /pipelines/import; calls were %v", calls.paths())
+	}
+	for k, want := range map[string]string{"storageProvider": "GITHUB", "repository": "acme/pipelines",
+		"defaultBranch": "main", "yamlPath": "pipelines/synced.yaml", "alias": "synced"} {
+		if imp.Body[k] != want {
+			t.Errorf("import body %s = %v, want %q", k, imp.Body[k], want)
+		}
+	}
+	if calls.find(http.MethodPost, "/pipelines") != nil {
+		t.Errorf("a git-backed create also called POST /pipelines, which would write the file")
+	}
+
+	// A refresh must not read the definition (the stub fails if it does).
+	priorDV, _ := tfprotov6.NewDynamicValue(objType, created)
+	readResp, err := server.ReadResource(ctx, &tfprotov6.ReadResourceRequest{TypeName: "orchestra_pipeline", CurrentState: &priorDV})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	failOnError(t, "read", readResp.Diagnostics)
+
+	// A branch change updates the link in place (planAndApply fails on a replace).
+	planAndApply(t, server, "orchestra_pipeline", objType, created, buildValue(t, objType, gitConfig("release")), computed)
+	patch := calls.find(http.MethodPatch, "/pipelines/storage-settings")
+	if patch == nil {
+		t.Fatalf("no PATCH /pipelines/storage-settings; calls were %v", calls.paths())
+	}
+	if patch.Body["defaultBranch"] != "release" || patch.Body["path"] != "pipelines/synced.yaml" || !strings.Contains(patch.Query, "pipeline_id=") {
+		t.Errorf("storage-settings call was %q %v", patch.Query, patch.Body)
+	}
+	if calls.find(http.MethodPut, "/pipelines") != nil {
+		t.Errorf("a git-backed update called PUT /pipelines, which would write the file")
+	}
+}
+
+// TestPipelineMovesIntoGit: swapping data for git keeps the pipeline and its
+// run history rather than replacing it.
+func TestPipelineMovesIntoGit(t *testing.T) {
+	calls, baseURL := gitPipelineStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	objType := schemaResp.ResourceSchemas["orchestra_pipeline"].ValueType().(tftypes.Object)
+	computed := computedAttrs(schemaResp.ResourceSchemas["orchestra_pipeline"])
+
+	created := planAndApply(t, server, "orchestra_pipeline", objType, tftypes.NewValue(objType, nil),
+		buildValue(t, objType, map[string]any{
+			"alias": "synced", "published": true, "folder": "finance",
+			"data": map[string]any{"name": "synced", "tasks": map[string]any{"t": map[string]any{
+				"integration": "FIVETRAN", "integration_job": "FIVETRAN_SYNC_ALL", "parameters": `{"connector_id":"x"}`,
+			}}},
+		}), computed)
+
+	planAndApply(t, server, "orchestra_pipeline", objType, created, buildValue(t, objType, gitConfig("main")), computed)
+	if calls.find(http.MethodPatch, "/pipelines/storage-settings") == nil {
+		t.Fatalf("no PATCH /pipelines/storage-settings; calls were %v", calls.paths())
+	}
+}
+
+// TestPipelineImportGitBacked: an import fills in `git`, so the next plan
+// against a matching config is empty.
+func TestPipelineImportGitBacked(t *testing.T) {
+	_, baseURL := gitPipelineStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	ctx := context.Background()
+	objType := schemaResp.ResourceSchemas["orchestra_pipeline"].ValueType().(tftypes.Object)
+	computed := computedAttrs(schemaResp.ResourceSchemas["orchestra_pipeline"])
+
+	// Put the stub's pipeline into git first.
+	planAndApply(t, server, "orchestra_pipeline", objType, tftypes.NewValue(objType, nil),
+		buildValue(t, objType, gitConfig("main")), computed)
 
 	importResp, err := server.ImportResourceState(ctx, &tfprotov6.ImportResourceStateRequest{
 		TypeName: "orchestra_pipeline", ID: "synced",
@@ -2848,19 +3015,61 @@ func TestPipelineImportRefusesGitBacked(t *testing.T) {
 		t.Fatalf("ImportResourceState: %v", err)
 	}
 	failOnError(t, "import", importResp.Diagnostics)
-
-	imported := importResp.ImportedResources[0].State
 	readResp, err := server.ReadResource(ctx, &tfprotov6.ReadResourceRequest{
-		TypeName: "orchestra_pipeline", CurrentState: imported,
+		TypeName: "orchestra_pipeline", CurrentState: importResp.ImportedResources[0].State,
 	})
 	if err != nil {
 		t.Fatalf("ReadResource: %v", err)
 	}
-	var refused bool
-	for _, d := range readResp.Diagnostics {
-		refused = refused || (d.Severity == tfprotov6.DiagnosticSeverityError && d.Summary == "Git-backed pipeline")
+	failOnError(t, "read", readResp.Diagnostics)
+
+	state, err := readResp.NewState.Unmarshal(objType)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
 	}
-	if !refused {
-		t.Errorf("importing a GITHUB pipeline was not refused; diagnostics were %v", readResp.Diagnostics)
+	want := buildValue(t, objType, gitConfig("main"))
+	for _, attr := range []string{"git", "data"} {
+		p := tftypes.NewAttributePath().WithAttributeName(attr)
+		got, _, _ := tftypes.WalkAttributePath(state, p)
+		exp, _, _ := tftypes.WalkAttributePath(want, p)
+		if !got.(tftypes.Value).Equal(exp.(tftypes.Value)) {
+			t.Errorf("imported %s = %v, want %v", attr, got, exp)
+		}
+	}
+}
+
+// TestPipelineGitConflicts: folder and published describe an Orchestra-stored
+// definition, and a pipeline has exactly one source.
+func TestPipelineGitConflicts(t *testing.T) {
+	_, baseURL := gitPipelineStub(t)
+	server, schemaResp := newServer(t, baseURL)
+	objType := schemaResp.ResourceSchemas["orchestra_pipeline"].ValueType().(tftypes.Object)
+	data := map[string]any{"name": "x", "tasks": map[string]any{"t": map[string]any{
+		"integration": "FIVETRAN", "integration_job": "FIVETRAN_SYNC_ALL", "parameters": `{}`,
+	}}}
+
+	for name, extra := range map[string]map[string]any{
+		"data and git":      {"data": data},
+		"folder and git":    {"folder": "finance"},
+		"published and git": {"published": true},
+		"neither":           {"git": nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg := gitConfig("main")
+			maps.Copy(cfg, extra)
+			configDV, _ := tfprotov6.NewDynamicValue(objType, buildValue(t, objType, cfg))
+			resp, err := server.ValidateResourceConfig(context.Background(), &tfprotov6.ValidateResourceConfigRequest{
+				TypeName: "orchestra_pipeline", Config: &configDV,
+			})
+			if err != nil {
+				t.Fatalf("ValidateResourceConfig: %v", err)
+			}
+			for _, d := range resp.Diagnostics {
+				if d.Severity == tfprotov6.DiagnosticSeverityError {
+					return
+				}
+			}
+			t.Errorf("config was accepted")
+		})
 	}
 }

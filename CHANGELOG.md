@@ -28,12 +28,12 @@ anyone building from source should expect to rewrite their configuration.
 - A paginated read could loop without bound against a server reporting a `total` it never delivered.
 - An `orchestra_monitor` declared without an `action` block aborted the apply: the API returns a default action
   for every monitor, so the plan's null never matched.
-- `orchestra_pipeline` accepted an import of a git-backed pipeline, after which every apply wrote to a definition
-  Orchestra's git sync owns. Importing or refreshing one now fails and points at the `orchestra_pipeline` data
-  source.
 
 ### Added
 
+- `orchestra_pipeline.git` creates a pipeline from a YAML file in a connected repository, or moves an existing one
+  there. Terraform manages the link and Orchestra's git sync the file: merged changes are not drift, and nothing
+  is written to the repository.
 - `orchestra_environment` and `orchestra_monitor` resources, and `orchestra_pipeline`, `orchestra_environment`,
   `orchestra_environments` and `orchestra_integration_connections` data sources.
 - Plan-time validation of two limits the API now enforces: `configuration.timeout` must be 0 to 259200 seconds

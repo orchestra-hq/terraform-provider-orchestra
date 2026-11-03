@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/orchestra-hq/terraform-provider-orchestra/internal/alerts"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
@@ -359,6 +360,23 @@ func TestEmptyParametersStillSent(t *testing.T) {
 	}
 	if m, ok := params.(map[string]any); !ok || len(m) != 0 {
 		t.Errorf("parameters = %#v, want an empty object", params)
+	}
+}
+
+// TestPipelineAnomalyOmitsOperationFields: the API rejects a pipeline anomaly
+// that carries operationTypes or operationNames at all, null included.
+func TestPipelineAnomalyOmitsOperationFields(t *testing.T) {
+	var diags diag.Diagnostics
+	wire := definitionToWire(sampleDefinition(), path.Root("data"), &diags)
+	if diags.HasError() {
+		t.Fatalf("definitionToWire: %v", diags.Errors())
+	}
+	encoded, err := json.Marshal(wire.Anomalies)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(encoded), "operationTypes") || strings.Contains(string(encoded), "operationNames") {
+		t.Errorf("pipeline anomalies = %s, want no operationTypes or operationNames", encoded)
 	}
 }
 

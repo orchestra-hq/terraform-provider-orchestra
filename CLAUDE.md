@@ -34,12 +34,10 @@ once targeted endpoints that did not exist, and one of those failed silently.
 1. **Refresh and read the spec.**
 
    ```bash
-   make spec-drift   # read-only: what changed in the live specs since the committed ones
    make openapi      # refreshes both committed specs, regenerates internal/enums
    ```
 
-   A weekly workflow opens a **Spec sync** PR with that report. Decide each item with the
-   `spec-sync` skill, and classify any endpoint you choose not to implement, or request-body property you
+   Decide what each change means with the `spec-sync` skill, and classify any endpoint you choose not to implement, or request-body property you
    choose not to send, in `internal/apicontract/coverage.yaml`.
 
    Check the exact path, method, query parameters, request body schema and response schema. Watch for:
@@ -93,7 +91,6 @@ for k,v in d['properties'].items(): print(f'  {k:24}', json.dumps(v)[:140])
 | `internal/tfconv/` | Shared API-JSON ↔ Terraform value conversion |
 | `internal/apicontract/` | The committed specs (`engine.yaml`, `agents.yaml`) and tests asserting the provider matches them, in both directions |
 | `internal/apicontract/coverage.yaml` | Every endpoint the provider deliberately leaves alone, and every property it leaves out of a request body it sends, and why. A spec operation neither called nor listed, or a written property neither sent nor listed, fails `go test` |
-| `tools/specdrift/` | `make spec-drift`: structural diff of two specs, run weekly by `.github/workflows/spec-sync.yml` |
 | `.claude/skills/spec-sync/` | How to decide what a spec change means for the provider |
 | `internal/resources/rsapply/` | Tests driving resources through plan/apply against a stub API |
 | `internal/datasources/dsread/` | Tests driving every data source against a stub API |

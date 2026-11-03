@@ -19,8 +19,8 @@
 #   admin   https://docs.getorchestra.io/api/admin.yaml
 # The first two are committed next to this file and checked by
 # TestEverySpecOperationIsClassified.
-# admin is fetched on each scheduled run and checked against its list, so a new
-# endpoint in it is still noticed.
+# admin is not committed: the provider does not call it. Its list is kept so a
+# new endpoint in it is still a decision rather than a surprise.
 
 engine:
   run_history:
@@ -85,21 +85,19 @@ engine:
 
   git_backed_pipelines:
     reason: >-
-      A pipeline whose definition lives in a repository is owned by Orchestra's
-      git sync. Terraform would be a second writer to the same file. Removed
-      deliberately; see the README. The create request's repository, file,
-      branch and commit message fields only apply to such a pipeline, and the
-      provider always creates with storageProvider ORCHESTRA.
-    operations:
-      - "POST /pipelines/import"
-      - "PATCH /pipelines/storage-settings"
+      orchestra_pipeline creates a git-backed pipeline with POST /pipelines/import,
+      which links a file already in the repository. POST /pipelines only ever
+      sends storageProvider ORCHESTRA, so its working branch and commit
+      message go unused: with a git provider they make Orchestra write the
+      file, and Terraform must not be a second writer to what git sync owns.
+      workingBranch is not returned by any read, so a change to it could never
+      show as drift.
     properties:
-      - "PublicCreatePipelineRequest.repository"
-      - "PublicCreatePipelineRequest.yamlPath"
-      - "PublicCreatePipelineRequest.defaultBranch"
       - "PublicCreatePipelineRequest.workingBranch"
       - "PublicCreatePipelineRequest.message"
       - "PublicCreatePipelineRequest.messageIsCustom"
+      - "ImportPipelineRequest.workingBranch"
+      - "PipelineStorageSettingsRequest.workingBranch"
 
   oauth_sign_in:
     reason: >-

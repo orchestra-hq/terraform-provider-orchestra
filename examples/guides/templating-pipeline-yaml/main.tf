@@ -15,32 +15,13 @@ locals {
   }
 
   definitions = {
-    for region, r in local.regions : region => yamldecode(templatefile("${path.module}/sales.yml.tftpl", {
+    for region, r in local.regions : region => provider::orchestra::pipeline_yaml(templatefile("${path.module}/sales.yml.tftpl", {
       name                = "Sales (${upper(region)})"
       region              = region
       cron                = r.cron
       fivetran_connection = r.fivetran_connection
       connectors          = r.connectors
     }))
-  }
-
-  # As in the "Creating a pipeline from a YAML file" guide: split `pipeline`
-  # into tasks and task groups, and pass `parameters` as JSON.
-  task_groups = {
-    for region, d in local.definitions : region => {
-      for id, group in d.pipeline : id => merge(group, {
-        tasks = {
-          for task_id, task in group.tasks :
-          task_id => merge(task, { parameters = jsonencode(task.parameters) })
-        }
-      }) if can(group.tasks)
-    }
-  }
-  tasks = {
-    for region, d in local.definitions : region => {
-      for id, task in d.pipeline :
-      id => merge(task, { parameters = jsonencode(task.parameters) }) if !can(task.tasks)
-    }
   }
 }
 
@@ -49,12 +30,5 @@ resource "orchestra_pipeline" "sales" {
 
   alias     = "sales_${each.key}"
   published = true
-
-  data = merge(
-    { for key, value in each.value : key => value if key != "pipeline" },
-    {
-      task_groups = length(local.task_groups[each.key]) > 0 ? local.task_groups[each.key] : null
-      tasks       = length(local.tasks[each.key]) > 0 ? local.tasks[each.key] : null
-    },
-  )
+  data      = each.value
 }

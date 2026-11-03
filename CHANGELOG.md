@@ -23,8 +23,9 @@ First release of the Orchestra provider, published as `orchestra-hq/orchestra`.
   not save a new version, and either one left unset is left alone, so a pause or folder set in the Orchestra UI
   survives an apply. `published` chooses between publishing a change and saving it as a draft that leaves the
   published version running; an imported pipeline keeps the state it had in Orchestra. Changing `alias` replaces
-  the pipeline. Pipelines whose definition lives in a git repository
-  are not managed here; Orchestra's git sync owns them.
+  the pipeline. Set `git` instead of `data` to link a pipeline to a YAML file in a connected repository: Terraform
+  manages the link and Orchestra's git sync the file, so merged changes are not drift and nothing is written to the
+  repository. Switching from `data` to `git` moves an existing pipeline into git; removing `git` replaces it.
 - `orchestra_environment`: a named set of values that pipeline runs resolve variables and credentials from.
   Leaving `default_env` unset keeps Orchestra's choice, which makes a workspace's first environment the default.
   Values are configuration rather than secrets (an `integration_credential` holds a connection ID), so changes
@@ -49,6 +50,12 @@ First release of the Orchestra provider, published as `orchestra-hq/orchestra`.
   but never read back; `secrets_wo` (Terraform 1.11+) keeps them out of state, with `secrets_wo_version` to send
   new values.
 
+### Functions
+
+- `provider::orchestra::pipeline_yaml` (Terraform 1.8+) decodes an Orchestra pipeline YAML document, from `file` or
+  `templatefile`, into the value `orchestra_pipeline.data` takes. A field the provider does not support fails the
+  plan with its path in the YAML rather than being dropped.
+
 ### Data sources
 
 - `orchestra_pipeline` and `orchestra_pipelines`
@@ -65,3 +72,6 @@ First release of the Orchestra provider, published as `orchestra-hq/orchestra`.
 - Templating pipeline YAML with placeholders, loops and Orchestra's own `${{ }}` expressions
 - Setting the connection each task runs with, including adopting a pipeline built in the Orchestra UI
 - Connecting a dbt Core project from GitHub
+- Incident monitoring for dbt
+- Connection credentials in AWS Secrets Manager
+- Creating an agent with skills

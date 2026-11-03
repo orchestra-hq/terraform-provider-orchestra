@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	tfprovider "github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -48,7 +49,10 @@ type orchestraProvider struct {
 	version string
 }
 
-var _ tfprovider.Provider = &orchestraProvider{}
+var (
+	_ tfprovider.Provider              = &orchestraProvider{}
+	_ tfprovider.ProviderWithFunctions = &orchestraProvider{}
+)
 
 func (p *orchestraProvider) Metadata(ctx context.Context, _ tfprovider.MetadataRequest, resp *tfprovider.MetadataResponse) {
 	resp.TypeName = "orchestra"
@@ -185,5 +189,11 @@ func (p *orchestraProvider) Resources(ctx context.Context) []func() resource.Res
 		func() resource.Resource { return &pipeline.PipelineResource{} },
 		func() resource.Resource { return &agents.AgentResource{} },
 		func() resource.Resource { return &agents.SkillResource{} },
+	}
+}
+
+func (p *orchestraProvider) Functions(ctx context.Context) []func() function.Function {
+	return []func() function.Function{
+		pipeline.NewYAMLFunction,
 	}
 }

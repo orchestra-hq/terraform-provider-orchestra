@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -23,11 +26,12 @@ type PipelineResource struct {
 }
 
 var (
-	_ resource.Resource                   = &PipelineResource{}
-	_ resource.ResourceWithConfigure      = &PipelineResource{}
-	_ resource.ResourceWithImportState    = &PipelineResource{}
-	_ resource.ResourceWithValidateConfig = &PipelineResource{}
-	_ resource.ResourceWithModifyPlan     = &PipelineResource{}
+	_ resource.Resource                     = &PipelineResource{}
+	_ resource.ResourceWithConfigure        = &PipelineResource{}
+	_ resource.ResourceWithImportState      = &PipelineResource{}
+	_ resource.ResourceWithValidateConfig   = &PipelineResource{}
+	_ resource.ResourceWithModifyPlan       = &PipelineResource{}
+	_ resource.ResourceWithConfigValidators = &PipelineResource{}
 )
 
 // uuidPattern distinguishes a pipeline ID from an alias on import.
@@ -246,7 +250,23 @@ func definitionUnchanged(plan, state tftypes.Value) bool {
 	return true
 }
 
+// gitBacked reports whether Orchestra's git sync owns the pipeline's definition.
+func gitBacked(api pipelineResponse) bool {
+	return api.StorageProvider != nil && *api.StorageProvider != "ORCHESTRA"
+}
+
 // ---------- validation ----------
+
+// ConfigValidators: folder and published describe an Orchestra-stored
+// definition. The API files only those in folders, and a git-backed pipeline
+// is published by merging to its branch.
+func (r *PipelineResource) ConfigValidators(context.Context) []resource.ConfigValidator {
+	return []resource.ConfigValidator{
+		resourcevalidator.ExactlyOneOf(path.MatchRoot("data"), path.MatchRoot("git")),
+		resourcevalidator.Conflicting(path.MatchRoot("git"), path.MatchRoot("folder")),
+		resourcevalidator.Conflicting(path.MatchRoot("git"), path.MatchRoot("published")),
+	}
+}
 
 func (r *PipelineResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
 	var model PipelineModel
@@ -302,8 +322,8 @@ func (r *PipelineResource) ValidateConfig(ctx context.Context, req resource.Vali
 // naming an environment created in the same apply would otherwise fail a plan
 // that is actually fine — and there would be no way to opt out.
 func (r *PipelineResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
-	if r.client == nil || req.Plan.Raw.IsNull() {
-		// No client during early validation; a null plan means destroy.
+	if req.Plan.Raw.IsNull() {
+		// Destroy.
 		return
 	}
 
@@ -312,7 +332,32 @@ func (r *PipelineResource) ModifyPlan(ctx context.Context, req resource.ModifyPl
 		// Values still unknown at plan time; nothing to validate yet.
 		return
 	}
+	if plan.Git != nil {
+		// The API derives a git-backed pipeline's folder from the repository
+		// and path, so a new link means a new folder. UseStateForUnknown would
+		// otherwise carry the old one forward.
+		var state PipelineModel
+		if req.State.Raw.IsNull() || req.State.Get(ctx, &state).HasError() || state.Git == nil || *state.Git != *plan.Git {
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("folder"), types.StringUnknown())...)
+		}
+		return
+	}
 	if plan.Data == nil {
+		return
+	}
+
+	if !req.State.Raw.IsNull() {
+		var state PipelineModel
+		if diags := req.State.Get(ctx, &state); !diags.HasError() {
+			keepUnchangedComputed(&plan, state)
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("name"), plan.Name)...)
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("num_tasks"), plan.NumTasks)...)
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("published_version_number"), plan.PublishedVersionNumber)...)
+		}
+	}
+
+	if r.client == nil {
+		// No client during early validation.
 		return
 	}
 
@@ -346,6 +391,37 @@ func (r *PipelineResource) ModifyPlan(ctx context.Context, req resource.ModifyPl
 	)
 }
 
+// keepUnchangedComputed keeps computed values whose inputs are unchanged, which
+// the framework would otherwise plan as unknown on every update. The version
+// numbers, updated_at and yaml_path really do change with each saved version.
+func keepUnchangedComputed(plan *PipelineModel, state PipelineModel) {
+	if state.Data == nil {
+		return
+	}
+	if plan.Name.IsUnknown() && plan.Data.Name.Equal(state.Data.Name) {
+		plan.Name = state.Name
+	}
+	if plan.NumTasks.IsUnknown() && slices.Equal(taskIDs(plan.Data), taskIDs(state.Data)) {
+		plan.NumTasks = state.NumTasks
+	}
+	// A draft save leaves the published version where it was.
+	if plan.PublishedVersionNumber.IsUnknown() && !plan.Published.IsUnknown() && !plan.Published.ValueBool() {
+		plan.PublishedVersionNumber = state.PublishedVersionNumber
+	}
+}
+
+// taskIDs lists every task in a definition, grouped or not, sorted.
+func taskIDs(d *definitionTF) []string {
+	ids := slices.Collect(maps.Keys(d.Tasks))
+	for g, group := range d.TaskGroups {
+		for id := range group.Tasks {
+			ids = append(ids, g+"/"+id)
+		}
+	}
+	slices.Sort(ids)
+	return ids
+}
+
 // ---------- CRUD ----------
 
 func (r *PipelineResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -362,7 +438,22 @@ func (r *PipelineResource) Create(ctx context.Context, req resource.CreateReques
 
 	var api pipelineResponse
 
-	{
+	if plan.Git != nil {
+		// Registers a file already in the repository; nothing is written to it.
+		body := map[string]any{
+			"storageProvider": plan.Git.Provider.ValueString(),
+			"repository":      plan.Git.Repository.ValueString(),
+			"defaultBranch":   plan.Git.DefaultBranch.ValueString(),
+			"yamlPath":        plan.Git.Path.ValueString(),
+		}
+		if isSet(plan.Alias) {
+			body["alias"] = strValue(plan.Alias)
+		}
+		if err := r.client.DoJSON(ctx, http.MethodPost, "/pipelines/import", nil, body, &api); err != nil {
+			resp.Diagnostics.AddError("Cannot import pipeline from git", err.Error())
+			return
+		}
+	} else {
 		def := definitionToWire(plan.Data, path.Root("data"), &resp.Diagnostics)
 		if resp.Diagnostics.HasError() {
 			return
@@ -438,14 +529,18 @@ func (r *PipelineResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	def, err := r.getDefinition(ctx, s)
-	if err != nil {
-		if !errors.Is(err, client.ErrNotFound) {
-			resp.Diagnostics.AddError("Cannot read pipeline definition", err.Error())
-			return
+	// A git-backed definition belongs to the repository and changes on every
+	// merge, so it is not read and cannot drift.
+	if !gitBacked(api) {
+		def, err := r.getDefinition(ctx, s)
+		if err != nil {
+			if !errors.Is(err, client.ErrNotFound) {
+				resp.Diagnostics.AddError("Cannot read pipeline definition", err.Error())
+				return
+			}
+		} else {
+			api.Data = def
 		}
-	} else {
-		api.Data = def
 	}
 
 	r.apply(ctx, &state, api, &resp.Diagnostics)
@@ -473,7 +568,25 @@ func (r *PipelineResource) Update(ctx context.Context, req resource.UpdateReques
 
 	var api pipelineResponse
 
-	if definitionUnchanged(req.Plan.Raw, req.State.Raw) {
+	if plan.Git != nil {
+		if state.Git != nil && *plan.Git == *state.Git {
+			// Only `paused` changed.
+			api = responseFrom(state)
+		} else {
+			// Also moves an Orchestra-stored pipeline into git.
+			q := url.Values{"pipeline_id": {strValue(state.Id)}}
+			body := map[string]any{
+				"storageProvider": plan.Git.Provider.ValueString(),
+				"repository":      plan.Git.Repository.ValueString(),
+				"defaultBranch":   plan.Git.DefaultBranch.ValueString(),
+				"path":            plan.Git.Path.ValueString(),
+			}
+			if err := r.client.DoJSON(ctx, http.MethodPatch, "/pipelines/storage-settings", q, body, &api); err != nil {
+				resp.Diagnostics.AddError("Cannot update pipeline git settings", err.Error())
+				return
+			}
+		}
+	} else if definitionUnchanged(req.Plan.Raw, req.State.Raw) {
 		// Only `paused` or `folder` changed. Every PUT /pipelines saves a new
 		// version of the definition, so pausing or moving alone should not go
 		// through it. State holds the definition with its server-computed
@@ -570,7 +683,7 @@ func (r *PipelineResource) ImportState(ctx context.Context, req resource.ImportS
 }
 
 // apply copies an API response onto the model, leaving configured-only fields
-// (published, working_branch) as the caller set them.
+// (published) as the caller set them.
 func (r *PipelineResource) apply(ctx context.Context, m *PipelineModel, api pipelineResponse, diags *diag.Diagnostics) {
 	_ = ctx
 
@@ -598,6 +711,22 @@ func (r *PipelineResource) apply(ctx context.Context, m *PipelineModel, api pipe
 		m.Published = types.BoolValue(latestIsPublished)
 	}
 
+	if gitBacked(api) {
+		m.Data = nil
+		// Set only after an import: overwriting a configured `git` with the
+		// API's spelling of the same repository would plan a change.
+		if m.Git == nil {
+			m.Git = &pipelineGitTF{
+				Provider:      tfString(api.StorageProvider),
+				Repository:    tfString(api.Repository),
+				DefaultBranch: tfString(api.DefaultBranch),
+				Path:          tfString(api.YamlPath),
+			}
+		}
+		return
+	}
+	m.Git = nil
+
 	if api.Data != nil {
 		def, err := definitionFromWire(api.Data)
 		if err != nil {
@@ -613,7 +742,7 @@ func (r *PipelineResource) apply(ctx context.Context, m *PipelineModel, api pipe
 // neither is needed (a planned "" folder against a null one, say) it is all
 // there is to apply.
 func responseFrom(m PipelineModel) pipelineResponse {
-	return pipelineResponse{
+	out := pipelineResponse{
 		Id:                     m.Id.ValueStringPointer(),
 		Name:                   m.Name.ValueStringPointer(),
 		NumTasks:               m.NumTasks.ValueInt64Pointer(),
@@ -626,6 +755,12 @@ func responseFrom(m PipelineModel) pipelineResponse {
 		LatestVersionNumber:    m.LatestVersionNumber.ValueInt64Pointer(),
 		PublishedVersionNumber: m.PublishedVersionNumber.ValueInt64Pointer(),
 	}
+	if m.Git != nil {
+		out.StorageProvider = m.Git.Provider.ValueStringPointer()
+		out.Repository = m.Git.Repository.ValueStringPointer()
+		out.DefaultBranch = m.Git.DefaultBranch.ValueStringPointer()
+	}
+	return out
 }
 
 // settle resolves an Optional+Computed string: the API's value when it has

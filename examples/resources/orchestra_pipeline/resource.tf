@@ -49,7 +49,7 @@ resource "orchestra_pipeline" "daily_sales" {
 
     schedule = [{
       name     = "nightly"
-      cron     = "cron(0 2 * * ? *)"
+      cron     = "0 2 * * ? *"
       timezone = "Europe/London"
     }]
 
@@ -70,5 +70,16 @@ resource "orchestra_pipeline" "daily_sales" {
         destination = "#data-alerts"
       }]
     }]
+  }
+}
+
+# A pipeline synced from a YAML file in a connected repository. Orchestra picks
+# up changes merged to the branch; Terraform only manages the link.
+resource "orchestra_pipeline" "synced" {
+  git = {
+    provider       = "GITHUB"
+    repository     = "acme/pipelines"
+    default_branch = "main"
+    path           = "pipelines/daily_sales.yaml"
   }
 }

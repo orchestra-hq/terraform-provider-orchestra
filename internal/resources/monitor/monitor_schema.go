@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -56,8 +57,10 @@ func MonitorResourceSchema() schema.Schema {
 				// per-resource attribute cannot express that without each
 				// monitor fighting its neighbours, so it is reported here and
 				// set by orchestra_monitor_order. Updates never send it; the
-				// API keeps it across a PUT.
-				Description: "Evaluation position within the workspace; lower wins when two monitors claim the same event. Set it with orchestra_monitor_order.",
+				// API keeps it across a PUT, and deleting another monitor does
+				// not renumber the rest, so an update plans the stored value.
+				PlanModifiers: []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
+				Description:   "Evaluation position within the workspace; lower wins when two monitors claim the same event. Set it with orchestra_monitor_order.",
 				MarkdownDescription: "Evaluation position within the workspace: where two monitors claim the same event, the lower `order` wins.\n\n" +
 					"Ordering is a workspace-wide operation, so it is not settable here. Set it with `orchestra_monitor_order`. A new monitor is placed last.",
 			},

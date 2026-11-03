@@ -163,7 +163,9 @@ type wireAnomaly struct {
 	MinBaselineSeconds      *int64                   `json:"minBaselineSeconds,omitempty"`
 	PercentageAboveBaseline *int64                   `json:"percentageAboveBaseline,omitempty"`
 	PercentageBelowBaseline *int64                   `json:"percentageBelowBaseline,omitempty"`
-	OperationTypes          []string                 `json:"operationTypes"`
-	OperationNames          []string                 `json:"operationNames"`
-	MaxAnomalies            *int64                   `json:"maxAnomalies,omitempty"`
+	// Omitted when empty: the pipeline and task models forbid them outright,
+	// so even a null fails validation.
+	OperationTypes []string `json:"operationTypes,omitempty"`
+	OperationNames []string `json:"operationNames,omitempty"`
+	MaxAnomalies   *int64   `json:"maxAnomalies,omitempty"`
 }

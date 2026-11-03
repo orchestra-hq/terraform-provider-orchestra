@@ -12,10 +12,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	"github.com/orchestra-hq/terraform-provider-orchestra/internal/enums"
 )
 
 // aliasPattern matches the API's constraint on pipeline aliases.
@@ -30,7 +33,7 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 	_ = ctx
 	return schema.Schema{
 		Description:         "An Orchestra pipeline and its definition.",
-		MarkdownDescription: "An Orchestra pipeline, with its definition in `data`.\n\nPipelines whose definition lives in a git repository are managed by Orchestra's git sync, not by Terraform.",
+		MarkdownDescription: "An Orchestra pipeline. Set `data` to keep its definition in Terraform, or `git` to sync it from a YAML file in a connected repository, which Orchestra then keeps up to date.",
 		Attributes: map[string]schema.Attribute{
 			"alias": schema.StringAttribute{
 				Optional:            true,
@@ -52,11 +55,34 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 				},
 			},
 			"data": definitionAttribute(),
+			"git": schema.SingleNestedAttribute{
+				Optional:            true,
+				Description:         "Sync the definition from a YAML file in a connected repository. The file must already exist on default_branch. Terraform manages the link, not the file: changes merged to the file are picked up by Orchestra and are not drift. Removing it replaces the pipeline.",
+				MarkdownDescription: "Sync the definition from a YAML file in a connected repository. The file must already exist on `default_branch`. Terraform manages the link, not the file: changes merged to the file are picked up by Orchestra and are not drift. Changing it updates the link in place. Removing it replaces the pipeline, since the API cannot move a pipeline back into Orchestra storage.",
+				PlanModifiers: []planmodifier.Object{
+					objectplanmodifier.RequiresReplaceIf(func(ctx context.Context, req planmodifier.ObjectRequest, resp *objectplanmodifier.RequiresReplaceIfFuncResponse) {
+						resp.RequiresReplace = !req.StateValue.IsNull() && req.PlanValue.IsNull()
+					}, "Removing git replaces the pipeline.", "Removing `git` replaces the pipeline."),
+				},
+				Attributes: map[string]schema.Attribute{
+					"provider": schema.StringAttribute{
+						Required:    true,
+						Description: "Where the repository is hosted.",
+						Validators: []validator.String{
+							stringvalidator.OneOf(enums.StorageProviders...),
+							stringvalidator.NoneOf("ORCHESTRA"),
+						},
+					},
+					"repository":     gitString("The repository, as connected in Orchestra."),
+					"default_branch": gitString("The branch to sync from."),
+					"path":           gitString("The YAML file's path in the repository."),
+				},
+			},
 			"folder": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				Description:         "The folder the pipeline is filed in, such as finance/daily. Set it to an empty string for no folder. Leave unset to leave it as it is.",
-				MarkdownDescription: "The folder the pipeline is filed in, such as `finance/daily`. Set it to `\"\"` for no folder. Leave unset to leave it as it is, so a pipeline filed in the Orchestra UI is not moved by the next apply. Changing it moves the pipeline without saving a new version of the definition.",
+				Description:         "The folder the pipeline is filed in, such as finance/daily. Set it to an empty string for no folder. Leave unset to leave it as it is. A git-backed pipeline's folder is derived from its repository and path.",
+				MarkdownDescription: "The folder the pipeline is filed in, such as `finance/daily`. Set it to `\"\"` for no folder. Leave unset to leave it as it is, so a pipeline filed in the Orchestra UI is not moved by the next apply. Changing it moves the pipeline without saving a new version of the definition. A git-backed pipeline's folder is derived from its repository and path, and cannot be set.",
 				Validators: []validator.String{
 					stringvalidator.RegexMatches(folderPattern, "must be a path such as finance/daily, with no leading, trailing or doubled slashes and no spaces around a segment"),
 				},
@@ -71,7 +97,7 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 			"yaml_path": schema.StringAttribute{
 				Computed:            true,
 				Description:         "Path to the pipeline YAML file, assigned by Orchestra.",
-				MarkdownDescription: "Path to the pipeline YAML file, assigned by Orchestra.",
+				MarkdownDescription: "Path to the pipeline YAML file: assigned by Orchestra, or `git.path` for a git-backed pipeline.",
 				// No UseStateForUnknown: the path embeds the version number
 				// (".../versions/2.yaml"), so it changes on every update.
 				// Pinning the prior value fails the apply.
@@ -122,11 +148,12 @@ func PipelineResourceSchema(ctx context.Context) schema.Schema {
 }
 
 type PipelineModel struct {
-	Alias     types.String  `tfsdk:"alias"`
-	Data      *definitionTF `tfsdk:"data"`
-	Folder    types.String  `tfsdk:"folder"`
-	Published types.Bool    `tfsdk:"published"`
-	YamlPath  types.String  `tfsdk:"yaml_path"`
+	Alias     types.String   `tfsdk:"alias"`
+	Data      *definitionTF  `tfsdk:"data"`
+	Git       *pipelineGitTF `tfsdk:"git"`
+	Folder    types.String   `tfsdk:"folder"`
+	Published types.Bool     `tfsdk:"published"`
+	YamlPath  types.String   `tfsdk:"yaml_path"`
 
 	Id                     types.String `tfsdk:"id"`
 	Name                   types.String `tfsdk:"name"`
@@ -136,4 +163,15 @@ type PipelineModel struct {
 	PublishedVersionNumber types.Int64  `tfsdk:"published_version_number"`
 	CreatedAt              types.String `tfsdk:"created_at"`
 	UpdatedAt              types.String `tfsdk:"updated_at"`
+}
+
+type pipelineGitTF struct {
+	Provider      types.String `tfsdk:"provider"`
+	Repository    types.String `tfsdk:"repository"`
+	DefaultBranch types.String `tfsdk:"default_branch"`
+	Path          types.String `tfsdk:"path"`
+}
+
+func gitString(desc string) schema.StringAttribute {
+	return schema.StringAttribute{Required: true, Description: desc, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}}
 }

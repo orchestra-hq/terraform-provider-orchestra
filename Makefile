@@ -22,19 +22,17 @@ TFPLUGINDOCS_TEMP_DIR ?= .tmp-tfplugindocs
 # the tree instead. gofmt skips directories beginning with a dot.
 GOFMT_PATHS ?= .
 
-# Only engine and agents are committed; admin is fetched to spot new endpoints.
+# Only engine and agents are committed; the provider does not call admin.
 SPEC_BASE ?= https://docs.getorchestra.io/api
 SPEC_DIR ?= internal/apicontract
-SPEC_TMP ?= .tmp-spec
 
-.PHONY: help docs docs-clean build compile test vet clean provider-bin format format-check openapi enums spec-drift
+.PHONY: help docs docs-clean build compile test vet clean provider-bin format format-check openapi enums
 
 help:
 	@echo "Usage:"
 	@echo "  make build         Compile Go packages"
 	@echo "  make compile       Compile Go packages & tests (no test run)"
 	@echo "  make test          Run unit tests"
-	@echo "  make spec-drift    Compare the committed specs with the live ones (read-only)"
 	@echo "  make vet           Run go vet"
 	@echo "  make provider-bin Build Terraform provider executable (if cmd entrypoint exists)"
 	@echo "  make clean         Remove temp artifacts"
@@ -83,16 +81,6 @@ openapi:
 		curl --fail --silent --show-error --location --output "$(SPEC_DIR)/$$s.yaml" "$(SPEC_BASE)/$$s.yaml" || exit 1; \
 	done
 	@$(MAKE) enums
-
-# Read-only: fetches the live specs and reports what changed since the committed ones,
-# without touching anything. A non-zero exit means something needs attention.
-spec-drift:
-	@mkdir -p "$(SPEC_TMP)"
-	@for s in engine agents admin; do \
-		curl --fail --silent --show-error --location --output "$(SPEC_TMP)/$$s.yaml" "$(SPEC_BASE)/$$s.yaml" || exit 1; \
-	done
-	@$(GO) run ./tools/specdrift -old "$(SPEC_DIR)/engine.yaml" -new "$(SPEC_TMP)/engine.yaml" \
-		-compare agents="$(SPEC_DIR)/agents.yaml,$(SPEC_TMP)/agents.yaml" -also admin="$(SPEC_TMP)/admin.yaml"
 
 enums:
 	@$(GO) generate ./internal/enums

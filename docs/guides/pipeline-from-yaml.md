@@ -12,9 +12,9 @@ This guide keeps a pipeline's definition in that format, in a file next to your 
 Terraform create and update the pipeline from it. You can copy the YAML from the Orchestra pipeline editor, or write
 it by hand.
 
-To have Orchestra read the YAML from a git repository instead, use
-[git-backed pipelines](https://docs.getorchestra.io/docs/git-control-and-ci-cd/). Those are managed by Orchestra's git
-sync, not by Terraform.
+To have Orchestra read the YAML from a git repository instead, set `git` on `orchestra_pipeline` rather than `data`.
+That makes it a [git-backed pipeline](https://docs.getorchestra.io/docs/git-control-and-ci-cd/): Terraform creates and
+deletes it, and Orchestra's git sync keeps it up to date with the branch.
 
 ## The pipeline YAML
 
@@ -56,38 +56,10 @@ pipeline:
 ```terraform
 # Create a pipeline from an Orchestra pipeline YAML file.
 
-locals {
-  definition = yamldecode(file("${path.module}/daily_sales.yml"))
-
-  # The YAML keeps tasks and task groups together under `pipeline`; the
-  # provider takes them separately, and tells a group by its `tasks` key.
-  # `parameters` is free-form, so the provider takes it as JSON.
-  task_groups = {
-    for id, group in local.definition.pipeline : id => merge(group, {
-      tasks = {
-        for task_id, task in group.tasks :
-        task_id => merge(task, { parameters = jsonencode(task.parameters) })
-      }
-    }) if can(group.tasks)
-  }
-  tasks = {
-    for id, task in local.definition.pipeline :
-    id => merge(task, { parameters = jsonencode(task.parameters) }) if !can(task.tasks)
-  }
-}
-
 resource "orchestra_pipeline" "daily_sales" {
   alias     = "daily_sales"
   published = true
-
-  data = merge(
-    { for key, value in local.definition : key => value if key != "pipeline" },
-    {
-      # Orchestra returns no map rather than an empty one, so send none.
-      task_groups = length(local.task_groups) > 0 ? local.task_groups : null
-      tasks       = length(local.tasks) > 0 ? local.tasks : null
-    },
-  )
+  data      = provider::orchestra::pipeline_yaml(file("${path.module}/daily_sales.yml"))
 }
 ```
 
@@ -100,25 +72,26 @@ dbt Core connections, and Orchestra warns *No default connection was found* for 
 
 ## How the YAML maps to `data`
 
-The YAML and `data` use the same field names, so most of the file passes through unchanged. The `locals` block
-handles the two differences:
+`provider::orchestra::pipeline_yaml` decodes the YAML into the value `data` takes. The YAML and `data` use the same
+field names, so most of the file passes through unchanged. The function handles the differences:
 
 - **`pipeline` is split in two.** The YAML puts tasks and task groups together under `pipeline`. `data` takes
   top-level tasks in `tasks` and groups in `task_groups`. An entry with a `tasks` key is a group.
-- **Free-form fields are JSON.** A task's `parameters` has a different shape for each `integration_job`, so `data`
-  takes it as a JSON string, and the `locals` wrap it in `jsonencode`.
+- **Free-form fields become JSON.** `data` takes a task's `parameters`, `meta`, an input's `default`, `run_inputs`, a
+  group's `matrix.inputs` and a webhook alert's `body` as JSON strings, because their shape varies.
+- **An alert destination's `parameters` are flattened** into the destination, as `priority` or `body`.
 
-Other fields are JSON in `data` for the same reason: `meta`, an input's `default`, `run_inputs` on a schedule, sensor
-or webhook, a group's `matrix.inputs`, and a webhook alert's `body`. If your YAML uses any of them, `jsonencode` them
-the same way. Terraform reports *Inappropriate value for attribute* naming any you miss.
+A field `orchestra_pipeline` does not support, such as a misspelt `depends_on`, fails the plan with its path in the
+YAML, rather than being dropped.
+
+Provider functions need Terraform 1.8 or later, or OpenTofu 1.7 or later.
 
 ## Notes
 
 - `file()` reads the YAML as it is, so Orchestra's `${{ ... }}` expressions, such as
   `${{ ENV.DBT_TARGET }}`, reach Orchestra unchanged. To fill in values from Terraform, see
   [Templating pipeline YAML](templating-pipeline-yaml).
-- To manage a folder of pipelines, one per file, decode each file in
-  `fileset(path.module, "pipelines/*.yml")`, key each expression in `locals` by file name, and set `for_each` on the
-  resource.
+- To manage a folder of pipelines, one per file, set `for_each` on the resource to
+  `fileset(path.module, "pipelines/*.yml")` and decode `file("${path.module}/${each.value}")`.
 - `alias`, `published`, `folder` and `paused` are not part of the YAML. Set them on the resource.
 - YAML comments are not kept: Orchestra stores the parsed definition, not the file.

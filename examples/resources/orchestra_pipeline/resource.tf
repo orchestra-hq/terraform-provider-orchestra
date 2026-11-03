@@ -72,3 +72,14 @@ resource "orchestra_pipeline" "daily_sales" {
     }]
   }
 }
+
+# A pipeline synced from a YAML file in a connected repository. Orchestra picks
+# up changes merged to the branch; Terraform only manages the link.
+resource "orchestra_pipeline" "synced" {
+  git = {
+    provider       = "GITHUB"
+    repository     = "acme/pipelines"
+    default_branch = "main"
+    path           = "pipelines/daily_sales.yaml"
+  }
+}

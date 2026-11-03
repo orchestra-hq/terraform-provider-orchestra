@@ -24,6 +24,8 @@ var calls = []call{
 	{"GET", "/pipeline", "pipeline resource: read"},
 	{"GET", "/pipelines/data", "pipeline resource: read definition"},
 	{"POST", "/pipelines", "pipeline resource: create"},
+	{"POST", "/pipelines/import", "pipeline resource: create from git"},
+	{"PATCH", "/pipelines/storage-settings", "pipeline resource: change or move to git"},
 	{"PUT", "/pipelines", "pipeline resource: update"},
 	{"DELETE", "/pipelines", "pipeline resource: delete"},
 	{"POST", "/pipelines/schema", "pipeline resource: plan-time validation"},
@@ -82,11 +84,12 @@ func callsFor(s apiSpec) []call {
 // does not declare is silently ignored by the API, which is how the bad
 // GET /pipelines?alias=... read went unnoticed.
 var queryParams = map[string][]string{
-	"GET /pipeline":                 {"pipeline_id", "alias", "repository", "yaml_path", "version", "branch", "commit"},
-	"GET /pipelines/data":           {"pipeline_id", "alias", "repository", "yaml_path", "version", "branch", "commit"},
-	"GET /pipelines":                {"page", "page_size", "name"},
-	"DELETE /pipelines":             {"pipeline_id", "alias", "repository", "yaml_path"},
-	"GET /integrations/connections": {"integration", "authStatus"},
+	"GET /pipeline":                     {"pipeline_id", "alias", "repository", "yaml_path", "version", "branch", "commit"},
+	"GET /pipelines/data":               {"pipeline_id", "alias", "repository", "yaml_path", "version", "branch", "commit"},
+	"GET /pipelines":                    {"page", "page_size", "name"},
+	"DELETE /pipelines":                 {"pipeline_id", "alias", "repository", "yaml_path"},
+	"PATCH /pipelines/storage-settings": {"pipeline_id"},
+	"GET /integrations/connections":     {"integration", "authStatus"},
 	"GET /assets": {
 		"asset_type", "integration", "integration_account_id", "workspace_id",
 		"database_name", "schema_name", "status", "asset_ids",

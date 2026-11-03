@@ -109,9 +109,8 @@ provider rejects a collision at plan time.
 
 ## What the provider deliberately does not manage
 
-**Git-backed pipelines.** A pipeline whose definition lives in a repository is owned by Orchestra's git sync.
-Terraform would be a second writer to the same file, so `orchestra_pipeline` manages Orchestra-backed pipelines
-only. Import an existing git-backed pipeline through Orchestra, not here.
+**The YAML of a git-backed pipeline.** `orchestra_pipeline.git` links a pipeline to a file in a repository, but
+the file belongs to Orchestra's git sync: Terraform never reads or writes it, so it would not be a second writer.
 
 **Assets and lineage edges.** Assets are discovered from integrations rather than declared, and the API has no
 endpoint to read or delete an individual lineage edge — so Terraform could create edges but never detect drift on

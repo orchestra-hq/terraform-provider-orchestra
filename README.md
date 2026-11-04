@@ -1,3 +1,5 @@
+<img width="4804" height="1600" alt="Terraform Provider Banner-selection (3)" src="https://github.com/user-attachments/assets/6b5ddd40-41c2-4fbe-a68e-e539b8974092" />
+
 # Terraform Provider for Orchestra
 
 Manage [Orchestra](https://www.getorchestra.io/) pipelines, environments and assets as code.

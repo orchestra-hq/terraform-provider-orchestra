@@ -30,6 +30,9 @@ builds:
         goarch: "386"
       - goos: darwin
         goarch: arm
+      # Go dropped 32-bit Windows on ARM; building it fails the release.
+      - goos: windows
+        goarch: arm
     binary: "{{ .ProjectName }}_v{{ .Version }}"
 
 archives:

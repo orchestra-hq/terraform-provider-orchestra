@@ -15,8 +15,9 @@ The classification tests name every new endpoint and every new property of a req
 provider sends. Prose changes need nothing; enum changes are already regenerated.
 
 If the fetch fails, the spec has moved. The docs site once split its one spec into
-`engine.yaml`, `agents.yaml` and `admin.yaml`. The docs MCP's `/openapi/api/` listing
-names the current files; fix `SPEC_BASE` in the Makefile.
+`engine.yaml`, `agents.yaml` and `admin.yaml`. To find the current files, use the
+Orchestra docs MCP's `/openapi/api/` listing if you have it, otherwise the API reference
+on docs.getorchestra.io; then fix `SPEC_BASE` in the Makefile.
 
 ## 2. Decide each item
 

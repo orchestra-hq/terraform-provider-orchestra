@@ -161,6 +161,8 @@ paths:
         the session is the caller''s own, so it needs an OAuth token and an API key
         gets 400. With `INCIDENT` it is the incident''s, visible across the workspace,
         and an incident''s open session takes the prompt instead of a new one starting.
+        With `hidden` true the prompt still runs the turn, but its `prompt.accepted`
+        history event is marked `hidden` so a client can leave it out of the conversation.
         Needs a grant to run the agent, and to view the incident when `incidentId`
         is set.'
       parameters:
@@ -2115,6 +2117,10 @@ components:
           anyOf:
           - $ref: '#/components/schemas/AgentSessionEffortEnum'
           - type: 'null'
+        hidden:
+          type: boolean
+          title: Hidden
+          default: false
       additionalProperties: false
       type: object
       required:
@@ -2232,6 +2238,7 @@ components:
       - GCP_LOOKER
       - GKE
       - GITHUB_ACTIONS
+      - GITLAB
       - GOOGLE_CLOUD
       - HEVO
       - HEX

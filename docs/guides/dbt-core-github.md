@@ -1,6 +1,6 @@
 ---
 page_title: "Connecting a dbt Core project from GitHub"
-subcategory: ""
+subcategory: "Connections"
 description: |-
   Connect a dbt Core project in a GitHub repository to Orchestra.
 ---

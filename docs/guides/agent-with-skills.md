@@ -1,6 +1,6 @@
 ---
 page_title: "Creating an agent with skills"
-subcategory: ""
+subcategory: "Agents"
 description: |-
   Create an Orchestra agent and give it two skills: one written in the Terraform configuration and one synced from a Git repository.
 ---

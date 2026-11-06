@@ -1,6 +1,6 @@
 ---
 page_title: "Connection credentials in AWS Secrets Manager"
-subcategory: ""
+subcategory: "Connections"
 description: |-
   Connect Orchestra to AWS Secrets Manager, then create a connection whose credentials Orchestra reads from a secret there.
 ---

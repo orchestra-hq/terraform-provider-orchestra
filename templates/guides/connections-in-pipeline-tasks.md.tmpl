@@ -1,6 +1,6 @@
 ---
 page_title: "Setting connections on pipeline tasks"
-subcategory: ""
+subcategory: "Pipelines"
 description: |-
   Choose the integration connection each pipeline task runs with, whether Terraform creates the connection or it was made in the Orchestra UI.
 ---

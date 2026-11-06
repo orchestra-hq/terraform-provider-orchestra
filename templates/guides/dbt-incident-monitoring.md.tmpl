@@ -1,6 +1,6 @@
 ---
 page_title: "Incident monitoring for dbt"
-subcategory: ""
+subcategory: "Incidents"
 description: |-
   Raise incidents for failing dbt models and tests, grouped by lineage, and alert the people who own them.
 ---

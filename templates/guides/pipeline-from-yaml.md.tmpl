@@ -1,6 +1,6 @@
 ---
 page_title: "Creating a pipeline from a YAML file"
-subcategory: ""
+subcategory: "Pipelines"
 description: |-
   Manage an Orchestra pipeline with Terraform while keeping its definition in Orchestra's pipeline YAML format.
 ---

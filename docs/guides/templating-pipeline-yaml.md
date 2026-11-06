@@ -1,6 +1,6 @@
 ---
 page_title: "Templating pipeline YAML"
-subcategory: ""
+subcategory: "Pipelines"
 description: |-
   Fill placeholders in an Orchestra pipeline YAML file from Terraform, and render several pipelines from one template.
 ---

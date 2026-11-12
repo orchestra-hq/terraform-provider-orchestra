@@ -4,17 +4,76 @@ on:
   push:
     tags:
       - "v*"
+  # Weekly patch release, the day after the Monday spec-sync routine.
+  schedule:
+    - cron: "0 9 * * 2"
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
+  # A tag pushed with GITHUB_TOKEN does not start another workflow run, so the
+  # scheduled path tags here and releases in the same run.
+  tag:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.next.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.1.0
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Work out the next patch version
+        id: version
+        run: |
+          latest=$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*')
+          if [ "$(git rev-list --count "$latest..HEAD")" -eq 0 ]; then
+            echo "Nothing on main since $latest; skipping release."
+            exit 0
+          fi
+          IFS=. read -r major minor patch <<< "${latest#v}"
+          echo "tag=v$major.$minor.$((patch + 1))" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Go
+        if: steps.version.outputs.tag != ''
+        uses: actions/setup-go@v5.6.0
+        with:
+          go-version-file: go.mod
+
+      # Test before tagging: a pushed tag with no release behind it would be
+      # skipped over by the next run, leaving a gap in the version history.
+      - name: Run unit tests
+        if: steps.version.outputs.tag != ''
+        run: go test ./...
+
+      - name: Push the tag
+        id: next
+        if: steps.version.outputs.tag != ''
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
   goreleaser:
+    needs: tag
+    # always() so a tag push, where the tag job is skipped, still releases.
+    if: always() && (github.event_name == 'push' || needs.tag.outputs.tag != '')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6.1.0
         with:
+          ref: ${{ needs.tag.outputs.tag || github.ref }}
           fetch-depth: 0
 
       - name: Setup Go

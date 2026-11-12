@@ -221,11 +221,11 @@ does the same on demand.
 
 For a minor or major release:
 
-1. In a PR, rename `## Unreleased` in the CHANGELOG to the version, e.g. `## 0.1.0`, and merge it.
+1. In a PR, rename `## Unreleased` in the CHANGELOG to the version, e.g. `## 1.1.0`, and merge it.
 2. Tag the merge commit on `main` and push the tag:
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+git tag v1.1.0 && git push origin v1.1.0
 ```
 
 <details>

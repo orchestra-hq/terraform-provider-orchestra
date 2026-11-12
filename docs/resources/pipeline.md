@@ -135,6 +135,7 @@ Optional:
 - `alerts` (Attributes List) Alerts to send when the pipeline run completes. (see [below for nested schema](#nestedatt--data--alerts))
 - `anomalies` (Attributes List) Pipeline duration anomaly monitors. (see [below for nested schema](#nestedatt--data--anomalies))
 - `configuration` (Attributes) Default retry and timeout settings inherited by all tasks. Task-level `configuration` overrides these. (see [below for nested schema](#nestedatt--data--configuration))
+- `input_sets` (String) Named, partial sets of input values, as a JSON object of objects. A schedule, sensor, trigger event or the webhook names one with `input_set`, and its values fill the inputs the run does not supply. Names are letters, digits, underscores and hyphens, and no two may differ only by case; keys must be declared inputs. Use `jsonencode({ nightly = { region = "eu" } })`.
 - `inputs` (Attributes Map) Declared runtime inputs keyed by input name. (see [below for nested schema](#nestedatt--data--inputs))
 - `meta` (String) Arbitrary metadata for external tooling, as a JSON object. The API accepts any shape here, so Terraform carries it as JSON — use `jsonencode({...})`.
 - `schedule` (Attributes List) Cron schedules that trigger this pipeline. (see [below for nested schema](#nestedatt--data--schedule))
@@ -251,6 +252,7 @@ Optional:
 - `branch` (String) Branch to run from, for git-backed pipelines.
 - `environment` (String) Environment name or ID to run in.
 - `exclude` (List of String) Dates (YYYY-MM-DD) to skip.
+- `input_set` (String) Name of an entry in the pipeline's input_sets whose values fill the inputs this run does not supply.
 - `name` (String) Schedule name for display and reference.
 - `run_inputs` (String) Input values to pass on each scheduled run, as a JSON object.
 - `timezone` (String) IANA timezone for schedule evaluation.
@@ -274,6 +276,7 @@ Optional:
 - `environments` (List of String) Environments to run in when the sensor fires.
 - `exclude` (List of String) Dates (YYYY-MM-DD) to skip sensor evaluation.
 - `frequency_secs` (Number) How often checks are evaluated within the open window, in seconds (60-600).
+- `input_set` (String) Name of an entry in the pipeline's input_sets whose values fill the inputs this run does not supply.
 - `run_inputs` (String) Input values to pass when the sensor triggers the pipeline, as a JSON object.
 
 <a id="nestedatt--data--sensors--checks"></a>
@@ -608,6 +611,7 @@ Required:
 
 Optional:
 
+- `input_set` (String) Name of an entry in the pipeline's input_sets whose values fill the inputs this run does not supply.
 - `run_inputs` (String) Input values to pass to the triggered pipeline run, as a JSON object.
 - `statuses` (List of String) Pipeline run statuses that fire the trigger.
 - `type` (String) Event type. Currently only `pipeline` is supported.
@@ -619,6 +623,7 @@ Optional:
 Optional:
 
 - `enabled` (Boolean) Whether the webhook trigger is enabled.
+- `input_set` (String) Name of an entry in the pipeline's input_sets whose values fill the inputs this run does not supply.
 - `operation_metadata` (Attributes Map) Per-integration operation metadata, keyed by metadata name. (see [below for nested schema](#nestedatt--data--webhook--operation_metadata))
 - `run_inputs` (String) Default input values for webhook-triggered runs, as a JSON object.
 

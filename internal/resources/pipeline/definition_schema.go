@@ -84,6 +84,7 @@ func definitionAttribute() schema.Attribute {
 						"enabled":            types.BoolValue(false),
 						"operation_metadata": types.MapNull(operationMetadataObjectType()),
 						"run_inputs":         jsontypes.NewNormalizedNull(),
+						"input_set":          types.StringNull(),
 					},
 				)),
 				Description: "Webhook configuration for manual and API triggers.",
@@ -98,6 +99,15 @@ func definitionAttribute() schema.Attribute {
 				Optional:     true,
 				NestedObject: inputSchema(),
 				Description:  "Declared runtime inputs keyed by input name.",
+			},
+			"input_sets": schema.StringAttribute{
+				Optional:   true,
+				CustomType: jsontypes.NormalizedType{},
+				Description: "Named, partial sets of input values, as a JSON object of objects. A schedule, sensor, trigger event or the webhook names one with input_set, " +
+					"and its values fill the inputs the run does not supply. Names are letters, digits, underscores and hyphens, and no two may differ only by case; keys must be declared inputs.",
+				MarkdownDescription: "Named, partial sets of input values, as a JSON object of objects. A schedule, sensor, trigger event or the webhook names one with `input_set`, " +
+					"and its values fill the inputs the run does not supply. Names are letters, digits, underscores and hyphens, and no two may differ only by case; keys must be declared inputs. " +
+					"Use `jsonencode({ nightly = { region = \"eu\" } })`.",
 			},
 			"meta": schema.StringAttribute{
 				Optional:            true,
@@ -321,6 +331,10 @@ func scheduleSchema() schema.NestedAttributeObject {
 				CustomType:  jsontypes.NormalizedType{},
 				Description: "Input values to pass on each scheduled run, as a JSON object.",
 			},
+			"input_set": schema.StringAttribute{
+				Optional:    true,
+				Description: "Name of an entry in the pipeline's input_sets whose values fill the inputs this run does not supply.",
+			},
 		},
 	}
 }
@@ -373,6 +387,10 @@ func sensorSchema() schema.NestedAttributeObject {
 				Optional:    true,
 				CustomType:  jsontypes.NormalizedType{},
 				Description: "Input values to pass when the sensor triggers the pipeline, as a JSON object.",
+			},
+			"input_set": schema.StringAttribute{
+				Optional:    true,
+				Description: "Name of an entry in the pipeline's input_sets whose values fill the inputs this run does not supply.",
 			},
 			"alerts": schema.ListNestedAttribute{
 				Optional:     true,
@@ -444,6 +462,10 @@ func triggerEventSchema() schema.NestedAttributeObject {
 				CustomType:  jsontypes.NormalizedType{},
 				Description: "Input values to pass to the triggered pipeline run, as a JSON object.",
 			},
+			"input_set": schema.StringAttribute{
+				Optional:    true,
+				Description: "Name of an entry in the pipeline's input_sets whose values fill the inputs this run does not supply.",
+			},
 		},
 	}
 }
@@ -465,6 +487,10 @@ func webhookAttributes() map[string]schema.Attribute {
 			Optional:    true,
 			CustomType:  jsontypes.NormalizedType{},
 			Description: "Default input values for webhook-triggered runs, as a JSON object.",
+		},
+		"input_set": schema.StringAttribute{
+			Optional:    true,
+			Description: "Name of an entry in the pipeline's input_sets whose values fill the inputs this run does not supply.",
 		},
 	}
 }

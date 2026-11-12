@@ -32,6 +32,7 @@ type wireDefinition struct {
 	Webhook       *wireWebhook               `json:"webhook,omitempty"`
 	Configuration *wireConfiguration         `json:"configuration,omitempty"`
 	Inputs        map[string]wireInput       `json:"inputs,omitempty"`
+	InputSets     json.RawMessage            `json:"inputSets,omitempty"`
 	Meta          json.RawMessage            `json:"meta,omitempty"`
 	Alerts        []wireAlert                `json:"alerts,omitempty"`
 	Anomalies     []wireAnomaly              `json:"anomalies,omitempty"`
@@ -80,6 +81,7 @@ type wireSchedule struct {
 	Branch      *string         `json:"branch,omitempty"`
 	Exclude     []string        `json:"exclude"`
 	RunInputs   json.RawMessage `json:"runInputs,omitempty"`
+	InputSet    *string         `json:"inputSet,omitempty"`
 }
 
 type wireSensor struct {
@@ -93,6 +95,7 @@ type wireSensor struct {
 	Exclude       []string                   `json:"exclude"`
 	FrequencySecs *int64                     `json:"frequencySecs,omitempty"`
 	RunInputs     json.RawMessage            `json:"runInputs,omitempty"`
+	InputSet      *string                    `json:"inputSet,omitempty"`
 	Alerts        []wireAlert                `json:"alerts,omitempty"`
 }
 
@@ -109,12 +112,14 @@ type wireTriggerEvent struct {
 	PipelineID string          `json:"pipelineId"`
 	Statuses   []string        `json:"statuses"`
 	RunInputs  json.RawMessage `json:"runInputs,omitempty"`
+	InputSet   *string         `json:"inputSet,omitempty"`
 }
 
 type wireWebhook struct {
 	Enabled           bool                             `json:"enabled"`
 	OperationMetadata map[string]wireOperationMetadata `json:"operationMetadata,omitempty"`
 	RunInputs         json.RawMessage                  `json:"runInputs,omitempty"`
+	InputSet          *string                          `json:"inputSet,omitempty"`
 }
 
 type wireOperationMetadata struct {

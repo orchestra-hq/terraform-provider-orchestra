@@ -132,6 +132,7 @@ Optional:
 - `labels` (Attributes Map) Label matches keyed by label name (max 32). Each entry is a JSON path into the event and the values that count as a match. (see [below for nested schema](#nestedatt--match--labels))
 - `operation_failures_only` (Boolean) Claim only failures with an operation behind them, such as a failing dbt model or test, not task-level failures such as a dbt parsing error. Narrows the other dimensions; it does not count as one.
 - `pipelines` (List of String) Pipeline IDs to claim events from.
+- `warnings_enabled` (Boolean) Whether the monitor also claims warnings, not only failures. The API's spec does not say what it does when unset, so unset leaves it to Orchestra and the value it chose is kept in state.
 
 <a id="nestedatt--match--labels"></a>
 ### Nested Schema for `match.labels`

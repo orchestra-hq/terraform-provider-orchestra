@@ -48,6 +48,8 @@ type wireMatch struct {
 	Labels       map[string][]wireLabel `json:"labels,omitempty"`
 
 	OperationFailuresOnly bool `json:"operationFailuresOnly"`
+	// Nullable and undocumented as to its default, so a pointer: unset is sent as absent and whatever the API settles on is read back.
+	WarningsEnabled *bool `json:"warningsEnabled,omitempty"`
 }
 
 type wireLabel struct {

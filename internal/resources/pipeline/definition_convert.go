@@ -192,6 +192,7 @@ func definitionToWire(def *definitionTF, root path.Path, diags *diag.Diagnostics
 			Branch:      strPtrOrNil(s.Branch),
 			Exclude:     tfconv.GoStrings(s.Exclude),
 			RunInputs:   jsonObject(s.RunInputs, p.AtName("run_inputs"), diags),
+			InputSet:    strPtrOrNil(s.InputSet),
 		})
 	}
 
@@ -213,6 +214,7 @@ func definitionToWire(def *definitionTF, root path.Path, diags *diag.Diagnostics
 			PipelineID: t.PipelineID.ValueString(),
 			Statuses:   tfconv.GoStrings(t.Statuses),
 			RunInputs:  jsonObject(t.RunInputs, p.AtName("run_inputs"), diags),
+			InputSet:   strPtrOrNil(t.InputSet),
 		})
 	}
 
@@ -222,6 +224,7 @@ func definitionToWire(def *definitionTF, root path.Path, diags *diag.Diagnostics
 			Enabled:           def.Webhook.Enabled.ValueBool(),
 			OperationMetadata: operationMetadataToWire(def.Webhook.OperationMetadata),
 			RunInputs:         jsonObject(def.Webhook.RunInputs, p.AtName("run_inputs"), diags),
+			InputSet:          strPtrOrNil(def.Webhook.InputSet),
 		}
 	}
 
@@ -239,6 +242,8 @@ func definitionToWire(def *definitionTF, root path.Path, diags *diag.Diagnostics
 			}
 		}
 	}
+
+	out.InputSets = jsonObject(def.InputSets, root.AtName("input_sets"), diags)
 
 	out.Alerts = alertsToWire(def.Alerts, root.AtName("alerts"), diags)
 	for _, a := range def.Anomalies {
@@ -326,6 +331,7 @@ func sensorToWire(s sensorTF, p path.Path, diags *diag.Diagnostics) wireSensor {
 		Exclude:       tfconv.GoStrings(s.Exclude),
 		FrequencySecs: int64PtrOrNil(s.FrequencySecs),
 		RunInputs:     jsonObject(s.RunInputs, p.AtName("run_inputs"), diags),
+		InputSet:      strPtrOrNil(s.InputSet),
 		Alerts:        alertsToWire(s.Alerts, p.AtName("alerts"), diags),
 	}
 	for _, id := range sortedKeys(s.Checks) {
@@ -464,6 +470,7 @@ func definitionFromWire(w *wireDefinition) (*definitionTF, error) {
 			Branch:      tfString(s.Branch),
 			Exclude:     tfconv.Strings(s.Exclude),
 			RunInputs:   tfRawJSON(s.RunInputs),
+			InputSet:    tfString(s.InputSet),
 		})
 	}
 
@@ -480,6 +487,7 @@ func definitionFromWire(w *wireDefinition) (*definitionTF, error) {
 			PipelineID: types.StringValue(t.PipelineID),
 			Statuses:   tfconv.Strings(t.Statuses),
 			RunInputs:  tfRawJSON(t.RunInputs),
+			InputSet:   tfString(t.InputSet),
 		})
 	}
 
@@ -488,6 +496,7 @@ func definitionFromWire(w *wireDefinition) (*definitionTF, error) {
 			Enabled:           types.BoolValue(w.Webhook.Enabled),
 			OperationMetadata: operationMetadataFromWire(w.Webhook.OperationMetadata),
 			RunInputs:         tfRawJSON(w.Webhook.RunInputs),
+			InputSet:          tfString(w.Webhook.InputSet),
 		}
 	}
 
@@ -504,6 +513,8 @@ func definitionFromWire(w *wireDefinition) (*definitionTF, error) {
 			}
 		}
 	}
+
+	out.InputSets = tfRawJSON(w.InputSets)
 
 	out.Alerts = alertsFromWire(w.Alerts)
 	for _, a := range w.Anomalies {
@@ -586,6 +597,7 @@ func sensorFromWire(s wireSensor) sensorTF {
 		Exclude:       tfconv.Strings(s.Exclude),
 		FrequencySecs: tfInt64(s.FrequencySecs),
 		RunInputs:     tfRawJSON(s.RunInputs),
+		InputSet:      tfString(s.InputSet),
 		Alerts:        alertsFromWire(s.Alerts),
 	}
 	for id, c := range s.Checks {

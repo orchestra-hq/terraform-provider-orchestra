@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectdefault"
@@ -160,6 +161,13 @@ func matchAttribute() schema.Attribute {
 				Default:  booldefault.StaticBool(false),
 				Description: "Claim only failures with an operation behind them, such as a failing dbt model or test, " +
 					"not task-level failures such as a dbt parsing error. Narrows the other dimensions; it does not count as one.",
+			},
+			"warnings_enabled": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Description: "Whether the monitor also claims warnings, not only failures. The API's spec does not say what it does when unset, " +
+					"so unset leaves it to Orchestra and the value it chose is kept in state.",
+				PlanModifiers: []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 		},
 	}
@@ -355,6 +363,7 @@ type matchTF struct {
 	Labels       map[string]labelMatchTF `tfsdk:"labels"`
 
 	OperationFailuresOnly types.Bool `tfsdk:"operation_failures_only"`
+	WarningsEnabled       types.Bool `tfsdk:"warnings_enabled"`
 }
 
 type groupByLabelTF struct {

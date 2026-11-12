@@ -112,6 +112,7 @@ func sampleDefinition() *definitionTF {
 			Branch:      types.StringNull(),
 			Exclude:     []types.String{types.StringValue("2026-12-25")},
 			RunInputs:   jsontypes.NewNormalizedValue(`{"run_ingest":true}`),
+			InputSet:    types.StringValue("full"),
 		}},
 		Sensors: map[string]sensorTF{
 			"wait_for_file": {
@@ -124,6 +125,7 @@ func sampleDefinition() *definitionTF {
 				Exclude:       nil,
 				FrequencySecs: types.Int64Value(300),
 				RunInputs:     jsontypes.NewNormalizedNull(),
+				InputSet:      types.StringValue("full"),
 				Checks: map[string]sensorCheckTF{
 					"landing": {
 						Integration: types.StringValue("AWS_S3"),
@@ -140,11 +142,14 @@ func sampleDefinition() *definitionTF {
 			PipelineID: types.StringValue("*"),
 			Statuses:   []types.String{types.StringValue("SUCCEEDED")},
 			RunInputs:  jsontypes.NewNormalizedNull(),
+			InputSet:   types.StringValue("full"),
 		}},
 		Webhook: &webhookTF{
 			Enabled:   types.BoolValue(true),
 			RunInputs: jsontypes.NewNormalizedValue(`{"source":"api"}`),
+			InputSet:  types.StringValue("full"),
 		},
+		InputSets: jsontypes.NewNormalizedValue(`{"full":{"run_ingest":true}}`),
 		Configuration: &configurationTF{
 			Retries:     types.StringValue("1"),
 			RetryDelay:  types.Int64Null(),

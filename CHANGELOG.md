@@ -17,6 +17,9 @@ First release of the Orchestra provider, published as `orchestra-hq/orchestra`.
 
 ### Resources
 
+- Added since the last spec refresh: `orchestra_agent.allowed_environment_ids`, `orchestra_pipeline.input_sets` with
+  `input_set` on schedules, sensors, trigger events and the webhook, and `orchestra_monitor.match.warnings_enabled`.
+
 - `orchestra_pipeline`: a pipeline and its full definition in `data` (tasks, task groups, schedules, sensors,
   trigger events, alerts, anomalies, inputs and configuration), validated at plan time against the API's own
   schema. `paused` and `folder` (such as `finance/daily`) have their own endpoints, so changing only those does

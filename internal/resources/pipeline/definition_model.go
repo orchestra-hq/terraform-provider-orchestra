@@ -26,6 +26,7 @@ type definitionTF struct {
 	Webhook       *webhookTF             `tfsdk:"webhook"`
 	Configuration *configurationTF       `tfsdk:"configuration"`
 	Inputs        map[string]inputTF     `tfsdk:"inputs"`
+	InputSets     jsontypes.Normalized   `tfsdk:"input_sets"`
 	Meta          jsontypes.Normalized   `tfsdk:"meta"`
 	Alerts        []alertTF              `tfsdk:"alerts"`
 	Anomalies     []anomalyTF            `tfsdk:"anomalies"`
@@ -74,6 +75,7 @@ type scheduleTF struct {
 	Branch      types.String         `tfsdk:"branch"`
 	Exclude     []types.String       `tfsdk:"exclude"`
 	RunInputs   jsontypes.Normalized `tfsdk:"run_inputs"`
+	InputSet    types.String         `tfsdk:"input_set"`
 }
 
 type sensorTF struct {
@@ -87,6 +89,7 @@ type sensorTF struct {
 	Exclude       []types.String           `tfsdk:"exclude"`
 	FrequencySecs types.Int64              `tfsdk:"frequency_secs"`
 	RunInputs     jsontypes.Normalized     `tfsdk:"run_inputs"`
+	InputSet      types.String             `tfsdk:"input_set"`
 	Alerts        []alertTF                `tfsdk:"alerts"`
 }
 
@@ -103,12 +106,14 @@ type triggerEventTF struct {
 	PipelineID types.String         `tfsdk:"pipeline_id"`
 	Statuses   []types.String       `tfsdk:"statuses"`
 	RunInputs  jsontypes.Normalized `tfsdk:"run_inputs"`
+	InputSet   types.String         `tfsdk:"input_set"`
 }
 
 type webhookTF struct {
 	Enabled           types.Bool                     `tfsdk:"enabled"`
 	OperationMetadata map[string]operationMetadataTF `tfsdk:"operation_metadata"`
 	RunInputs         jsontypes.Normalized           `tfsdk:"run_inputs"`
+	InputSet          types.String                   `tfsdk:"input_set"`
 }
 
 type operationMetadataTF struct {

@@ -215,13 +215,17 @@ unit tests, then [GoReleaser](.goreleaser.yml) builds the per-platform archives,
 [registry requires](https://developer.hashicorp.com/terraform/registry/providers/publishing) and publishes a
 GitHub release. The registry picks the release up within minutes.
 
-To release:
+Every Tuesday at 09:00 UTC the same workflow releases the next patch version (`v1.0.1` → `v1.0.2`) if `main`
+has changed since the last tag, with the merged PRs as release notes. **Run workflow** on the Release action
+does the same on demand.
 
-1. In a PR, rename `## Unreleased` in the CHANGELOG to the version, e.g. `## 0.1.0`, and merge it.
+For a minor or major release:
+
+1. In a PR, rename `## Unreleased` in the CHANGELOG to the version, e.g. `## 1.1.0`, and merge it.
 2. Tag the merge commit on `main` and push the tag:
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+git tag v1.1.0 && git push origin v1.1.0
 ```
 
 <details>

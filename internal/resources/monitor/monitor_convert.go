@@ -25,6 +25,7 @@ func toWire(m monitorModel, diags *diag.Diagnostics) wireDefinition {
 			Integrations: tfconv.GoStrings(m.Match.Integrations),
 
 			OperationFailuresOnly: m.Match.OperationFailuresOnly.ValueBool(),
+			WarningsEnabled:       m.Match.WarningsEnabled.ValueBoolPointer(),
 		}
 		if len(m.Match.Labels) > 0 {
 			out.Match.Labels = make(map[string][]wireLabel, len(m.Match.Labels))
@@ -94,6 +95,7 @@ func apply(m *monitorModel, api wireMonitorResponse) {
 		Integrations: tfconv.Strings(d.Match.Integrations),
 
 		OperationFailuresOnly: types.BoolValue(d.Match.OperationFailuresOnly),
+		WarningsEnabled:       types.BoolPointerValue(d.Match.WarningsEnabled),
 	}
 	if len(d.Match.Labels) > 0 {
 		m.Match.Labels = make(map[string]labelMatchTF, len(d.Match.Labels))

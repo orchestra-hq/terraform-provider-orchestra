@@ -53,6 +53,7 @@ func agentsStub(t *testing.T) (*stub, string) {
 		agent = map[string]any{
 			"agentId":       "aaaaaaaa-0000-0000-0000-000000000001",
 			"samplePrompts": []any{}, "gitEnabled": false, "llmKeyType": map[string]any{"type": "ACCOUNT_DEFAULT"},
+			"allowedEnvironmentIds": []any{},
 		}
 		for k, v := range body {
 			if v != nil {
@@ -139,10 +140,11 @@ func TestAgentLifecycle(t *testing.T) {
 	comp := computedAttrs(schemaResp.ResourceSchemas[name])
 
 	created := planAndApply(t, server, name, objType, tftypes.NewValue(objType, nil), buildValue(t, objType, map[string]any{
-		"name":        "Triage",
-		"description": "Looks into failures",
-		"secrets":     map[string]any{"TOKEN": "s3cret"},
-		"skill_ids":   []any{"s1"},
+		"name":                    "Triage",
+		"description":             "Looks into failures",
+		"secrets":                 map[string]any{"TOKEN": "s3cret"},
+		"skill_ids":               []any{"s1"},
+		"allowed_environment_ids": []any{"11111111-1111-4111-8111-111111111111"},
 	}), comp)
 
 	create := calls.find(http.MethodPost, "/agents")
@@ -151,6 +153,9 @@ func TestAgentLifecycle(t *testing.T) {
 	}
 	if _, sent := create.Body["defaultModelId"]; sent {
 		t.Errorf("an unset model was sent as %v; leaving it out lets Orchestra pick", create.Body["defaultModelId"])
+	}
+	if ids, _ := create.Body["allowedEnvironmentIds"].([]any); len(ids) != 1 || ids[0] != "11111111-1111-4111-8111-111111111111" {
+		t.Errorf("allowedEnvironmentIds was sent as %v", create.Body["allowedEnvironmentIds"])
 	}
 	if got := calls.find(http.MethodPut, "/agents/aaaaaaaa-0000-0000-0000-000000000001/skills"); got == nil || got.RawBody != `[{"skillId":"s1"}]` {
 		t.Errorf("skills were not attached as configured: %+v", got)
@@ -178,6 +183,10 @@ func TestAgentLifecycle(t *testing.T) {
 	}
 	if v, sent := patch.Body["description"]; !sent || v != nil {
 		t.Errorf("description was sent as %v (sent: %v); a removed one must be sent as null to clear it", v, sent)
+	}
+	// Dropping the attribute resets it to the default, which must be sent so the restriction is lifted.
+	if ids, sent := patch.Body["allowedEnvironmentIds"].([]any); !sent || len(ids) != 0 {
+		t.Errorf("allowedEnvironmentIds was sent as %v; removing it must send []", patch.Body["allowedEnvironmentIds"])
 	}
 }
 

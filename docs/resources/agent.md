@@ -60,6 +60,7 @@ variable "pagerduty_token" {
 
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
+- `allowed_environment_ids` (Set of String) IDs of the environments whose connections the agent may use, on top of connections open to every environment. Empty means it may use only those unrestricted connections. Integrations attached to the agent that are limited to other environments are refused.
 - `avatar_path` (String) The agent's image, from Orchestra's avatar catalogue.
 - `default_effort` (String) How much reasoning the agent spends: low, medium, high, xhigh or max. Unset uses the model's default. Not every model supports every level.
 - `default_model_id` (String) The model the agent runs on, such as claude-opus-5. Unset uses Orchestra's default. Orchestra moves an agent off a retired model.
@@ -88,7 +89,7 @@ Required:
 
 Optional:
 
-- `connection_id` (String) For CONNECTION: the connection's ID.
+- `connection_id` (String) For CONNECTION: the connection's ID, such as snowflake_prod_01234: a name, an underscore and five digits.
 - `integration` (String) For CONNECTION: the connection's integration, such as ANTHROPIC.
 
 ## Import

@@ -158,13 +158,13 @@ paths:
         agent replies asynchronously: this returns once the prompt is queued, and
         the reply is read from `GET /sessions/{session_id}/history/messages`. `incidentId`
         names the incident the session is about. With `sessionMode` `USER`, the default,
-        the session is the caller''s own, so it needs an OAuth token and an API key
-        gets 400. With `INCIDENT` it is the incident''s, visible across the workspace,
-        and an incident''s open session takes the prompt instead of a new one starting.
-        With `hidden` true the prompt still runs the turn, but its `prompt.accepted`
-        history event is marked `hidden` so a client can leave it out of the conversation.
-        Needs a grant to run the agent, and to view the incident when `incidentId`
-        is set.'
+        the session is the caller''s own, so it needs an OAuth token or a user API
+        key, and a workspace API key gets 400. With `INCIDENT` it is the incident''s,
+        visible across the workspace, and an incident''s open session takes the prompt
+        instead of a new one starting. With `hidden` true the prompt still runs the
+        turn, but its `prompt.accepted` history event is marked `hidden` so a client
+        can leave it out of the conversation. Needs a grant to run the agent, and
+        to view the incident when `incidentId` is set.'
       parameters:
       - name: X-Orchestra-Account-Id
         in: header
@@ -205,6 +205,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /sessions/{session_id}:
@@ -317,6 +318,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /sessions/{session_id}/history/messages:
@@ -558,6 +560,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /agents/avatar-catalog:
@@ -651,6 +654,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
     get:
@@ -790,9 +794,9 @@ paths:
       tags:
       - Agents
       summary: Update an agent
-      description: Update the fields given and leave the rest unchanged; send `null`
-        to clear an optional field. A masked secret value keeps the stored secret.
-        An agent managed by Orchestra accepts only `gitEnabled`, `secrets` and `llmKeyType`,
+      description: Update the fields given; send `null` to clear an optional field.
+        A masked secret value keeps the stored secret. An Orchestra-managed agent
+        accepts only `gitEnabled`, `secrets`, `llmKeyType` and `allowedEnvironmentIds`,
         which apply to this workspace alone, and refuses any other field with 403.
       parameters:
       - name: agent_id
@@ -843,6 +847,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
     delete:
@@ -890,6 +895,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /agents/{agent_id}/skills:
@@ -1019,6 +1025,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /agents/{agent_id}/integrations:
@@ -1100,7 +1107,8 @@ paths:
         list, and return the agent's integrations afterwards. An empty list removes
         them all. Each `integration` is a connection key of the form `<INTEGRATION>_<connection
         id>`, e.g. `SNOWFLAKE_my_connection`, and must be a connection in the same
-        workspace; the request is refused with 404 if any is not.
+        workspace; the request is refused with 404 if any is not, and with 400 if
+        any is limited to environments the agent is not allowed.
       parameters:
       - name: agent_id
         in: path
@@ -1156,6 +1164,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /usage:
@@ -1382,6 +1391,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /skills/{skill_id}:
@@ -1488,6 +1498,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
     delete:
@@ -1536,6 +1547,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /skills/import:
@@ -1588,6 +1600,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
 components:
@@ -1990,6 +2003,9 @@ components:
       title: CancelSessionMessageRequest
     ConnectionID:
       type: string
+      pattern: ^(?:[^\r\n\u0085\u2028\u2029]+_[0-9]{5})?(?![\s\S])
+      description: 'The ID of a connection the account holds, such as `snowflake_prod_01234`:
+        a name, an underscore and five digits.'
     ConnectionLLMKey:
       properties:
         integration:
@@ -2076,6 +2092,16 @@ components:
               ACCOUNT_DEFAULT: '#/components/schemas/AccountDefaultLLMKey'
               CONNECTION: '#/components/schemas/ConnectionLLMKey'
               ORCHESTRA: '#/components/schemas/OrchestraLLMKey'
+        allowedEnvironmentIds:
+          items:
+            type: string
+            format: uuid4
+          type: array
+          title: Allowedenvironmentids
+          description: Environments whose connections the agent may use, on top of
+            connections open to every environment. Empty means it may use only those
+            unrestricted connections.
+          default: []
       additionalProperties: false
       type: object
       required:
@@ -2177,6 +2203,7 @@ components:
       - AIRBYTE_SERVER
       - AIRFLOW
       - ARCH
+      - ASTRATO
       - ALTERYX_SERVER
       - ANTHROPIC
       - AWS_EC2
@@ -2237,6 +2264,7 @@ components:
       - GCP_DATASTREAM
       - GCP_LOOKER
       - GKE
+      - GOOGLE_CHAT
       - GITHUB_ACTIONS
       - GITLAB
       - GOOGLE_CLOUD
@@ -2509,6 +2537,17 @@ components:
                 ORCHESTRA: '#/components/schemas/OrchestraLLMKey'
           - type: 'null'
           title: Llmkeytype
+        allowedEnvironmentIds:
+          anyOf:
+          - items:
+              type: string
+              format: uuid4
+            type: array
+            description: Environments whose connections the agent may use, on top
+              of connections open to every environment. Empty means it may use only
+              those unrestricted connections.
+          - type: 'null'
+          title: Allowedenvironmentids
       additionalProperties: false
       type: object
       title: PatchAgentRequest
@@ -2585,6 +2624,15 @@ components:
               ACCOUNT_DEFAULT: '#/components/schemas/AccountDefaultLLMKey'
               CONNECTION: '#/components/schemas/ConnectionLLMKey'
               ORCHESTRA: '#/components/schemas/OrchestraLLMKey'
+        allowedEnvironmentIds:
+          items:
+            type: string
+            format: uuid4
+          type: array
+          title: Allowedenvironmentids
+          description: Environments whose connections the agent may use, on top of
+            connections open to every environment. Empty means it may use only those
+            unrestricted connections.
         orchestraManaged:
           type: boolean
           title: Orchestramanaged
@@ -2622,6 +2670,7 @@ components:
       - description
       - gitEnabled
       - llmKeyType
+      - allowedEnvironmentIds
       - integrations
       - createdAt
       - createdBy
@@ -2708,6 +2757,15 @@ components:
               ACCOUNT_DEFAULT: '#/components/schemas/AccountDefaultLLMKey'
               CONNECTION: '#/components/schemas/ConnectionLLMKey'
               ORCHESTRA: '#/components/schemas/OrchestraLLMKey'
+        allowedEnvironmentIds:
+          items:
+            type: string
+            format: uuid4
+          type: array
+          title: Allowedenvironmentids
+          description: Environments whose connections the agent may use, on top of
+            connections open to every environment. Empty means it may use only those
+            unrestricted connections.
         orchestraManaged:
           type: boolean
           title: Orchestramanaged
@@ -2740,6 +2798,7 @@ components:
       - description
       - gitEnabled
       - llmKeyType
+      - allowedEnvironmentIds
       - createdAt
       - createdBy
       - updatedAt
@@ -2958,8 +3017,17 @@ components:
     ApiKey:
       type: http
       scheme: bearer
-      description: 'An API key from your workspace settings, passed as `Authorization:
-        Bearer <API_KEY>`. A read-only key works on endpoints that only read.'
+      description: 'A workspace API key, created in workspace settings, passed as
+        `Authorization: Bearer <API_KEY>`. A read-only key works on endpoints that
+        only read.'
+    UserApiKey:
+      type: http
+      scheme: bearer
+      description: 'A user API key, starting `orc_uat_`, passed as `Authorization:
+        Bearer <API_KEY>`. It acts as the user who created it, with that user''s own
+        permissions, in the one or more workspaces it was created for. A key covering
+        more than one workspace must name one with the `X-Orchestra-Account-Id` header.
+        A read-only key works on endpoints that only read.'
     OAuth:
       type: oauth2
       description: 'An access token issued to a user by Orchestra, passed as `Authorization:
@@ -2982,5 +3050,6 @@ tags:
   description: Conversations with an agent, and their messages.
 security:
 - ApiKey: []
+- UserApiKey: []
 - OAuth:
   - orchestra:read

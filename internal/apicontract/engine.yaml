@@ -207,6 +207,7 @@ paths:
           $ref: '#/components/responses/RateLimited'
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /assets:
@@ -466,6 +467,7 @@ paths:
           $ref: '#/components/responses/RateLimited'
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /assets/{asset_id}:
@@ -559,6 +561,7 @@ paths:
           $ref: '#/components/responses/RateLimited'
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
     patch:
@@ -615,6 +618,7 @@ paths:
           $ref: '#/components/responses/RateLimited'
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /audit_events:
@@ -697,8 +701,9 @@ paths:
           PIPELINE_IMPORTED, PIPELINE_PAUSED, PIPELINE_RUN_CANCELLED, PIPELINE_RUN_RESTARTED,
           PIPELINE_STARTED, PIPELINE_UPDATED, PRODUCT_CREATED, PRODUCT_DELETED, PRODUCT_UPDATED,
           SKILL_CREATED, SKILL_DELETED, SKILL_IMPORTED, SKILL_UPDATED, TASK_RUN_OUTPUT_SET,
-          USER_ADDED_TO_ACCOUNT, USER_ADDED_TO_GROUP, USER_CREATED, USER_DEACTIVATED,
-          USER_MIGRATED, USER_REACTIVATED, USER_REMOVED_FROM_GROUP, USER_UPDATED.'
+          USER_ADDED_TO_ACCOUNT, USER_ADDED_TO_GROUP, USER_API_KEY_CREATED, USER_API_KEY_DELETED,
+          USER_CREATED, USER_DEACTIVATED, USER_MIGRATED, USER_REACTIVATED, USER_REMOVED_FROM_GROUP,
+          USER_UPDATED.'
       - name: resource_type
         in: query
         required: false
@@ -868,6 +873,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /environments/{environment_id}:
@@ -963,6 +969,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
     delete:
@@ -1004,6 +1011,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /incident_settings:
@@ -1084,6 +1092,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /incidents:
@@ -1318,6 +1327,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /incidents/{incident_id}/events:
@@ -1494,6 +1504,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /incidents/{incident_id}/unmerge:
@@ -1548,6 +1559,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /incidents/{incident_id}/mute:
@@ -1595,6 +1607,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /incidents/{incident_id}/unmute:
@@ -1642,6 +1655,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /incidents/{incident_id}/comments:
@@ -1716,6 +1730,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /incidents/events:
@@ -1775,6 +1790,7 @@ paths:
               type: object
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /integrations/connections:
@@ -1994,6 +2010,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
     delete:
@@ -2045,6 +2062,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /integrations/{integration}/auth:
@@ -2139,6 +2157,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /integrations/:
@@ -2431,6 +2450,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /monitors/reorder:
@@ -2480,6 +2500,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /monitors/{monitor_id}:
@@ -2575,6 +2596,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
     delete:
@@ -2618,6 +2640,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /operations:
@@ -3064,6 +3087,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /pipeline:
@@ -3302,6 +3326,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
     put:
@@ -3347,6 +3372,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
     delete:
@@ -3416,6 +3442,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /pipelines/data:
@@ -3599,6 +3626,7 @@ paths:
               title: Body
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /pipelines/{pipeline_id_or_alias}/pause:
@@ -3655,6 +3683,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /pipelines/{pipeline_id_or_alias}/folder:
@@ -3711,6 +3740,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /pipelines/schema:
@@ -3754,6 +3784,7 @@ paths:
       security:
       - {}
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:read
       requestBody:
@@ -3827,6 +3858,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /pipelines/import:
@@ -3873,6 +3905,7 @@ paths:
       x-orchestra-mcp: true
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /sensor_checks/:
@@ -3978,6 +4011,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
   /pipeline_runs/{pipeline_run_id}/task_runs:
@@ -4304,6 +4338,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - ApiKey: []
+      - UserApiKey: []
       - OAuth:
         - orchestra:write
 components:
@@ -4893,6 +4928,14 @@ components:
             type: object
           - type: 'null'
           title: Inputs
+        inputSets:
+          anyOf:
+          - additionalProperties:
+              additionalProperties: true
+              type: object
+            type: object
+          - type: 'null'
+          title: Inputsets
         productId:
           anyOf:
           - type: string
@@ -5072,6 +5115,7 @@ components:
       - ANTHROPIC_CLAUDE_CHAT
       - APPROVAL
       - ARCH_SYNC_PIPELINE
+      - ASTRATO_FETCH_VISUALISATION_DATA
       - AWS_EC2_SSM_RUN_SCRIPT
       - AWS_ECS_RUN_TASK
       - AWS_EKS_RUN_JOB
@@ -5213,6 +5257,7 @@ components:
       - AIRBYTE_SERVER
       - AIRFLOW
       - ARCH
+      - ASTRATO
       - ALTERYX_SERVER
       - ANTHROPIC
       - AWS_EC2
@@ -5273,6 +5318,7 @@ components:
       - GCP_DATASTREAM
       - GCP_LOOKER
       - GKE
+      - GOOGLE_CHAT
       - GITHUB_ACTIONS
       - GITLAB
       - GOOGLE_CLOUD
@@ -5396,6 +5442,7 @@ components:
       enum:
       - EMAIL
       - DATADOG
+      - GOOGLE_CHAT
       - MICROSOFT_TEAMS
       - PAGER_DUTY
       - SLACK
@@ -5950,6 +5997,19 @@ components:
           description: Declared inputs that can be passed when triggering the pipeline.
             Reference in tasks using ${{ inputs.<name> }}. Non-optional inputs without
             defaults must appear in all trigger runInputs.
+        inputSets:
+          anyOf:
+          - patternProperties:
+              ^[A-Za-z0-9_-]+$:
+                additionalProperties: true
+                type: object
+            type: object
+          - type: 'null'
+          title: Inputsets
+          description: Named, partial sets of input values. A trigger names one with
+            input_set, and its values fill the inputs the run does not supply. Names
+            are letters, digits, underscores and hyphens, matched exactly, and no
+            two may differ only by case; keys must be declared inputs.
         meta:
           anyOf:
           - additionalProperties: true
@@ -6101,6 +6161,14 @@ components:
             type: object
           - type: 'null'
           title: Inputs
+        inputSets:
+          anyOf:
+          - additionalProperties:
+              additionalProperties: true
+              type: object
+            type: object
+          - type: 'null'
+          title: Inputsets
         productId:
           anyOf:
           - type: string
@@ -6262,6 +6330,19 @@ components:
           description: Declared inputs that can be passed when triggering the pipeline.
             Reference in tasks using ${{ inputs.<name> }}. Non-optional inputs without
             defaults must appear in all trigger runInputs.
+        inputSets:
+          anyOf:
+          - patternProperties:
+              ^[A-Za-z0-9_-]+$:
+                additionalProperties: true
+                type: object
+            type: object
+          - type: 'null'
+          title: Inputsets
+          description: Named, partial sets of input values. A trigger names one with
+            input_set, and its values fill the inputs the run does not supply. Names
+            are letters, digits, underscores and hyphens, matched exactly, and no
+            two may differ only by case; keys must be declared inputs.
         meta:
           anyOf:
           - additionalProperties: true
@@ -6479,6 +6560,13 @@ components:
             type: object
           - type: 'null'
           title: Runinputs
+        inputSet:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Inputset
+          description: Name of an entry in the pipeline's input_sets whose values
+            fill the inputs this run does not supply.
       additionalProperties: false
       type: object
       required:
@@ -6539,6 +6627,7 @@ components:
       - MONGODB_QUERY
       - MYSQL_QUERY
       - ORCHESTRA_PIPELINE_STATUS
+      - ORCHESTRA_TASK_STATUS
       - ORCHESTRA_WEBHOOK_EVENT
       - POSTGRES_QUERY
       - SNOWFLAKE_QUERY
@@ -6613,6 +6702,13 @@ components:
           - type: 'null'
           title: Runinputs
           description: Input values to pass when sensor triggers pipeline.
+        inputSet:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Inputset
+          description: Name of an entry in the pipeline's input_sets whose values
+            fill the inputs this run does not supply.
         alerts:
           anyOf:
           - items:
@@ -6976,6 +7072,13 @@ components:
           - type: 'null'
           title: Runinputs
           description: Input values to pass to the triggered pipeline run.
+        inputSet:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Inputset
+          description: Name of an entry in the pipeline's input_sets whose values
+            fill the inputs this run does not supply.
       additionalProperties: false
       type: object
       required:
@@ -7103,6 +7206,13 @@ components:
           description: Pipeline input values for runs triggered by webhook. Values
             can read the JSON body the webhook was sent with as ${{ outputs.payload
             }}.
+        inputSet:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Inputset
+          description: Name of an entry in the pipeline's input_sets whose values
+            fill the inputs this run does not supply.
       additionalProperties: false
       type: object
       title: WebhookModel
@@ -7311,6 +7421,12 @@ components:
           - type: string
           - type: 'null'
           title: Gitlink
+        inputSet:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Inputset
+          description: Name of the input set the run was started with, if any.
         data:
           anyOf:
           - $ref: '#/components/schemas/PipelineRunModel'
@@ -7528,6 +7644,7 @@ components:
             - compute_resource_id
             - private_connection_id
             - agent_id
+            - input_set
           - type: 'null'
           title: Format
         items:
@@ -7738,6 +7855,12 @@ components:
         isDefault:
           type: boolean
           title: Isdefault
+        allowedEnvironmentIds:
+          items:
+            type: string
+            format: uuid4
+          type: array
+          title: Allowedenvironmentids
         updatedAt:
           type: string
           title: Updatedat
@@ -7752,6 +7875,7 @@ components:
       - connectionId
       - connectionName
       - isDefault
+      - allowedEnvironmentIds
       - updatedAt
       - createdAt
       title: IntegrationConnectionMetadataResponse
@@ -9099,6 +9223,10 @@ components:
       title: TaskDurationBelowBaselineResponseData
     TemplatedConnectionID:
       type: string
+      pattern: ^(?:\$\{\{[^}]+\}\}|(?:[^\r\n\u0085\u2028\u2029]+_[0-9]{5})?(?![\s\S]))
+      description: 'Either the ID of a connection the account holds, such as `snowflake_prod_01234`:
+        a name, an underscore and five digits; or a `${{ env.NAME }}` expression that
+        resolves to one at run time.'
     OperationDurationAboveBaselineResponseData:
       properties:
         medianSeconds:
@@ -9371,6 +9499,8 @@ components:
       - TASK_RUN_OUTPUT_SET
       - USER_ADDED_TO_ACCOUNT
       - USER_ADDED_TO_GROUP
+      - USER_API_KEY_CREATED
+      - USER_API_KEY_DELETED
       - USER_CREATED
       - USER_DEACTIVATED
       - USER_MIGRATED
@@ -9432,6 +9562,12 @@ components:
           - type: string
           - type: 'null'
           title: Actoremail
+        credentialId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Credentialid
         sourceService:
           type: string
           title: Sourceservice
@@ -9756,6 +9892,11 @@ components:
           type: boolean
           title: Operationfailuresonly
           default: false
+        warningsEnabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Warningsenabled
       additionalProperties: false
       type: object
       title: MonitorMatch
@@ -10181,6 +10322,12 @@ components:
           - type: string
           - type: 'null'
           title: Externalmessage
+        allowedEnvironmentIds:
+          items:
+            type: string
+            format: uuid4
+          type: array
+          title: Allowedenvironmentids
         updatedAt:
           type: string
           title: Updatedat
@@ -10199,6 +10346,7 @@ components:
       - isDefault
       - authStatus
       - message
+      - allowedEnvironmentIds
       - updatedAt
       - createdAt
       - parameters
@@ -10248,8 +10396,17 @@ components:
     ApiKey:
       type: http
       scheme: bearer
-      description: 'An API key from your workspace settings, passed as `Authorization:
-        Bearer <API_KEY>`. A read-only key works on endpoints that only read.'
+      description: 'A workspace API key, created in workspace settings, passed as
+        `Authorization: Bearer <API_KEY>`. A read-only key works on endpoints that
+        only read.'
+    UserApiKey:
+      type: http
+      scheme: bearer
+      description: 'A user API key, starting `orc_uat_`, passed as `Authorization:
+        Bearer <API_KEY>`. It acts as the user who created it, with that user''s own
+        permissions, in the one or more workspaces it was created for. A key covering
+        more than one workspace must name one with the `X-Orchestra-Account-Id` header.
+        A read-only key works on endpoints that only read.'
     OAuth:
       type: oauth2
       description: 'An access token issued to a user by Orchestra, passed as `Authorization:
@@ -10281,6 +10438,7 @@ components:
       description: The pipeline start request timed out. Try again.
 security:
 - ApiKey: []
+- UserApiKey: []
 - OAuth:
   - orchestra:read
 servers:

@@ -8,9 +8,11 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -21,6 +23,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -33,6 +36,12 @@ import (
 // llmKeyTypes are the discriminator values of the spec's llmKeyType union
 // (AccountDefaultLLMKey, OrchestraLLMKey, ConnectionLLMKey). They are `const`
 // properties rather than an enum schema, so internal/enums has no list.
+// uuidPattern matches an environment ID; the spec types them `uuid4`.
+var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+// connectionIDPattern is the spec's ConnectionID pattern, which the API enforces; checking it here moves the error to plan.
+var connectionIDPattern = regexp.MustCompile(`^[^\r\n\x{85}\x{2028}\x{2029}]+_[0-9]{5}$`)
+
 var llmKeyTypes = []string{"ACCOUNT_DEFAULT", "ORCHESTRA", "CONNECTION"}
 
 var llmKeyAttrTypes = map[string]attr.Type{
@@ -67,6 +76,7 @@ type agentModel struct {
 	LLMKey         types.Object `tfsdk:"llm_key"`
 	SkillIds       types.Set    `tfsdk:"skill_ids"`
 	Integrations   types.Set    `tfsdk:"integrations"`
+	AllowedEnvIds  types.Set    `tfsdk:"allowed_environment_ids"`
 }
 
 // wireAgent is the part of components.schemas.PublicAgentResponse the resource reads.
@@ -83,6 +93,8 @@ type wireAgent struct {
 	DefaultEffort  *string     `json:"defaultEffort"`
 	GitEnabled     bool        `json:"gitEnabled"`
 	LLMKeyType     *wireLLMKey `json:"llmKeyType"`
+	// Always present on a response, so no pointer: absent means none allowed.
+	AllowedEnvironmentIDs []string `json:"allowedEnvironmentIds"`
 }
 
 // wireLLMKey flattens the oneOf of the three LLM key models, discriminated by
@@ -198,9 +210,22 @@ func (r *AgentResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 						MarkdownDescription: "`ACCOUNT_DEFAULT` follows the workspace's choice, `ORCHESTRA` uses Orchestra's key, and `CONNECTION` one of the workspace's own connections, named by `integration` and `connection_id`.",
 						Validators:          []validator.String{stringvalidator.OneOf(llmKeyTypes...)},
 					},
-					"integration":   schema.StringAttribute{Optional: true, Description: "For CONNECTION: the connection's integration, such as ANTHROPIC."},
-					"connection_id": schema.StringAttribute{Optional: true, Description: "For CONNECTION: the connection's ID."},
+					"integration": schema.StringAttribute{Optional: true, Description: "For CONNECTION: the connection's integration, such as ANTHROPIC."},
+					"connection_id": schema.StringAttribute{
+						Optional:    true,
+						Description: "For CONNECTION: the connection's ID, such as snowflake_prod_01234: a name, an underscore and five digits.",
+						Validators:  []validator.String{stringvalidator.RegexMatches(connectionIDPattern, "must be a name, an underscore and five digits, such as anthropic_prod_01234")},
+					},
 				},
+			},
+			"allowed_environment_ids": schema.SetAttribute{
+				ElementType: types.StringType,
+				Optional:    true,
+				Computed:    true,
+				Default:     setdefault.StaticValue(types.SetValueMust(types.StringType, nil)),
+				Description: "IDs of the environments whose connections the agent may use, on top of connections open to every environment. " +
+					"Empty means it may use only those unrestricted connections. Integrations attached to the agent that are limited to other environments are refused.",
+				Validators: []validator.Set{setvalidator.ValueStringsAre(stringvalidator.RegexMatches(uuidPattern, "must be an environment ID (a UUID)"))},
 			},
 			"skill_ids": setOfStrings("Skills the agent can use. Unset leaves them as they are.",
 				"Skills the agent can use, by ID: `orchestra_skill.<name>.id`, or a built-in one from the `orchestra_skills` data source. Unset leaves them as they are."),
@@ -330,6 +355,14 @@ func agentBody(ctx context.Context, m agentModel, config tfsdk.Config, diags *di
 	diags.Append(secrets.ElementsAs(ctx, &values, false)...)
 	body["secrets"] = values
 
+	// Sent every time: on a PATCH an omitted list is left alone, but Terraform's
+	// plan is the whole truth, so an emptied set must clear it.
+	allowed := []string{}
+	if !m.AllowedEnvIds.IsNull() && !m.AllowedEnvIds.IsUnknown() {
+		diags.Append(m.AllowedEnvIds.ElementsAs(ctx, &allowed, false)...)
+	}
+	body["allowedEnvironmentIds"] = allowed
+
 	if !m.LLMKey.IsNull() && !m.LLMKey.IsUnknown() {
 		a := m.LLMKey.Attributes()
 		key := wireLLMKey{Type: a["type"].(types.String).ValueString()}
@@ -445,6 +478,7 @@ func apply(m *agentModel, api wireAgent, diags *diag.Diagnostics) {
 	})
 	diags.Append(d...)
 	m.LLMKey = obj
+	m.AllowedEnvIds = stringSet(api.AllowedEnvironmentIDs, diags)
 }
 
 func stringSet(values []string, diags *diag.Diagnostics) types.Set {

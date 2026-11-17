@@ -113,10 +113,17 @@ engine:
       Settable through the API, but not yet modelled by the provider. Each one
       wants an attribute rather than a longer list. validationParams runs an
       extra check of a connection's credentials; it needs a decision on whether
-      the API stores it.
+      the API stores it. allowedEnvironmentIds restricts a connection to
+      pipelines in the listed environments (empty means all); modelling it
+      wants a set of environment IDs, and the API needs environment edit
+      permission on every environment whose access changes. Both bodies are
+      create or partial-update, so leaving it out resets nothing: a POST
+      defaults it to all environments and a PATCH that omits it leaves it alone.
     properties:
       - "IntegrationAuthRequest.validationParams"
       - "PartialIntegrationAuthRequest.validationParams"
+      - "IntegrationAuthRequest.allowedEnvironmentIds"
+      - "PartialIntegrationAuthRequest.allowedEnvironmentIds"
 
   assets:
     reason: >-

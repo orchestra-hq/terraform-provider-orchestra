@@ -1926,10 +1926,13 @@ paths:
       tags:
       - Integration Connections
       summary: Update an integration connection
-      description: 'Update one of `connectionName`, `isDefault: true`, or `parameters`
-        with `credentialStore` on an integration connection. `parameters` follow the
-        integration''s `authSchema` and re-authenticate the connection; send obfuscated
-        secrets back unchanged to keep them. OAuth integrations return a `redirectUrl`
+      description: 'Update one of `connectionName`, `isDefault: true`, `allowedEnvironmentIds`,
+        or `parameters` with `credentialStore` on an integration connection. `parameters`
+        follow the integration''s `authSchema` and re-authenticate the connection;
+        send obfuscated secrets back unchanged to keep them. `allowedEnvironmentIds`
+        replaces the environments whose pipelines may use the connection, an empty
+        list allowing every environment, and needs environment edit permission on
+        every environment whose access changes. OAuth integrations return a `redirectUrl`
         instead.'
       parameters:
       - name: integration
@@ -2072,8 +2075,11 @@ paths:
       summary: Create an integration connection
       description: Create a connection for an integration in the caller's workspace.
         `parameters` must match the integration's `authSchema`, as returned by Get
-        an integration. Secret parameters are obfuscated in the response. OAuth integrations
-        return a `redirectUrl` instead and need a user's credential.
+        an integration. `allowedEnvironmentIds` restricts the connection to pipelines
+        in those environments, and needs environment edit permission on every environment
+        left out; omit it to allow every environment. Secret parameters are obfuscated
+        in the response. OAuth integrations return a `redirectUrl` instead and need
+        a user's credential.
       parameters:
       - name: integration
         in: path
@@ -5132,6 +5138,7 @@ components:
       - AWS_SAGEMAKER_TRAIN_MODEL
       - AWS_SES_SEND_EMAIL
       - AWS_STEP_FUNCTIONS_START_EXECUTION
+      - AZURE_FUNCTIONS_RUN_FUNCTION
       - AZURE_LOGIC_APPS_RUN_WORKFLOW
       - AZURE_VM_RUN_COMMAND
       - BAUPLAN_DATA_QUALITY_TEST
@@ -5272,6 +5279,7 @@ components:
       - AWS_S3
       - AWS_BATCH
       - AWS_BEDROCK
+      - AWS_CLOUDWATCH_LOGS
       - AWS_SAGEMAKER
       - AWS_SECRETS_MANAGER
       - AWS_SES
@@ -5280,6 +5288,7 @@ components:
       - AZURE_CONTAINER_APPS
       - AZURE_DATA_FACTORY
       - AZURE_DATA_LAKE_STORAGE
+      - AZURE_FUNCTIONS
       - AZURE_KEY_VAULT
       - AZURE_KUBERNETES_SERVICE
       - AZURE_LOGIC_APPS
@@ -7691,6 +7700,14 @@ components:
           - type: boolean
           - type: 'null'
           title: Allow File Upload
+        allowed_file_extensions:
+          anyOf:
+          - items:
+              type: string
+              pattern: ^\.\w+$
+            type: array
+          - type: 'null'
+          title: Allowed File Extensions
         allow_variables:
           anyOf:
           - type: boolean
@@ -8236,6 +8253,19 @@ components:
           type: boolean
           title: Allowunpublishedpipelines
           default: true
+        allowedInputSets:
+          items:
+            type: string
+          type: array
+          title: Allowedinputsets
+          default: []
+        preselectedInputSet:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Preselectedinputset
+          description: Input set preselected in the run modal when this environment
+            is chosen. Never applied by the engine.
         values:
           additionalProperties:
             $ref: '#/components/schemas/EnvironmentValueType'
@@ -8306,6 +8336,19 @@ components:
           type: boolean
           title: Allowunpublishedpipelines
           default: true
+        allowedInputSets:
+          items:
+            type: string
+          type: array
+          title: Allowedinputsets
+          default: []
+        preselectedInputSet:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Preselectedinputset
+          description: Input set preselected in the run modal when this environment
+            is chosen. Never applied by the engine.
       additionalProperties: false
       type: object
       required:
@@ -10216,6 +10259,15 @@ components:
           - type: string
           - type: 'null'
           title: Callbackpath
+        allowedEnvironmentIds:
+          items:
+            type: string
+            format: uuid4
+          type: array
+          title: Allowedenvironmentids
+          description: Environments whose pipelines may use the connection. Empty
+            means every environment.
+          default: []
       additionalProperties: false
       type: object
       required:
@@ -10278,6 +10330,16 @@ components:
           - type: string
           - type: 'null'
           title: Callbackpath
+        allowedEnvironmentIds:
+          anyOf:
+          - items:
+              type: string
+              format: uuid4
+            type: array
+          - type: 'null'
+          title: Allowedenvironmentids
+          description: Environments whose pipelines may use the connection. Empty
+            means every environment.
         isDefault:
           anyOf:
           - type: boolean

@@ -1,0 +1,60 @@
+name: CI (Fork acceptance tests)
+
+# A fork's pull_request run gets no secrets, so test.yml skips acceptance tests
+# for forks. pull_request_target runs with secrets but executes the fork's code,
+# so each run waits for a maintainer to approve it on the acceptance
+# environment. Read the diff before approving: the live key is exposed to it.
+on:
+  pull_request_target:
+
+permissions:
+  contents: read
+
+jobs:
+  # Approval sits on its own job so a run waiting for review does not hold a
+  # place in the acceptance-workspace concurrency group, where it would
+  # displace a waiting run from test.yml.
+  approve:
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    environment: acceptance
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Approved ${{ github.event.pull_request.head.sha }}"
+
+  acceptance:
+    needs: approve
+    runs-on: ubuntu-latest
+    # Shares test.yml's group: both use the same live workspace.
+    concurrency:
+      group: acceptance-workspace
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.1.0
+        with:
+          # The commit under review, not the base branch pull_request_target defaults to.
+          # A later push starts a new run that needs approving again.
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v6.5.0
+        with:
+          go-version-file: go.mod
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: "1.14.3"
+          terraform_wrapper: false
+
+      - name: Run acceptance tests
+        env:
+          TF_ACC: "1"
+          ORCHESTRA_API_KEY: ${{ secrets.ORCHESTRA_API_KEY }}
+        run: |
+          if [ -z "${ORCHESTRA_API_KEY}" ]; then
+            echo "ORCHESTRA_API_KEY is not set; skipping acceptance tests."
+            exit 0
+          fi
+          go test ./... -run '^TestAcc' -v -timeout 30m

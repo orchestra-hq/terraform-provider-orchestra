@@ -61,10 +61,11 @@ signs:
 
 release:
   # Published, not draft: the registry ignores draft releases.
-  header: "See the [CHANGELOG](https://github.com/orchestra-hq/terraform-provider-orchestra/blob/{{ .Tag }}/CHANGELOG.md) for what changed."
+  header: "Merged PRs since the previous release. Minor and major releases are summarised in the [CHANGELOG](https://github.com/orchestra-hq/terraform-provider-orchestra/blob/{{ .Tag }}/CHANGELOG.md)."
   extra_files:
     - glob: "terraform-registry-manifest.json"
       name_template: "{{ .ProjectName }}_{{ .Version }}_manifest.json"
 
+# The merged PRs since the previous tag, which is what weekly patch releases need.
 changelog:
-  disable: true
+  use: github-native

@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.1.0
+This file covers minor and major releases. Weekly patch releases list their merged PRs on
+[GitHub Releases](https://github.com/orchestra-hq/terraform-provider-orchestra/releases).
+
+## 1.0.1
+
+- Refreshed the Engine and Agents API specs.
+- Added an overview page for the provider on the Terraform Registry.
+
+## 1.0.0
 
 First release of the Orchestra provider, published as `orchestra-hq/orchestra`.
 

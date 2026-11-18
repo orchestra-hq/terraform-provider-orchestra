@@ -847,6 +847,65 @@ func TestPipelineSchemaRejectionSurfacesAtPlan(t *testing.T) {
 	}
 }
 
+// A connection created in the same apply is unknown at plan time. Checking the
+// definition without it would warn that the task has no connection.
+func TestPipelineSchemaSkippedWhileDefinitionHasUnknowns(t *testing.T) {
+	ctx := context.Background()
+	s := &stub{}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/pipelines/schema", func(w http.ResponseWriter, r *http.Request) {
+		s.record(r)
+		http.Error(w, `{"detail":"task 'ingest' has no connection"}`, http.StatusUnprocessableEntity)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	server, schemaResp := newServer(t, srv.URL)
+	objType := schemaResp.ResourceSchemas["orchestra_pipeline"].ValueType().(tftypes.Object)
+
+	config := buildValue(t, objType, map[string]any{
+		"alias":     "daily_sales",
+		"published": true,
+		"data": map[string]any{
+			"name": "Daily sales",
+			"tasks": map[string]any{
+				"ingest": map[string]any{
+					"integration":     "FIVETRAN",
+					"integration_job": "FIVETRAN_SYNC_ALL",
+					"parameters":      `{}`,
+					"connection":      unknown,
+				},
+			},
+		},
+	})
+	configDV, err := tfprotov6.NewDynamicValue(objType, config)
+	if err != nil {
+		t.Fatalf("config: %v", err)
+	}
+	nullDV, err := tfprotov6.NewDynamicValue(objType, tftypes.NewValue(objType, nil))
+	if err != nil {
+		t.Fatalf("null: %v", err)
+	}
+
+	planResp, err := server.PlanResourceChange(ctx, &tfprotov6.PlanResourceChangeRequest{
+		TypeName:         "orchestra_pipeline",
+		PriorState:       &nullDV,
+		ProposedNewState: &configDV,
+		Config:           &configDV,
+	})
+	if err != nil {
+		t.Fatalf("PlanResourceChange: %v", err)
+	}
+
+	if s.find(http.MethodPost, "/pipelines/schema") != nil {
+		t.Errorf("checked a definition whose connection is not known yet")
+	}
+	for _, d := range planResp.Diagnostics {
+		t.Errorf("unexpected diagnostic: %s: %s", d.Summary, d.Detail)
+	}
+}
+
 func TestPipelineSchemaRateLimitIsIgnored(t *testing.T) {
 	ctx := context.Background()
 

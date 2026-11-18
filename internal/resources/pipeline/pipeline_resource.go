@@ -317,6 +317,9 @@ func (r *PipelineResource) ValidateConfig(ctx context.Context, req resource.Vali
 // ModifyPlan checks the definition against POST /pipelines/schema, so an
 // invalid pipeline is reported at plan time rather than failing the apply.
 //
+// A definition holding values unknown until apply is not checked; the apply
+// validates it with the real values.
+//
 // Findings are warnings, not errors. That endpoint also validates
 // account-specific references when a credential is supplied, so a definition
 // naming an environment created in the same apply would otherwise fail a plan
@@ -358,6 +361,14 @@ func (r *PipelineResource) ModifyPlan(ctx context.Context, req resource.ModifyPl
 
 	if r.client == nil {
 		// No client during early validation.
+		return
+	}
+
+	// Encoding drops unknown values, so a connection or environment created in
+	// the same apply would be sent as missing and draw a false warning.
+	if data, _, err := tftypes.WalkAttributePath(req.Plan.Raw, tftypes.NewAttributePath().WithAttributeName("data")); err != nil {
+		return
+	} else if v, ok := data.(tftypes.Value); !ok || !v.IsFullyKnown() {
 		return
 	}
 
